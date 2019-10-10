@@ -1,0 +1,2 @@
+# AST
+Automatic Stock Trader
