@@ -1,0 +1,1 @@
+@sendcmd ASTLoader exit
