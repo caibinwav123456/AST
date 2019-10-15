@@ -9,10 +9,6 @@ typedef unsigned char uchar;
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
-#include "ASTError.h"
-#include "cmd_struct.h"
-#include "defines.h"
-#include "sys.h"
 #ifdef WIN32
 #pragma warning(disable:4996)
 #ifndef DLL_IMPORT
@@ -29,4 +25,8 @@ typedef unsigned long dword;
 #define main_entry main
 #define main_args int argc, char** argv
 #endif
+#include "ASTError.h"
+#include "cmd_struct.h"
+#include "defines.h"
+#include "sys.h"
 #endif

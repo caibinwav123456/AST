@@ -69,11 +69,7 @@ int request_cmd(uint cmd)
 	switch(cmd)
 	{
 	case CMD_EXIT:
-		if(0!=(ret=send_cmd_exit(NULL,const_cast<char*>(if_id.c_str()),const_cast<char*>(user.c_str()))))
-		{
-			printf("command failed.\n");
-		}
-		return ret;
+		return send_cmd_exit(NULL, const_cast<char*>(if_id.c_str()), const_cast<char*>(user.c_str()));
 	}
 	return ERR_GENERIC;
 }
@@ -103,7 +99,10 @@ int main(int argc, char** argv)
 	{
 		if(cmdstr[i]==if_cmd)
 		{
-			ret=request_cmd(cmdcode[i]);
+			if(0!=(ret=request_cmd(cmdcode[i])))
+				printf("Command failed.\nError code: %d, %s\n",ret,get_error_desc(ret));
+			else
+				printf("Command success.\n");
 			goto end;
 		}
 	}

@@ -82,6 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\common\ASTError.cpp" />
     <ClCompile Include="..\..\..\common\common_request.cpp" />
     <ClCompile Include="..\..\..\common\config.cpp" />
     <ClCompile Include="..\..\..\common\config_val.cpp" />
