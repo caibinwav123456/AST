@@ -240,7 +240,7 @@ int sys_wait_thread(void* hthread, uint time)
 {
 	if(time==0)
 		time=INFINITE;
-	if(WAIT_TIMEOUT==WaitForSingleObject(hthread, INFINITE))
+	if(WAIT_TIMEOUT==WaitForSingleObject(hthread, time))
 		return ERR_TIMEOUT;
 	return 0;
 }
