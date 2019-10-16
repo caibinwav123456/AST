@@ -202,8 +202,10 @@ struct thread_data
 unsigned int WINAPI ThreadProc(void* param)
 {
 	thread_data* data=(thread_data*)param;
-	int ret = data->cb(data->param);
+	int (*cb)(void*)=data->cb;
+	void* p=data->param;
 	delete data;
+	int ret = cb(p);
 	return (unsigned int)ret;
 }
 void* sys_create_thread(int (*cb)(void*), void* param)
