@@ -37,9 +37,12 @@ int LogSys::Log(const char*const* lognames,const char* file,int line,const strin
 	int ret=0;
 	CDateTime ctime;
 	ctime.InitWithCurrentDateTime();
+	ctime.Format(str,FORMAT_DATE|FORMAT_TIME);
+	sprintf(buf,"[%s][%s] file:%s line:%d %s\n",str.c_str(),get_current_executable_name(),file,line,logmsg.c_str());
+	string msg(buf);
+	ctime.Format(str,FORMAT_DATE,"-");
 	for(const char*const* p=lognames;*p!=NULL;p++)
 	{
-		ctime.Format(str,FORMAT_DATE,"-");
 		sprintf(buf,"log_%s_%s.log",*p,str.c_str());
 		string fulllogpath;
 		concat_path(full_sys_log_path,string(buf),fulllogpath);
@@ -50,11 +53,9 @@ int LogSys::Log(const char*const* lognames,const char* file,int line,const strin
 			ret=ERR_FILE_IO;
 			goto final;
 		}
-		ctime.Format(str,FORMAT_DATE|FORMAT_TIME);
-		sprintf(buf,"[%s][%s] file:%s line:%d %s\n",str.c_str(),get_current_executable_name(),file,line,logmsg.c_str());
 		if(0!=(ret=sys_fseek(hfile,0,NULL,SEEK_END)))
 			goto final1;
-		if(0!=(ret=sys_fwrite(hfile,buf,strlen(buf))))
+		if(0!=(ret=sys_fwrite(hfile,(char*)msg.c_str(),msg.size())))
 			goto final1;
 final1:
 		sys_fclose(hfile);
