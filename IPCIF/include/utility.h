@@ -40,12 +40,14 @@ struct if_ids
 struct process_stat
 {
 	char file[FILE_NAME_SIZE];
+	char cmdline[FILE_NAME_SIZE];
 	void* id;
 	int unique_instance;
 	int local_cur_dir;
 	int is_launcher;
 	int is_manager;
 	int is_managed;
+	int ambiguous;
 	main_process_info* main_info;
 	if_ids* ifs;
 };

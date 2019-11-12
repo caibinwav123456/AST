@@ -82,6 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\arch\win\arch.cpp" />
     <ClCompile Include="..\..\..\common\ASTError.cpp" />
     <ClCompile Include="..\..\..\common\common_request.cpp" />
     <ClCompile Include="..\..\..\common\config.cpp" />
@@ -92,6 +93,7 @@
     <ClCompile Include="..\..\..\common\utility.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\include\arch.h" />
     <ClInclude Include="..\..\..\..\include\ASTError.h" />
     <ClInclude Include="..\..\..\..\include\cmd_struct.h" />
     <ClInclude Include="..\..\..\..\include\common.h" />

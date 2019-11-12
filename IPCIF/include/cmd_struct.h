@@ -9,6 +9,7 @@ enum if_cmd_code
 	CMD_CLEAR,
 	CMD_CLEAR_ALL,
 	CMD_SUSPEND,
+	CMD_GETID,
 	CMD_STATUS,
 };
 
@@ -42,6 +43,17 @@ struct dg_suspend
 {
 	datagram_base header;
 	dgc_suspend susp;
+};
+
+struct dgc_getid
+{
+	uint id;
+};
+
+struct dg_getid
+{
+	datagram_base header;
+	dgc_getid retid;
 };
 
 #pragma pack(pop)

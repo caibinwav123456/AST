@@ -17,6 +17,7 @@ DLLAPI(int) send_cmd_exit(void* hif, char* id=NULL, char* user=NULL);
 DLLAPI(int) send_cmd_clear(void* pid, void* hif, char* id=NULL, char* user=NULL);
 DLLAPI(int) send_cmd_clear_all(void* hif, char* id=NULL, char* user=NULL);
 DLLAPI(int) send_cmd_suspend(int bsusp, void* hif, char* id=NULL, char* user=NULL);
+DLLAPI(int) send_cmd_getid(uint* pid, void* hif, char* id=NULL, char* user=NULL);
 #ifdef __cplusplus
 }
 #endif

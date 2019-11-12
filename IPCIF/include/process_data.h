@@ -15,7 +15,9 @@ struct proc_data
 	void* hproc;
 	void* hthrd_shelter;
 	string name;
+	string cmdline;
 	void* id;
+	bool ambiguous;
 	vector<if_proc> ifproc;
 };
 #endif

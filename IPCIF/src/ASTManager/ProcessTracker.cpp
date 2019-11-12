@@ -1,6 +1,7 @@
 #include "ProcessTracker.h"
 #include "utility.h"
 #include "common_request.h"
+#include "arch.h"
 #include <algorithm>
 #include <assert.h>
 
@@ -38,7 +39,9 @@ inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& ps
 		return false;
 	proc_data data;
 	data.name=pstat.file;
+	data.cmdline=pstat.cmdline;
 	data.id=pstat.id;
+	data.ambiguous=pstat.ambiguous;
 	data.hproc = NULL;
 	data.hthrd_shelter = NULL;
 	for(int i=0;i<pstat.ifs->count;i++)
@@ -84,7 +87,13 @@ int process_tracker::init()
 		vs[i].semout=sys_create_sem(0,1,NULL);
 		if((!VALID(vs[i].semin))||(!VALID(vs[i].semout)))
 			goto fail;
-		pdata[i].hproc=sys_get_process((char*)pdata[i].name.c_str());
+		if(pdata[i].ambiguous)
+		{
+			//Need not lock since we blocked shelter threads here.
+			pdata[i].hproc=arch_get_process(pdata[i]);
+		}
+		else
+			pdata[i].hproc=sys_get_process((char*)pdata[i].name.c_str());
 		pt_param* param=new pt_param(&vs[i],this,i);
 		pdata[i].hthrd_shelter=sys_create_thread(threadfunc,param);
 		if(!VALID(pdata[i].hthrd_shelter))
@@ -173,9 +182,17 @@ int process_tracker::threadfunc(void* param)
 	while(true)
 	{
 		if(!VALID(data.hproc))
-			data.hproc=sys_get_process((char*)data.name.c_str());
+		{
+			if(data.ambiguous)
+			{
+				lock_track();
+				data.hproc=arch_get_process(data);
+			}
+			else
+				data.hproc=sys_get_process((char*)data.name.c_str());
+		}
 		if(!VALID(data.hproc))
-			data.hproc=sys_create_process((char*)data.name.c_str());
+			data.hproc=sys_create_process((char*)(data.cmdline.empty()?data.name:data.cmdline).c_str());
 		if(VALID(data.hproc))
 		{
 			bool conn_failed;

@@ -149,17 +149,20 @@ process_identifier::process_identifier()
 inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& config)
 {
 	uint id;
+	string cmdline;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_ID,id))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	pstat->id=(void*)id;
 	if(!VALID(pstat->id))
 		return ERR_EXEC_INFO_NOT_VALID;
-	bool uniq,ld,launcher=false,manager=false,managed=false;
+	bool uniq,ld,launcher=false,manager=false,managed=false,ambiguous=false;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_UNIQUE,uniq))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	pstat->unique_instance=(uniq?1:0);
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_LDIR,ld))
 		return ERR_EXEC_INFO_NOT_FOUND;
+	if(config.GetCongfigItem(exec,CFG_TAG_EXEC_CMDLINE,cmdline))
+		strcpy(pstat->cmdline,cmdline.c_str());
 	pstat->local_cur_dir=ld?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_LAUNCHER,launcher);
 	pstat->is_launcher=launcher?1:0;
@@ -167,6 +170,8 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->is_manager=manager?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_MANAGED,managed);
 	pstat->is_managed=managed?1:0;
+	config.GetCongfigItem(exec,CFG_TAG_EXEC_AMBIG,ambiguous);
+	pstat->ambiguous=ambiguous?1:0;
 	if(pstat->ifs!=NULL)
 	{
 		char buf[21];

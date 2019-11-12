@@ -144,3 +144,26 @@ end:
 		close_if(h);
 	return ret;
 }
+DLLAPI(int) send_cmd_getid(uint* pid, void* hif, char* id, char* user)
+{
+	int ret=0;
+	void* h=hif;
+	if(0!=(ret=__tmp_connect_if__(id, user, sizeof(dg_getid), &h)))
+		return ret;
+	dg_getid dg;
+	init_current_datagram_base(&dg.header,CMD_GETID);
+	dg.retid.id=0;
+	datagram_param p;
+	p.dg=&dg;
+	p.copyto=sizeof(dg_getid);
+	p.copyfrom=sizeof(dg_getid);
+	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p)))
+		goto end;
+	ret=dg.header.ret;
+	if(ret==0)
+		*pid=dg.retid.id;
+end:
+	if(hif==NULL)
+		close_if(h);
+	return ret;
+}
