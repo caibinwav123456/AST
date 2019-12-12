@@ -1,6 +1,8 @@
 #include "common.h"
 #include "sysfs_struct.h"
+#include "import.h"
 #include "interface.h"
+#include "export.h"
 #include "config_val_extern.h"
 #include "utility.h"
 DEFINE_UINT_VAL(use_storage_level,0);
@@ -193,8 +195,8 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 			flags&=~cause;
 		flag=flags;
 		sys_signal_sem(flag_protect);
-		if((bsusp&&(flag&~FC_MASK)==FC_MASK)
-			||(!bsusp&&(flag&~FC_MASK)!=0))
+		if((bsusp&&(flag&FC_MASK)==FC_MASK)
+			||(!bsusp&&(flag&FC_MASK)!=0))
 			return 0;
 	}
 	if(bsusp)
@@ -379,8 +381,4 @@ int SysFs::EnumStorageModule(vector<proc_data>* pdata)
 		return ERR_MODULE_NOT_FOUND;
 	}
 	return 0;
-}
-DLLAPI(int) fsc_init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* resolver)
-{
-	return g_sysfs.Init(numbuf,buflen,pblk,resolver);
 }
