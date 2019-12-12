@@ -214,6 +214,12 @@ inline int make_inner_dir(char* path)
 		return ERR_FILE_IO;
 	return 0;
 }
+inline void normalize_path(char* buf)
+{
+	char* ptr=strrchr(buf,'\\');
+	if(ptr!=NULL&&ptr==buf+strlen(buf)-1)
+		*ptr=0;
+}
 int sys_mkdir(char* path)
 {
 	char tmp[1024];
@@ -224,13 +230,13 @@ int sys_mkdir(char* path)
 	ptr=strrchr(tmp,'\\');
 	if(ptr!=NULL&&ptr!=tmp+strlen(tmp)-1)
 	{
-			*ptr=0;
-			if(PathFileExistsA(tmp))
-			{
-				*ptr='\\';
-				return make_inner_dir(tmp);
-			}
+		*ptr=0;
+		if(PathFileExistsA(tmp))
+		{
 			*ptr='\\';
+			return make_inner_dir(tmp);
+		}
+		*ptr='\\';
 	}
 	for(ptr=tmp;*ptr!=0;ptr++)
 	{

@@ -5,15 +5,6 @@
 #include "mutex.h"
 #include "process_data.h"
 #define lock_track() mlock tlock(process_tracker::get_mutex())
-struct if_control_block
-{
-	cmutex& m;
-	vector<proc_data>& pdata;
-	bool& quit;
-	if_control_block(cmutex& _m,vector<proc_data>& p,bool& q):m(_m),pdata(p),quit(q)
-	{
-	}
-};
 class process_tracker
 {
 public:

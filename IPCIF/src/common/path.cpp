@@ -1,5 +1,6 @@
 #include "common.h"
 #include "path.h"
+#include "dir_symbol.h"
 void split_path(const string& path, vector<string>& split)
 {
 	int pos=0;

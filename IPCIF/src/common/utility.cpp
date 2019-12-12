@@ -3,6 +3,7 @@
 #include "config.h"
 #include "config_val.h"
 #include "syslog.h"
+#include "dir_symbol.h"
 #include <stdarg.h>
 DEFINE_UINT_VAL(sys_log_level,0);
 DEFINE_STRING_VAL(if_user,"");

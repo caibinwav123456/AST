@@ -4,5 +4,6 @@
 #include <windows.h>
 #include <tchar.h>
 #pragma warning(disable:4996)
+#pragma warning(disable:4251)
 #endif
 #endif

@@ -74,7 +74,7 @@ int connect_mgr(void** handle)
 	}
 	LOGFILE(0,log_ftype_error,"Connecting to interface %s failed, exitting...",init.id);
 	sys_show_message("Connect to ASTManager failed");
-	return ERR_GENERIC;
+	return ERR_IF_CONN_FAILED;
 }
 int main_entry(main_args)
 {

@@ -11,9 +11,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{8F6585AA-B83F-4DD3-8FEC-8FFE93B23AEF}</ProjectGuid>
+    <ProjectGuid>{0BC83078-5136-4AD6-932D-EC55D9B0C91F}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>common</RootNamespace>
+    <RootNamespace>fsdrv</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -38,10 +38,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)..\..\..\bin\$(Configuration)\</OutDir>
+    <IncludePath>$(SolutionDir)..\..\..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\..\..\lib\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)..\..\..\bin\$(Configuration)\</OutDir>
+    <IncludePath>$(SolutionDir)..\..\..\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)..\..\..\lib\$(Configuration);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -49,14 +55,12 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>USE_BACKSLASH;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;FSDRV_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>syswin.lib;interface.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;syswin.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImportLibrary>$(SolutionDir)..\..\..\lib\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
@@ -68,47 +72,19 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>USE_BACKSLASH;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;FSDRV_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>syswin.lib;interface.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>common.lib;syswin.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImportLibrary>$(SolutionDir)..\..\..\lib\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\arch\win\arch.cpp" />
-    <ClCompile Include="..\..\..\common\ASTError.cpp" />
-    <ClCompile Include="..\..\..\common\common_request.cpp" />
-    <ClCompile Include="..\..\..\common\config.cpp" />
-    <ClCompile Include="..\..\..\common\config_val.cpp" />
-    <ClCompile Include="..\..\..\common\datetime.cpp" />
-    <ClCompile Include="..\..\..\common\path.cpp" />
-    <ClCompile Include="..\..\..\common\request_resolver.cpp" />
-    <ClCompile Include="..\..\..\common\syslog.cpp" />
-    <ClCompile Include="..\..\..\common\utility.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\..\..\..\include\arch.h" />
-    <ClInclude Include="..\..\..\..\include\ASTError.h" />
-    <ClInclude Include="..\..\..\..\include\cmd_struct.h" />
-    <ClInclude Include="..\..\..\..\include\common.h" />
-    <ClInclude Include="..\..\..\..\include\common_request.h" />
-    <ClInclude Include="..\..\..\..\include\config_val_extern.h" />
-    <ClInclude Include="..\..\..\..\include\datetime.h" />
-    <ClInclude Include="..\..\..\..\include\mutex.h" />
-    <ClInclude Include="..\..\..\..\include\path.h" />
-    <ClInclude Include="..\..\..\..\include\request_resolver.h" />
-    <ClInclude Include="..\..\..\..\include\utility.h" />
-    <ClInclude Include="..\..\..\common\config.h" />
-    <ClInclude Include="..\..\..\common\config_val.h" />
-    <ClInclude Include="..\..\..\common\dir_symbol.h" />
-    <ClInclude Include="..\..\..\common\syslog.h" />
+    <ClCompile Include="..\..\..\fsdrv\fsdrv.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

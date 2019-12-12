@@ -30,7 +30,7 @@ struct pt_param
 		i=index;
 	}
 };
-process_tracker::process_tracker():quit(false),cblk(if_mutex,pdata,quit)
+process_tracker::process_tracker():quit(false),cblk(if_mutex,pdata)
 {
 }
 inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
@@ -41,16 +41,18 @@ inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& ps
 	data.name=pstat.file;
 	data.cmdline=pstat.cmdline;
 	data.id=pstat.id;
-	data.ambiguous=pstat.ambiguous;
-	data.hproc = NULL;
-	data.hthrd_shelter = NULL;
+	data.ambiguous=!!pstat.ambiguous;
+	data.hproc=NULL;
+	data.hthrd_shelter=NULL;
 	for(int i=0;i<pstat.ifs->count;i++)
 	{
 		if_proc ifproc;
 		ifproc.hif=NULL;
 		ifproc.id=pstat.ifs->if_id[i].if_name;
 		ifproc.usage=pstat.ifs->if_id[i].usage;
+		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
 		ifproc.prior=pstat.ifs->if_id[i].prior;
+		ifproc.pdata=NULL;
 		data.ifproc.push_back(ifproc);
 	}
 	pdata.push_back(data);
@@ -75,6 +77,13 @@ int process_tracker::init()
 		__insert_proc_data__(pdata,pstat);
 	find_exe_close(h);
 	sort(pdata.begin(),pdata.end(),less_id);
+	for(int i=0;i<(int)pdata.size();i++)
+	{
+		for(int j=0;j<(int)pdata[i].ifproc.size();j++)
+		{
+			pdata[i].ifproc[j].pdata=&pdata[i];
+		}
+	}
 	vector<sem_pair> vs;
 	for(int i=0;i<(int)pdata.size();i++)
 	{
@@ -147,7 +156,6 @@ int connect_proc(char* id, void** h)
 	init.id=id;
 	init.smem_size=0;
 	init.nthread=0;
-
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
 		sys_sleep(200);
@@ -156,12 +164,11 @@ int connect_proc(char* id, void** h)
 			return 0;
 		}
 	}
-
 	LOGFILE(0,log_ftype_error,"Connecting to interface %s failed, try reconnecting...",init.id);
 	char msg[256];
 	sprintf(msg, "Connect to interface %s failed", id);
 	sys_show_message(msg);
-	return ERR_GENERIC;
+	return ERR_IF_CONN_FAILED;
 }
 int process_tracker::threadfunc(void* param)
 {
@@ -204,14 +211,15 @@ int process_tracker::threadfunc(void* param)
 				{
 					if(!VALID(data.ifproc[i].hif))
 					{
-						lock_track();
-						int conn=connect_proc((char*)data.ifproc[i].id.c_str(),&data.ifproc[i].hif);
-						if(conn!=0)
 						{
-							data.ifproc[i].hif=NULL;
-							conn_failed=true;
+							lock_track();
+							if(0!=connect_proc((char*)data.ifproc[i].id.c_str(),&data.ifproc[i].hif))
+							{
+								data.ifproc[i].hif=NULL;
+								conn_failed=true;
+							}
 						}
-						else if(i==0&&start)
+						if((!conn_failed)&&i==0&&start)
 						{
 							send_cmd_clear_all(data.ifproc[0].hif);
 							start=false;
@@ -240,7 +248,8 @@ int process_tracker::threadfunc(void* param)
 			break;
 		else
 			LOGFILE(0,log_ftype_error,"The managed program %s not started or erroneously terminated, restarting...",(char*)data.name.c_str());
-		for(int i=0;i<(int)vdata.size();i++)
+		send_cmd_clear(data.id,NULL,get_main_info()->manager_if0);
+		for(int i=(int)vdata.size()-1;i>=0;i--)
 		{
 			if(i==index)
 				continue;
@@ -257,7 +266,7 @@ int process_tracker::threadfunc(void* param)
 }
 int process_tracker::suspend_all(bool bsusp)
 {
-	int index=bsusp?(int)pdata.size()-1:0;
+	int index=bsusp?(int)pdata.size()-1:-1;
 	int ret=0;
 	lock_track();
 	if(bsusp)
@@ -278,7 +287,7 @@ int process_tracker::suspend_all(bool bsusp)
 	}
 	if(!bsusp||index>-1)
 	{
-		for(int i=index;i<(int)pdata.size();i++)
+		for(int i=index+1;i<(int)pdata.size();i++)
 		{
 			if(!(pdata[i].ifproc.size()>0&&VALID(pdata[i].ifproc[0].hif)))
 			{

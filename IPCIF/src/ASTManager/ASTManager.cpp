@@ -52,7 +52,7 @@ int cb_server(void* addr, void* param, int op)
 	switch(buf->cmd)
 	{
 	case CMD_EXIT:
-		if(0==(buf->ret=g_ptracker.suspend_all(1)))
+		if(0==(buf->ret=g_ptracker.suspend_all(true)))
 		{
 			data->ready_quit=true;
 		}
@@ -94,7 +94,7 @@ int main_entry(main_args)
 	init.user=get_if_user();
 	init.id=get_main_info()->manager_if0;
 	init.nthread=get_main_info()->manager_if0_cnt;
-	init.smem_size=sizeof(datagram_base);
+	init.smem_size=sizeof(dg_manager);
 	void* if_mgr=NULL;
 	astmgr_data data;
 	data.ready_quit=data.quit=false;

@@ -21,6 +21,10 @@
 #define CFG_TAG_EXEC_IF_USAGE "if%d_usage"
 #define CFG_TAG_EXEC_IF_PRIOR "if%d_prior"
 
+#define CFG_IF_USAGE_CMD "cmd"
+#define CFG_IF_USAGE_STORAGE "storage"
+#define CFG_IF_USAGE_NET "net"
+
 #ifdef __cplusplus
 struct AstError
 {

@@ -28,6 +28,8 @@
 #define ERR_INSUFFICIENT_BUFSIZE    _r(16)
 #define ERR_BUSY                    _r(17)
 #define ERR_TIMEOUT                 _r(18)
+#define ERR_MODULE_NOT_FOUND        _r(19)
+#define ERR_MODULE_NOT_INITED       _r(20)
 
 #ifdef __cplusplus
 extern "C" {

@@ -56,6 +56,16 @@ struct dg_getid
 	dgc_getid retid;
 };
 
+//ASTManager interface
+struct dg_manager
+{
+	datagram_base header;
+	union
+	{
+		dgc_clear dc;
+	};
+};
+
 #pragma pack(pop)
 
 #endif

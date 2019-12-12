@@ -11,6 +11,7 @@ typedef unsigned short word;
 typedef unsigned long dword;
 #ifdef WIN32
 #pragma warning(disable:4996)
+#pragma warning(disable:4251)
 #ifndef DLL_IMPORT
 #define DLL __declspec(dllexport)
 #else
