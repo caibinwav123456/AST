@@ -48,11 +48,11 @@ int loader_shelter(void* param)
 int cb_server(void* addr, void* param, int op)
 {
 	astmgr_data* data=(astmgr_data*)param;
-	datagram_base* buf=(datagram_base*)addr;
-	switch(buf->cmd)
+	dg_manager* buf=(dg_manager*)addr;
+	switch(buf->header.cmd)
 	{
 	case CMD_EXIT:
-		if(0==(buf->ret=g_ptracker.suspend_all(true)))
+		if(0==(buf->header.ret=g_ptracker.suspend_all(true)))
 		{
 			data->ready_quit=true;
 		}
@@ -60,6 +60,9 @@ int cb_server(void* addr, void* param, int op)
 		{
 			data->ready_quit=false;
 		}
+		break;
+	case CMD_CLEAR:
+		buf->header.ret=0;
 		break;
 	default:
 		break;
