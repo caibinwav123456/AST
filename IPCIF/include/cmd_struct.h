@@ -1,9 +1,12 @@
 #ifndef _CMD_STRUCT_H_
 #define _CMD_STRUCT_H_
 #include "common.h"
-
+#define MAX_FILE_PATH 1024
+#define MAX_FILE_NAME 256
+#define _1K 1024
 enum if_cmd_code
 {
+	//cmd
 	CMD_NULL = 0,
 	CMD_EXIT,
 	CMD_CLEAR,
@@ -11,6 +14,19 @@ enum if_cmd_code
 	CMD_SUSPEND,
 	CMD_GETID,
 	CMD_STATUS,
+
+	//storage
+	CMD_FSOPEN,
+	CMD_FSCLOSE,
+	CMD_FSSEEK,
+	CMD_FSREAD,
+	CMD_FSWRITE,
+	CMD_MAKEDIR,
+	CMD_LSFILES,
+	CMD_FSMOVE,
+	CMD_FSDELETE,
+	CMD_FSGETATTR,
+	CMD_FSSETATTR,
 };
 
 #pragma pack(push,1)
@@ -54,6 +70,123 @@ struct dg_getid
 {
 	datagram_base header;
 	dgc_getid retid;
+};
+
+struct dgc_fsopen
+{
+	dword flags;
+	char path[MAX_FILE_PATH];
+};
+
+struct dg_fsopen
+{
+	datagram_base header;
+	dgc_fsopen open;
+};
+
+struct dgc_fsclose
+{
+	void* handle;
+};
+
+struct dg_fsclose
+{
+	datagram_base header;
+	dgc_fsclose close;
+};
+
+struct dgc_fsseek
+{
+	void* handle;
+	dword seektype;
+	uint offset;
+	uint offhigh;
+};
+
+struct dg_fsseek
+{
+	datagram_base header;
+	dgc_fsseek seek;
+};
+
+struct dgc_fsrdwr
+{
+	void* handle;
+	uint len;
+	byte buf[_1K];
+};
+
+struct dg_fsrdwr
+{
+	datagram_base header;
+	dgc_fsrdwr rdwr;
+};
+
+struct dgc_fsmove
+{
+	char src[MAX_FILE_PATH];
+	char dst[MAX_FILE_PATH];
+};
+
+struct dg_fsmove
+{
+	datagram_base header;
+	dgc_fsmove move;
+};
+
+struct dgc_fsdel
+{
+	char path[MAX_FILE_PATH];
+};
+
+struct dg_fsdel
+{
+	dgc_fsdel del;
+};
+
+struct DateTimeWrap
+{
+	DateTime date;
+	short pad;
+};
+
+struct dgc_fsattr
+{
+	dword mask;
+	DateTimeWrap date[3];
+	dword flags;
+	char path[MAX_FILE_PATH];
+};
+
+struct dg_fsattr
+{
+	datagram_base header;
+	dgc_fsattr attr;
+};
+
+struct dgc_fsmkdir
+{
+	char path[MAX_FILE_PATH];
+};
+
+struct dg_fsmkdir
+{
+	datagram_base header;
+	dgc_fsmkdir dir;
+};
+
+struct dgc_fslsfiles
+{
+	uint nfiles;
+	void* handle;
+	char path[MAX_FILE_PATH];
+	char file[12][MAX_FILE_NAME];
+};
+
+struct dg_fslsfiles
+{
+	datagram_base header;
+	dgc_fslsfiles files;
 };
 
 //ASTManager interface

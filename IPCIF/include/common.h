@@ -27,7 +27,7 @@ typedef unsigned long dword;
 #define main_args int argc, char** argv
 #endif
 #include "ASTError.h"
-#include "cmd_struct.h"
 #include "defines.h"
 #include "sys.h"
+#include "cmd_struct.h"
 #endif

@@ -3,6 +3,7 @@
 #include "common.h"
 #include "sysfs.h"
 #include "algor_templ.h"
+#include <vector>
 #include <string>
 #include <map>
 #include <algorithm>
@@ -127,6 +128,18 @@ public:
 	int ConnectServer(void** phif);
 	void Reconnect();
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
+	void* Open(const char* pathname,dword flags);
+	int Close(void* h);
+	int Seek(void* h,uint seektype,uint offset,uint* offhigh=NULL);
+	int Read(void* h,void* buf,uint len,uint* rdlen=NULL);
+	int Write(void* h,void* buf,uint len,uint* wrlen=NULL);
+	int MoveFile(const char* src,const char* dst);
+	int CopyFile(const char* src,const char* dst);
+	int DeleteFile(const char* pathname);
+	int GetFileAttr(const char* path,DateTime* datetime=NULL,dword* flags=NULL);
+	int SetFileAttr(const char* path,DateTime* datetime=NULL,dword* flags=NULL);
+	int ListFile(const char* path,vector<string> files);
+	int MakeDir(const char* path);
 private:
 	int ListStorageModule(vector<pair<int,int>>& index);
 	int EnumStorageModule();

@@ -382,3 +382,51 @@ int SysFs::EnumStorageModule(vector<proc_data>* pdata)
 	}
 	return 0;
 }
+void* SysFs::Open(const char* pathname,dword flags)
+{
+	return NULL;
+}
+int SysFs::Close(void* h)
+{
+	return 0;
+}
+int SysFs::Seek(void* h,uint seektype,uint offset,uint* offhigh)
+{
+	return 0;
+}
+int SysFs::Read(void* h,void* buf,uint len,uint* rdlen)
+{
+	return 0;
+}
+int SysFs::Write(void* h,void* buf,uint len,uint* wrlen)
+{
+	return 0;
+}
+int SysFs::MoveFile(const char* src,const char* dst)
+{
+	return 0;
+}
+int SysFs::CopyFile(const char* src,const char* dst)
+{
+	return 0;
+}
+int SysFs::DeleteFile(const char* pathname)
+{
+	return 0;
+}
+int SysFs::GetFileAttr(const char* path,DateTime* datetime,dword* flags)
+{
+	return 0;
+}
+int SysFs::SetFileAttr(const char* path,DateTime* datetime,dword* flags)
+{
+	return 0;
+}
+int SysFs::ListFile(const char* path,vector<string> files)
+{
+	return 0;
+}
+int SysFs::MakeDir(const char* path)
+{
+	return 0;
+}
