@@ -113,7 +113,7 @@ struct dgc_fsrdwr
 {
 	void* handle;
 	uint len;
-	byte buf[_1K];
+	byte buf[_1K*4];
 };
 
 struct dg_fsrdwr
