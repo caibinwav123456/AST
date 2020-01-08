@@ -157,10 +157,10 @@ int sys_set_current_dir(char* pathbuf)
 {
 	return SetCurrentDirectoryA(pathbuf)?0:ERR_FILE_IO;
 }
-int sys_is_absolute_path(char* path)
+int sys_is_absolute_path(char* path, char dsym)
 {
 	char* colon=strchr(path,':');
-	char* slash=strchr(path,'\\');
+	char* slash=strchr(path,dsym);
 	if(colon==NULL)
 		return 0;
 	else if(slash==NULL||slash>colon)

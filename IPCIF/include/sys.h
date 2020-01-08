@@ -56,7 +56,7 @@ void sys_fclose(void* fd);
 
 int sys_get_current_dir(char* pathbuf, uint size);
 int sys_set_current_dir(char* pathbuf);
-int sys_is_absolute_path(char* path);
+int sys_is_absolute_path(char* path, char dsym);
 int sys_fstat(char* pathname, dword* type);
 int sys_ftraverse(char* pathname, int(*cb)(char*, dword, void*), void* param);
 int sys_mkdir(char* path);

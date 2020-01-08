@@ -86,10 +86,10 @@
     <ClInclude Include="..\..\..\..\include\arch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\common\dir_symbol.h">
+    <ClInclude Include="..\..\..\..\include\request_resolver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\request_resolver.h">
+    <ClInclude Include="..\..\..\..\include\dir_symbol.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

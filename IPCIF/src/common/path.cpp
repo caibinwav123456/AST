@@ -1,11 +1,10 @@
 #include "common.h"
 #include "path.h"
-#include "dir_symbol.h"
-void split_path(const string& path, vector<string>& split)
+void split_path(const string& path, vector<string>& split, char dsym)
 {
 	int pos=0;
 	int nextpos=0;
-	while((nextpos=path.find(_dir_symbol,pos))!=-1)
+	while((nextpos=path.find(dsym,pos))!=-1)
 	{
 		if(nextpos>pos)
 			split.push_back(path.substr(pos,nextpos-pos));
@@ -33,10 +32,10 @@ inline bool add_path_compenent(vector<string>& path, const string& comp)
 		return true;
 	}
 }
-int get_absolute_path(const string& cur_dir, const vector<string>& relative_path, vector<string>& absolute_path)
+int get_absolute_path(const string& cur_dir, const vector<string>& relative_path, vector<string>& absolute_path, char dsym)
 {
 	vector<string> cur_dir_split;
-	split_path(cur_dir,cur_dir_split);
+	split_path(cur_dir,cur_dir_split,dsym);
 	absolute_path.clear();
 	int ret=0;
 	cur_dir_split.insert(cur_dir_split.end(),relative_path.begin(),relative_path.end());
@@ -47,21 +46,21 @@ int get_absolute_path(const string& cur_dir, const vector<string>& relative_path
 	}
 	return ret;
 }
-int get_absolute_path(const string& cur_dir, const string& relative_path, vector<string>& absolute_path)
+int get_absolute_path(const string& cur_dir, const string& relative_path, vector<string>& absolute_path, char dsym)
 {
 	vector<string> relative_path_split;
-	split_path(relative_path, relative_path_split);
-	return get_absolute_path(cur_dir, relative_path_split, absolute_path);
+	split_path(relative_path, relative_path_split, dsym);
+	return get_absolute_path(cur_dir, relative_path_split, absolute_path, dsym);
 }
-DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path, string& absolute_path)
+DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path, string& absolute_path, char dsym)
 {
-	if(sys_is_absolute_path((char*)relative_path.c_str()))
+	if(sys_is_absolute_path((char*)relative_path.c_str(),dsym))
 	{
 		absolute_path=relative_path;
 		return 0;
 	}
 	vector<string> array_absolute_path;
-	int ret=get_absolute_path(cur_dir, relative_path, array_absolute_path);
+	int ret=get_absolute_path(cur_dir, relative_path, array_absolute_path, dsym);
 	if(ret!=0)
 		return ret;
 	absolute_path.clear();
@@ -69,42 +68,42 @@ DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path
 	{
 		absolute_path+=array_absolute_path[i];
 		if(i!=(int)array_absolute_path.size()-1)
-			absolute_path+=_dir_symbol;
+			absolute_path+=dsym;
 	}
 	return 0;
 }
-DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge)
+DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge, char dsym)
 {
 	vector<string> path_array1, path_array2;
-	split_path(path1,path_array1);
-	split_path(path2,path_array2);
+	split_path(path1,path_array1,dsym);
+	split_path(path2,path_array2,dsym);
 	path_array1.insert(path_array1.end(),path_array2.begin(),path_array2.end());
 	merge.clear();
 	for(int i=0;i<(int)path_array1.size();i++)
 	{
 		merge+=path_array1[i];
 		if(i!=(int)path_array1.size()-1)
-			merge+=_dir_symbol;
+			merge+=dsym;
 	}
 }
-DLLAPI(bool) is_subpath(const string& cur_dir, const string& relative_path1, const string& relative_path2)
+DLLAPI(bool) is_subpath(const string& cur_dir, const string& relative_path1, const string& relative_path2, char dsym)
 {
 	vector<string> absolute1,absolute2;
-	if(sys_is_absolute_path(const_cast<char*>(relative_path1.c_str())))
+	if(sys_is_absolute_path(const_cast<char*>(relative_path1.c_str()),dsym))
 	{
-		get_absolute_path(relative_path1,string(""),absolute1);
+		get_absolute_path(relative_path1,string(""),absolute1,dsym);
 	}
 	else
 	{
-		get_absolute_path(cur_dir,relative_path1,absolute1);
+		get_absolute_path(cur_dir,relative_path1,absolute1,dsym);
 	}
-	if(sys_is_absolute_path(const_cast<char*>(relative_path2.c_str())))
+	if(sys_is_absolute_path(const_cast<char*>(relative_path2.c_str()),dsym))
 	{
-		get_absolute_path(relative_path2,string(""),absolute2);
+		get_absolute_path(relative_path2,string(""),absolute2,dsym);
 	}
 	else
 	{
-		get_absolute_path(cur_dir,relative_path2,absolute2);
+		get_absolute_path(cur_dir,relative_path2,absolute2,dsym);
 	}
 	if(absolute1.size()<=absolute2.size())
 	{

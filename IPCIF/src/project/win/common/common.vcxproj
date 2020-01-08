@@ -101,13 +101,13 @@
     <ClInclude Include="..\..\..\..\include\common_request.h" />
     <ClInclude Include="..\..\..\..\include\config_val_extern.h" />
     <ClInclude Include="..\..\..\..\include\datetime.h" />
+    <ClInclude Include="..\..\..\..\include\dir_symbol.h" />
     <ClInclude Include="..\..\..\..\include\mutex.h" />
     <ClInclude Include="..\..\..\..\include\path.h" />
     <ClInclude Include="..\..\..\..\include\request_resolver.h" />
     <ClInclude Include="..\..\..\..\include\utility.h" />
     <ClInclude Include="..\..\..\common\config.h" />
     <ClInclude Include="..\..\..\common\config_val.h" />
-    <ClInclude Include="..\..\..\common\dir_symbol.h" />
     <ClInclude Include="..\..\..\common\syslog.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
