@@ -79,6 +79,7 @@ DLLAPI(void) find_exe_close(void* handle);
 DLL int __LOGFILE(uint level,uint ftype,char* file,int line,char* format,...);
 DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback);
 DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback);
+DLLAPI(char*) get_error_desc(int errcode);
 #ifdef __cplusplus
 }
 #endif
@@ -105,4 +106,17 @@ inline int sys_recurse_fdelete(char* pathname)
 	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
 	return recurse_fdelete(pathname,&cb);
 }
+#ifdef __cplusplus
+struct AstError
+{
+	char* file;
+	int line;
+	int id;
+	AstError(char* _file, int _line, int _id)
+	{
+		file = _file, line = _line, id = _id;
+	}
+};
+#define EXCEPTION(C) throw AstError(__FILE__,__LINE__,(C))
+#endif
 #endif

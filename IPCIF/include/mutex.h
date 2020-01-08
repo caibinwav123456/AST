@@ -1,6 +1,7 @@
 #ifndef _MUTEX_H_
 #define _MUTEX_H_
 #include "common.h"
+#include "utility.h"
 class cmutex
 {
 public:

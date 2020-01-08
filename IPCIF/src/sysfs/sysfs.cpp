@@ -1,10 +1,9 @@
+#define DLL_IMPORT
 #include "common.h"
 #include "sysfs_struct.h"
-#include "import.h"
 #include "interface.h"
 #include "utility.h"
 #include "config_val_extern.h"
-#include "export.h"
 DEFINE_UINT_VAL(use_storage_level,0);
 #define active_storage ifvproc[use_storage_level]
 #define MAX_CONNECT_TIMES 10

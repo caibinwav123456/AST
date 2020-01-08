@@ -25,18 +25,4 @@
 #define CFG_IF_USAGE_STORAGE "storage"
 #define CFG_IF_USAGE_NET "net"
 
-#ifdef __cplusplus
-struct AstError
-{
-	char* file;
-	int line;
-	int id;
-	AstError(char* _file,int _line,int _id)
-	{
-		file=_file,line=_line,id=_id;
-	}
-};
-#define EXCEPTION(C) throw AstError(__FILE__,__LINE__,(C))
-#endif
-
 #endif

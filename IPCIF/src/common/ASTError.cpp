@@ -1,4 +1,5 @@
 #include "ASTError.h"
+#include "utility.h"
 static char* err_descs[] =
 {
 	"OK",

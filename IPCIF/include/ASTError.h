@@ -31,12 +31,4 @@
 #define ERR_MODULE_NOT_FOUND        _r(19)
 #define ERR_MODULE_NOT_INITED       _r(20)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-DLLAPI(char*) get_error_desc(int errcode);
-#ifdef __cplusplus
-}
-#endif
-
 #endif
