@@ -5,6 +5,7 @@
 #include "utility.h"
 #include "config_val_extern.h"
 DEFINE_UINT_VAL(use_storage_level,0);
+DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
 #define MAX_CONNECT_TIMES 10
 void* sysfs_get_handle()
@@ -34,14 +35,21 @@ int SysFs::cb_reconn(void* param)
 		sys_wait_sem(sysfs->sem_reconn);
 		if(sysfs->quitcode!=0)
 			break;
-		if(!VALID(sysfs->active_storage->hif))
+		bool pass=true;
+		do
 		{
-			while(0!=sysfs->ConnectServer(&(sysfs->active_storage->hif)))
+			for(int i=0;i<(int)sysfs->ifvproc.size();i++)
 			{
-				if(sysfs->quitcode!=0)
-					break;
+				if(0!=sysfs->ConnectServer(sysfs->ifvproc[i]))
+				{
+					pass=false;
+					if(sysfs->quitcode!=0)
+						break;
+				}
 			}
-		}
+			if(sysfs->quitcode!=0)
+				break;
+		}while(!pass);
 		sysfs->SuspendIO(false,0,FC_CLEAR);
 	}
 	return 0;
@@ -75,8 +83,11 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 			goto failed;
 		mode=fsmode_semipermanent_if;
 		resolver->AddHandler(ClearHandler);
-		if(0!=(ret=ConnectServer(&(active_storage->hif))))
-			goto failed;
+		for(int i=0;i<(int)ifvproc.size();i++)
+		{
+			if(0!=(ret=ConnectServer(ifvproc[i])))
+				goto failed;
+		}
 	}
 	else
 	{
@@ -84,7 +95,7 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 			goto failed;
 		mode=fsmode_instant_if;
 	}
-	sem=sys_create_sem(active_storage->cnt,active_storage->cnt,NULL);
+	sem=sys_create_sem(sysfs_query_pass,sysfs_query_pass,NULL);
 	bool b=(mode==fsmode_semipermanent_if);
 	if(b)
 	{
@@ -117,10 +128,16 @@ failed:
 		sys_close_thread(hthrd_reconn);
 		hthrd_reconn=NULL;
 	}
-	if(mode==fsmode_semipermanent_if&&VALID(active_storage->hif))
+	if(mode==fsmode_semipermanent_if)
 	{
-		close_if(active_storage->hif);
-		active_storage->hif=NULL;
+		for(int i=0;i<(int)ifvproc.size();i++)
+		{
+			if(VALID(ifvproc[i]->hif))
+			{
+				close_if(ifvproc[i]->hif);
+				ifvproc[i]->hif=NULL;
+			}
+		}
 	}
 	pvdata.clear();
 	ifvproc.clear();
@@ -153,10 +170,16 @@ void SysFs::Exit()
 		sys_close_thread(hthrd_reconn);
 		hthrd_reconn=NULL;
 	}
-	if(mode==fsmode_semipermanent_if&&VALID(active_storage->hif))
+	if(mode==fsmode_semipermanent_if)
 	{
-		close_if(active_storage->hif);
-		active_storage->hif=NULL;
+		for(int i=0;i<(int)ifvproc.size();i++)
+		{
+			if(VALID(ifvproc[i]->hif))
+			{
+				close_if(ifvproc[i]->hif);
+				ifvproc[i]->hif=NULL;
+			}
+		}
 	}
 	for(map<void*,SortedFileIoRec*>::iterator it=fmap.begin();it!=fmap.end();it++)
 	{
@@ -188,19 +211,19 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 	{
 		dword flag;
 		sys_wait_sem(flag_protect);
+		flag=flags;
 		if(bsusp)
 			flags|=cause;
 		else
 			flags&=~cause;
-		flag=flags;
 		sys_signal_sem(flag_protect);
-		if((bsusp&&(flag&FC_MASK)==FC_MASK)
-			||(!bsusp&&(flag&FC_MASK)!=0))
+		if((bsusp&&(flag&FC_MASK)!=0)
+			||(!bsusp&&(flag&~cause)!=0))
 			return 0;
 	}
 	if(bsusp)
 	{
-		for(int i=0;i<(int)active_storage->cnt;i++)
+		for(int i=0;i<(int)sysfs_query_pass;i++)
 		{
 			if(ERR_TIMEOUT==sys_wait_sem(sem,time))
 			{
@@ -215,24 +238,24 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 	}
 	else
 	{
-		for(int i=0;i<(int)active_storage->cnt;i++)
+		for(int i=0;i<(int)sysfs_query_pass;i++)
 		{
 			sys_signal_sem(sem);
 		}
 		return 0;
 	}
 }
-int SysFs::ConnectServer(void** _phif)
+int SysFs::ConnectServer(if_proc* phif)
 {
 	if_initial init;
 	init.user=get_if_user();
-	init.id=(char*)active_storage->id.c_str();
+	init.id=(char*)phif->id.c_str();
 	init.smem_size=0;
 	init.nthread=0;
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
 		sys_sleep(200);
-		if(0==connect_if(&init,_phif))
+		if(0==connect_if(&init,&phif->hif))
 		{
 			return 0;
 		}
@@ -244,15 +267,67 @@ int SysFs::ConnectServer(void** _phif)
 	return ERR_IF_CONN_FAILED;
 }
 //The code which calls Reconnect, SuspendIO and Exit must in the same thread.
-void SysFs::Reconnect()
+bool SysFs::Reconnect(void* proc_id)
 {
-	if(quitcode==0&&VALID(active_storage->hif))
+	if(quitcode!=0)
+		return false;
+	bool found=false;
+	bool ret=false;
+	if(!VALID(proc_id))
+	{
+		for(int i=0;i<(int)ifvproc.size();i++)
+		{
+			if(VALID(ifvproc[i]->hif))
+			{
+				found=true;
+				break;
+			}
+		}
+	}
+	else
+	{
+		for(int i=0;i<(int)ifvproc.size();i++)
+		{
+			if(ifvproc[i]->pdata->id==proc_id)
+			{
+				ret=true;
+				if(VALID(ifvproc[i]->hif))
+				{
+					found=true;
+					break;
+				}
+			}
+		}
+	}
+	if(found)
 	{
 		SuspendIO(true,0,FC_CLEAR);
-		close_if(active_storage->hif);
-		active_storage->hif=NULL;
+		if(!VALID(proc_id))
+		{
+			for(int i=0;i<(int)ifvproc.size();i++)
+			{
+				if(VALID(ifvproc[i]->hif))
+				{
+					close_if(ifvproc[i]->hif);
+					ifvproc[i]->hif=NULL;
+				}
+			}
+		}
+		else
+		{
+			for(int i=0;i<(int)ifvproc.size();i++)
+			{
+				if(ifvproc[i]->pdata->id==proc_id
+					&&VALID(ifvproc[i]->hif))
+				{
+					close_if(ifvproc[i]->hif);
+					ifvproc[i]->hif=NULL;
+				}
+			}
+		}
 		sys_signal_sem(sem_reconn);
 	}
+	return ret;
 }
 bool ClearHandler(uint cmd,void* addr,void* param,int op)
 {
@@ -264,24 +339,19 @@ bool SysFs::ReqHandler(uint cmd,void* addr,void* param,int op)
 		return false;
 	bool clear=false;
 	bool ret=false;
+	dg_clear* dc=NULL;
 	switch(cmd)
 	{
 	case CMD_CLEAR_ALL:
 		clear=true;
 		break;
 	case CMD_CLEAR:
-		{
-			dg_clear* dc=(dg_clear*)addr;
-			if(dc->clear.id==active_storage->pdata->id)
-			{
-				clear=true;
-				ret=true;
-			}
-		}
+		dc=(dg_clear*)addr;
+		clear=true;
 		break;
 	}
 	if(clear)
-		Reconnect();
+		ret=Reconnect(dc==NULL?NULL:dc->clear.id);
 	return ret;
 }
 bool less_if(const if_proc* i1,const if_proc* i2)

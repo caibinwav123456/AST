@@ -125,8 +125,8 @@ public:
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
-	int ConnectServer(void** phif);
-	void Reconnect();
+	int ConnectServer(if_proc* phif);
+	bool Reconnect(void* proc_id);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
 	void* Open(const char* pathname,dword flags);
 	int Close(void* h);
