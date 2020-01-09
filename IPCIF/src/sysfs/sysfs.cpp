@@ -42,7 +42,7 @@ int SysFs::cb_reconn(void* param)
 			pass=true;
 			for(int i=0;i<(int)sysfs->ifvproc.size();i++)
 			{
-				if(0!=sysfs->ConnectServer(sysfs->ifvproc[i]))
+				if(0!=sysfs->ConnectServer(sysfs->ifvproc[i],&sysfs->ifvproc[i]->hif))
 					pass=false;
 				if(sysfs->quitcode!=0)
 					break;
@@ -85,7 +85,7 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 		resolver->AddHandler(ClearHandler);
 		for(int i=0;i<(int)ifvproc.size();i++)
 		{
-			if(0!=(ret=ConnectServer(ifvproc[i])))
+			if(0!=(ret=ConnectServer(ifvproc[i],&ifvproc[i]->hif)))
 				goto failed;
 		}
 	}
@@ -245,7 +245,7 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 		return 0;
 	}
 }
-int SysFs::ConnectServer(if_proc* pif)
+int SysFs::ConnectServer(if_proc* pif,void** phif)
 {
 	if_initial init;
 	init.user=get_if_user();
@@ -255,7 +255,7 @@ int SysFs::ConnectServer(if_proc* pif)
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
 		sys_sleep(200);
-		if(0==connect_if(&init,&pif->hif))
+		if(0==connect_if(&init,phif))
 		{
 			return 0;
 		}
@@ -491,8 +491,68 @@ static int fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 	*ppif=ifproc;
 	return 0;
 }
+int SysFs::BeginTransfer(if_proc* pif,void** phif)
+{
+	int ret=0;
+	*phif=NULL;
+	if(quitcode!=0)
+		return quitcode;
+	if(mode==fsmode_instant_if)
+	{
+		if(0!=(ret=ConnectServer(pif,phif)))
+			return ret;
+	}
+	sys_wait_sem(sem);
+	if(quitcode!=0)
+	{
+		sys_signal_sem(sem);
+		close_if(*phif);
+		*phif=NULL;
+		return quitcode;
+	}
+	if(mode==fsmode_permanent_if)
+	{
+		sys_wait_sem(mutex->get_mutex());
+		if(quitcode!=0)
+		{
+			sys_signal_sem(mutex->get_mutex());
+			sys_signal_sem(sem);
+			close_if(*phif);
+			*phif=NULL;
+			return quitcode;
+		}
+	}
+	if(mode!=fsmode_instant_if)
+		*phif=pif->hif;
+	return 0;
+}
+void SysFs::EndTransfer(void** phif)
+{
+	if(mode==fsmode_permanent_if)
+		sys_signal_sem(mutex->get_mutex());
+	sys_signal_sem(sem);
+	if(mode==fsmode_instant_if&&VALID(*phif))
+		close_if(*phif);
+	*phif=NULL;
+}
 void* SysFs::Open(const char* pathname,dword flags)
 {
+	if_proc* ifproc;
+	string path;
+	if(0!=fs_parse_path(&ifproc,path,string(pathname)))
+		return NULL;
+	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len);
+	pRec->pif=ifproc;
+	void* hif;
+	if(0!=BeginTransfer(pRec->pif,&hif))
+		goto fail;
+	
+	EndTransfer(&hif);
+	void* h=sysfs_get_handle();
+	fmap[h]=pRec;
+	return h;
+fail:
+	delete pRec;
 	return NULL;
 }
 int SysFs::Close(void* h)

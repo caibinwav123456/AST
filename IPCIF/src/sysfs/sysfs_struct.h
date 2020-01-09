@@ -41,9 +41,9 @@ struct FileIoRec
 {
 	FileIoRec()
 	{
-		phif=NULL;
 		hFile=NULL;
 		iobuf=NULL;
+		pif=NULL;
 		nbuf=0;
 	}
 	~FileIoRec()
@@ -51,7 +51,6 @@ struct FileIoRec
 		if(iobuf!=NULL)
 			delete[] iobuf;
 	}
-	void** phif;
 	void* hFile;
 	LinearBuffer* iobuf;
 	if_proc* pif;
@@ -127,7 +126,7 @@ public:
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
-	int ConnectServer(if_proc* pif);
+	int ConnectServer(if_proc* pif,void** phif);
 	bool Reconnect(void* proc_id);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
 	if_proc* GetIfProcFromID(const string& id);
@@ -147,6 +146,8 @@ private:
 	int ListStorageModule(vector<pair<int,int>>& index);
 	int EnumStorageModule();
 	int EnumStorageModule(vector<proc_data>* pdata);
+	int BeginTransfer(if_proc* pif,void** phif);
+	void EndTransfer(void** phif);
 	static int cb_reconn(void* param);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
