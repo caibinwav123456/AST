@@ -3,6 +3,7 @@
 #include "common.h"
 #include "sysfs.h"
 #include "algor_templ.h"
+#include "process_data.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -53,6 +54,7 @@ struct FileIoRec
 	void** phif;
 	void* hFile;
 	LinearBuffer* iobuf;
+	if_proc* pif;
 	uint nbuf;
 };
 struct FileServerKey
@@ -125,9 +127,10 @@ public:
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
-	int ConnectServer(if_proc* phif);
+	int ConnectServer(if_proc* pif);
 	bool Reconnect(void* proc_id);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
+	if_proc* GetIfProcFromID(const string& id);
 	void* Open(const char* pathname,dword flags);
 	int Close(void* h);
 	int Seek(void* h,uint seektype,uint offset,uint* offhigh=NULL);

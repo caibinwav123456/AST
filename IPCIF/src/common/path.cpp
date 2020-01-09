@@ -1,6 +1,6 @@
 #include "common.h"
 #include "path.h"
-void split_path(const string& path, vector<string>& split, char dsym)
+DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym)
 {
 	int pos=0;
 	int nextpos=0;
@@ -32,19 +32,35 @@ inline bool add_path_compenent(vector<string>& path, const string& comp)
 		return true;
 	}
 }
+DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym)
+{
+	path.clear();
+	for(int i=0;i<(int)split.size();i++)
+	{
+		path+=split[i];
+		if(i!=(int)split.size()-1)
+			path+=dsym;
+	}
+}
+DLLAPI(int)get_direct_path(vector<string>& direct, vector<string>& indirect)
+{
+	direct.clear();
+	for(int i=0;i<(int)indirect.size();i++)
+	{
+		if(!add_path_compenent(direct, indirect[i]))
+		{
+			direct.clear();
+			return ERR_INVALID_PATH;
+		}
+	}
+	return 0;
+}
 int get_absolute_path(const string& cur_dir, const vector<string>& relative_path, vector<string>& absolute_path, char dsym)
 {
 	vector<string> cur_dir_split;
 	split_path(cur_dir,cur_dir_split,dsym);
-	absolute_path.clear();
-	int ret=0;
 	cur_dir_split.insert(cur_dir_split.end(),relative_path.begin(),relative_path.end());
-	for(int i=0;i<(int)cur_dir_split.size();i++)
-	{
-		if(!add_path_compenent(absolute_path, cur_dir_split[i]))
-			ret=ERR_INVALID_PATH;
-	}
-	return ret;
+	return get_direct_path(absolute_path, cur_dir_split);
 }
 int get_absolute_path(const string& cur_dir, const string& relative_path, vector<string>& absolute_path, char dsym)
 {
@@ -63,13 +79,7 @@ DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path
 	int ret=get_absolute_path(cur_dir, relative_path, array_absolute_path, dsym);
 	if(ret!=0)
 		return ret;
-	absolute_path.clear();
-	for(int i=0;i<(int)array_absolute_path.size();i++)
-	{
-		absolute_path+=array_absolute_path[i];
-		if(i!=(int)array_absolute_path.size()-1)
-			absolute_path+=dsym;
-	}
+	merge_path(absolute_path, array_absolute_path);
 	return 0;
 }
 DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge, char dsym)
@@ -78,13 +88,7 @@ DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge
 	split_path(path1,path_array1,dsym);
 	split_path(path2,path_array2,dsym);
 	path_array1.insert(path_array1.end(),path_array2.begin(),path_array2.end());
-	merge.clear();
-	for(int i=0;i<(int)path_array1.size();i++)
-	{
-		merge+=path_array1[i];
-		if(i!=(int)path_array1.size()-1)
-			merge+=dsym;
-	}
+	merge_path(merge, path_array1);
 }
 DLLAPI(bool) is_subpath(const string& cur_dir, const string& relative_path1, const string& relative_path2, char dsym)
 {

@@ -1,5 +1,4 @@
 #include "common.h"
-#include "path.h"
 #include "syswin.h"
 #include <shlwapi.h>
 #include <string>

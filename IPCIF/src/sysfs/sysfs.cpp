@@ -4,6 +4,7 @@
 #include "interface.h"
 #include "utility.h"
 #include "config_val_extern.h"
+#include "path.h"
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
@@ -35,17 +36,16 @@ int SysFs::cb_reconn(void* param)
 		sys_wait_sem(sysfs->sem_reconn);
 		if(sysfs->quitcode!=0)
 			break;
-		bool pass=true;
+		bool pass;
 		do
 		{
+			pass=true;
 			for(int i=0;i<(int)sysfs->ifvproc.size();i++)
 			{
 				if(0!=sysfs->ConnectServer(sysfs->ifvproc[i]))
-				{
 					pass=false;
-					if(sysfs->quitcode!=0)
-						break;
-				}
+				if(sysfs->quitcode!=0)
+					break;
 			}
 			if(sysfs->quitcode!=0)
 				break;
@@ -245,17 +245,17 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 		return 0;
 	}
 }
-int SysFs::ConnectServer(if_proc* phif)
+int SysFs::ConnectServer(if_proc* pif)
 {
 	if_initial init;
 	init.user=get_if_user();
-	init.id=(char*)phif->id.c_str();
+	init.id=(char*)pif->id.c_str();
 	init.smem_size=0;
 	init.nthread=0;
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
 		sys_sleep(200);
-		if(0==connect_if(&init,&phif->hif))
+		if(0==connect_if(&init,&pif->hif))
 		{
 			return 0;
 		}
@@ -354,6 +354,17 @@ bool SysFs::ReqHandler(uint cmd,void* addr,void* param,int op)
 		ret=Reconnect(dc==NULL?NULL:dc->clear.id);
 	return ret;
 }
+if_proc* SysFs::GetIfProcFromID(const string& id)
+{
+	if(id.empty())
+		return active_storage;
+	for(int i=0;i<(int)ifvproc.size();i++)
+	{
+		if(ifvproc[i]->id==id)
+			return ifvproc[i];
+	}
+	return NULL;
+}
 bool less_if(const if_proc* i1,const if_proc* i2)
 {
 	return i1->prior<i2->prior;
@@ -449,6 +460,35 @@ int SysFs::EnumStorageModule(vector<proc_data>* pdata)
 	{
 		return ERR_MODULE_NOT_FOUND;
 	}
+	return 0;
+}
+static int fs_parse_path(if_proc** ppif,string& path,const string& in_path)
+{
+	vector<string> split_in_path,split_out_path;
+	split_path(in_path,split_in_path,'/');
+	if(split_in_path.size()==0)
+		return ERR_INVALID_PATH;
+	int ret=0;
+	if_proc* ifproc;
+	if(split_in_path[0][split_in_path[0].size()-1]==':')
+	{
+		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);
+		if(if_id.empty())
+			return ERR_INVALID_PATH;
+		if(NULL==(ifproc=g_sysfs.GetIfProcFromID(if_id)))
+			return ERR_INVALID_PATH;
+	}
+	else
+	{
+		if(NULL==(ifproc=g_sysfs.GetIfProcFromID("")))
+			return ERR_INVALID_PATH;
+	}
+	split_in_path.erase(split_in_path.begin());
+	if(0!=(ret=get_direct_path(split_out_path,split_in_path)))
+		return ret;
+	merge_path(path,split_out_path,'/');
+	path="/"+path;
+	*ppif=ifproc;
 	return 0;
 }
 void* SysFs::Open(const char* pathname,dword flags)

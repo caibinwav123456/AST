@@ -5,7 +5,9 @@
 #include <vector>
 #include <string.h>
 using namespace std;
-void split_path(const string& path, vector<string>& split, char dsym=_dir_symbol);
+DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym=_dir_symbol);
+DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym=_dir_symbol);
+DLLAPI(int)get_direct_path(vector<string>& direct, vector<string>& indirect);
 int get_absolute_path(const string& cur_dir, const vector<string>& relative_path, vector<string>& absolute_path, char dsym=_dir_symbol);
 int get_absolute_path(const string& cur_dir, const string& relative_path, vector<string>& absolute_path, char dsym=_dir_symbol);
 DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path, string& absolute_path, char dsym=_dir_symbol);
