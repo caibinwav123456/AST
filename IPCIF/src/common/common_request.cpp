@@ -1,8 +1,5 @@
 #include "common_request.h"
 #include "utility.h"
-#include "import.h"
-#include "interface.h"
-#include "export.h"
 #include <string.h>
 DLL int cb_simple_req(void* addr, void* param, int op)
 {
@@ -62,19 +59,6 @@ end:
 	{
 		close_if(*h);
 		*h=NULL;
-	}
-	return ret;
-}
-inline int send_request_no_reset(void* h, if_callback cb, void* param)
-{
-	int ret=0;
-	int count=0;
-	while(ERR_IF_RESET==(ret=request_if(h,cb,param)))
-	{
-		count++;
-		if(count>=10)
-			break;
-		sys_sleep(100);
 	}
 	return ret;
 }

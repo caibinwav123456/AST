@@ -9,6 +9,19 @@
 #include <map>
 #include <algorithm>
 using namespace std;
+struct fs_datagram_param
+{
+	datagram_base* dbase;
+	union
+	{
+		struct
+		{
+			dword flags;
+			void** hFile;
+			string* path;
+		}fsopen;
+	};
+};
 struct LinearBuffer
 {
 	LinearBuffer()
@@ -16,8 +29,10 @@ struct LinearBuffer
 		buf=NULL;
 		len=0;
 		offset=0;
+		offhigh=0;
 		end=0;
 		seq=0;
+		valid=false;
 		dirty=false;
 	}
 	~LinearBuffer()
@@ -33,8 +48,10 @@ struct LinearBuffer
 	byte* buf;
 	uint len;
 	uint offset;
+	uint offhigh;
 	uint end;
 	int seq;
+	bool valid;
 	bool dirty;
 };
 struct FileIoRec
@@ -45,6 +62,8 @@ struct FileIoRec
 		iobuf=NULL;
 		pif=NULL;
 		nbuf=0;
+		offset=0;
+		offhigh=0;
 	}
 	~FileIoRec()
 	{
@@ -55,6 +74,8 @@ struct FileIoRec
 	LinearBuffer* iobuf;
 	if_proc* pif;
 	uint nbuf;
+	uint offset;
+	uint offhigh;
 };
 struct FileServerKey
 {
@@ -126,7 +147,7 @@ public:
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
-	int ConnectServer(if_proc* pif,void** phif);
+	int ConnectServer(if_proc* pif,void** phif,bool once=false);
 	bool Reconnect(void* proc_id);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
 	if_proc* GetIfProcFromID(const string& id);

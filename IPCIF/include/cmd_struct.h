@@ -75,6 +75,7 @@ struct dg_getid
 struct dgc_fsopen
 {
 	dword flags;
+	void* hFile;
 	char path[MAX_FILE_PATH];
 };
 
@@ -95,23 +96,11 @@ struct dg_fsclose
 	dgc_fsclose close;
 };
 
-struct dgc_fsseek
-{
-	void* handle;
-	dword seektype;
-	uint offset;
-	uint offhigh;
-};
-
-struct dg_fsseek
-{
-	datagram_base header;
-	dgc_fsseek seek;
-};
-
 struct dgc_fsrdwr
 {
 	void* handle;
+	uint offset;
+	uint offhigh;
 	uint len;
 	byte buf[_1K*4];
 };

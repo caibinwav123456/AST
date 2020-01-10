@@ -1,6 +1,9 @@
 #ifndef _COMMON_REQUEST_H_
 #define _COMMON_REQUEST_H_
 #include "common.h"
+#include "import.h"
+#include "interface.h"
+#include "export.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -21,4 +24,17 @@ DLLAPI(int) send_cmd_getid(uint* pid, void* hif, char* id=NULL, char* user=NULL)
 #ifdef __cplusplus
 }
 #endif
+inline int send_request_no_reset(void* h, if_callback cb, void* param)
+{
+	int ret=0;
+	int count=0;
+	while(ERR_IF_RESET==(ret=request_if(h,cb,param)))
+	{
+		count++;
+		if(count>=10)
+			break;
+		sys_sleep(100);
+	}
+	return ret;
+}
 #endif

@@ -5,6 +5,7 @@
 #include "utility.h"
 #include "config_val_extern.h"
 #include "path.h"
+#include "common_request.h"
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
@@ -245,26 +246,39 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 		return 0;
 	}
 }
-int SysFs::ConnectServer(if_proc* pif,void** phif)
+int SysFs::ConnectServer(if_proc* pif,void** phif,bool once)
 {
 	if_initial init;
 	init.user=get_if_user();
 	init.id=(char*)pif->id.c_str();
 	init.smem_size=0;
 	init.nthread=0;
-	for(int i=0;i<MAX_CONNECT_TIMES;i++)
+	int ret=0;
+	if(once)
 	{
-		sys_sleep(200);
-		if(0==connect_if(&init,phif))
-		{
+		if(0==(ret=connect_if(&init,phif)))
 			return 0;
+	}
+	else
+	{
+		for(int i=0;i<MAX_CONNECT_TIMES;i++)
+		{
+			sys_sleep(200);
+			if(0==connect_if(&init,phif))
+			{
+				return 0;
+			}
 		}
+		ret=ERR_IF_CONN_FAILED;
 	}
 	LOGFILE(0,log_ftype_error,"Connecting to interface %s failed, try reconnecting...",init.id);
-	char msg[256];
-	sprintf(msg,"Connect to interface %s failed",init.id);
-	sys_show_message(msg);
-	return ERR_IF_CONN_FAILED;
+	if(!once)
+	{
+		char msg[256];
+		sprintf(msg,"Connect to interface %s failed",init.id);
+		sys_show_message(msg);
+	}
+	return ret;
 }
 //The code which calls Reconnect, SuspendIO and Exit must in the same thread.
 bool SysFs::Reconnect(void* proc_id)
@@ -499,7 +513,7 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 		return quitcode;
 	if(mode==fsmode_instant_if)
 	{
-		if(0!=(ret=ConnectServer(pif,phif)))
+		if(0!=(ret=ConnectServer(pif,phif,true)))
 			return ret;
 	}
 	sys_wait_sem(sem);
@@ -535,6 +549,37 @@ void SysFs::EndTransfer(void** phif)
 		close_if(*phif);
 	*phif=NULL;
 }
+int cb_fsc(void* addr,void* param,int op)
+{
+	fs_datagram_param* dgp=(fs_datagram_param*)param;
+	if(op&OP_PARAM)
+	{
+		memcpy(addr,dgp->dbase,sizeof(datagram_base));
+	}
+	if(op&OP_RETURN)
+	{
+		memcpy(dgp->dbase,addr,sizeof(datagram_base));
+	}
+	switch(dgp->dbase->cmd)
+	{
+	case CMD_FSOPEN:
+		{
+			dg_fsopen* fsopen=(dg_fsopen*)addr;
+			if(op&OP_PARAM)
+			{
+				fsopen->open.flags=dgp->fsopen.flags;
+				fsopen->open.hFile=NULL;
+				strcpy(fsopen->open.path,dgp->fsopen.path->c_str());
+			}
+			if(op&OP_RETURN)
+			{
+				*dgp->fsopen.hFile=fsopen->open.hFile;
+			}
+		}
+		break;
+	}
+	return 0;
+}
 void* SysFs::Open(const char* pathname,dword flags)
 {
 	if_proc* ifproc;
@@ -544,10 +589,23 @@ void* SysFs::Open(const char* pathname,dword flags)
 	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len);
 	pRec->pif=ifproc;
 	void* hif;
+	int ret=0;
 	if(0!=BeginTransfer(pRec->pif,&hif))
 		goto fail;
-	
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_FSOPEN);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsopen.flags=flags;
+	param.fsopen.hFile=&pRec->hFile;
+	param.fsopen.path=&path;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
 	EndTransfer(&hif);
+	if(ret!=0)
+		goto fail;
 	void* h=sysfs_get_handle();
 	fmap[h]=pRec;
 	return h;
