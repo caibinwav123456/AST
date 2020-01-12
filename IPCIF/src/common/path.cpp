@@ -79,7 +79,7 @@ DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path
 	int ret=get_absolute_path(cur_dir, relative_path, array_absolute_path, dsym);
 	if(ret!=0)
 		return ret;
-	merge_path(absolute_path, array_absolute_path);
+	merge_path(absolute_path, array_absolute_path,dsym);
 	return 0;
 }
 DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge, char dsym)
@@ -88,7 +88,7 @@ DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge
 	split_path(path1,path_array1,dsym);
 	split_path(path2,path_array2,dsym);
 	path_array1.insert(path_array1.end(),path_array2.begin(),path_array2.end());
-	merge_path(merge, path_array1);
+	merge_path(merge, path_array1,dsym);
 }
 DLLAPI(bool) is_subpath(const string& cur_dir, const string& relative_path1, const string& relative_path2, char dsym)
 {
