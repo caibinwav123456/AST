@@ -73,6 +73,7 @@ struct FileIoRec
 	void* hFile;
 	LinearBuffer* iobuf;
 	if_proc* pif;
+	string path;
 	uint nbuf;
 	uint offset;
 	uint offhigh;

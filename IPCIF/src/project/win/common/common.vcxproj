@@ -88,6 +88,7 @@
     <ClCompile Include="..\..\..\common\config.cpp" />
     <ClCompile Include="..\..\..\common\config_val.cpp" />
     <ClCompile Include="..\..\..\common\datetime.cpp" />
+    <ClCompile Include="..\..\..\common\Integer64.cpp" />
     <ClCompile Include="..\..\..\common\path.cpp" />
     <ClCompile Include="..\..\..\common\request_resolver.cpp" />
     <ClCompile Include="..\..\..\common\syslog.cpp" />
@@ -102,6 +103,7 @@
     <ClInclude Include="..\..\..\..\include\config_val_extern.h" />
     <ClInclude Include="..\..\..\..\include\datetime.h" />
     <ClInclude Include="..\..\..\..\include\dir_symbol.h" />
+    <ClInclude Include="..\..\..\..\include\Intger64.h" />
     <ClInclude Include="..\..\..\..\include\mutex.h" />
     <ClInclude Include="..\..\..\..\include\path.h" />
     <ClInclude Include="..\..\..\..\include\request_resolver.h" />

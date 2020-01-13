@@ -588,6 +588,7 @@ void* SysFs::Open(const char* pathname,dword flags)
 		return NULL;
 	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len);
 	pRec->pif=ifproc;
+	pRec->path=path;
 	void* hif;
 	int ret=0;
 	if(0!=BeginTransfer(pRec->pif,&hif))
