@@ -513,6 +513,7 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 		return quitcode;
 	if(mode==fsmode_instant_if)
 	{
+		*phif=NULL;
 		if(0!=(ret=ConnectServer(pif,phif,true)))
 			return ret;
 	}
@@ -520,18 +521,18 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 	if(quitcode!=0)
 	{
 		sys_signal_sem(sem);
-		close_if(*phif);
+		if(mode==fsmode_instant_if)
+			close_if(*phif);
 		*phif=NULL;
 		return quitcode;
 	}
 	if(mode==fsmode_permanent_if)
 	{
 		sys_wait_sem(mutex->get_mutex());
-		if(quitcode!=0)
+		if(quitcode!=0||pif->hif==NULL)
 		{
 			sys_signal_sem(mutex->get_mutex());
 			sys_signal_sem(sem);
-			close_if(*phif);
 			*phif=NULL;
 			return quitcode;
 		}

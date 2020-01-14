@@ -3,7 +3,7 @@
 #include "common.h"
 #include "import.h"
 #include "interface.h"
-#include "export.h"
+#include "impexp.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
