@@ -100,9 +100,10 @@ bool operator<=(BufferPtr a,BufferPtr b);
 class SortedFileIoRec : public FileIoRec
 {
 public:
-	SortedFileIoRec(uint n,uint m) : sorted_buf(n)
+	SortedFileIoRec(uint n,uint m,dword flag=0) : sorted_buf(n)
 	{
 		seq=0;
+		flags=flag;
 		nbuf=n;
 		iobuf=new LinearBuffer[nbuf];
 		for(int i=0;i<(int)nbuf;i++)
@@ -110,6 +111,7 @@ public:
 			iobuf[i].Init(m);
 		}
 	}
+	dword get_flags(){return flags;}
 private:
 	int get_seq()
 	{
@@ -119,6 +121,7 @@ private:
 	}
 	Heap<BufferPtr> sorted_buf;
 	int seq;
+	dword flags;
 };
 enum E_FS_MODE
 {
@@ -148,8 +151,6 @@ public:
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
-	int ConnectServer(if_proc* pif,void** phif,bool once=false);
-	bool Reconnect(void* proc_id);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
 	if_proc* GetIfProcFromID(const string& id);
 	void* Open(const char* pathname,dword flags);
@@ -165,11 +166,14 @@ public:
 	int ListFile(const char* path,vector<string> files);
 	int MakeDir(const char* path);
 private:
+	int ConnectServer(if_proc* pif,void** phif,bool once=false);
+	bool Reconnect(void* proc_id);
 	int ListStorageModule(vector<pair<int,int>>& index);
 	int EnumStorageModule();
 	int EnumStorageModule(vector<proc_data>* pdata);
 	int BeginTransfer(if_proc* pif,void** phif);
 	void EndTransfer(void** phif);
+	int ReOpen(SortedFileIoRec* pRec,void* hif);
 	static int cb_reconn(void* param);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;

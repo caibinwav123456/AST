@@ -280,7 +280,7 @@ int SysFs::ConnectServer(if_proc* pif,void** phif,bool once)
 	}
 	return ret;
 }
-//The code which calls Reconnect, SuspendIO and Exit must in the same thread.
+//The code which calls Reconnect, SuspendIO and Exit must be in the same thread.
 bool SysFs::Reconnect(void* proc_id)
 {
 	if(quitcode!=0)
@@ -532,7 +532,7 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 		{
 			sys_signal_sem(mutex->get_mutex());
 			sys_signal_sem(sem);
-			return quitcode;
+			return quitcode==0?ERR_GENERIC:quitcode;;
 		}
 	}
 	if(mode!=fsmode_instant_if)
@@ -579,19 +579,36 @@ int cb_fsc(void* addr,void* param,int op)
 	}
 	return 0;
 }
+int SysFs::ReOpen(SortedFileIoRec* pRec,void* hif)
+{
+	int ret=0;
+	pRec->hFile=NULL;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_FSOPEN);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsopen.flags=pRec->get_flags();
+	param.fsopen.hFile=&pRec->hFile;
+	param.fsopen.path=&pRec->path;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	return ret;
+}
 void* SysFs::Open(const char* pathname,dword flags)
 {
 	if_proc* ifproc;
 	string path;
 	if(0!=fs_parse_path(&ifproc,path,string(pathname)))
 		return NULL;
-	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len);
+	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len,flags);
 	pRec->pif=ifproc;
 	pRec->path=path;
 	void* hif;
 	int ret=0;
 	if(0!=BeginTransfer(pRec->pif,&hif))
-		goto fail;
+		goto failed;
 	datagram_base dg;
 	init_current_datagram_base(&dg,CMD_FSOPEN);
 	fs_datagram_param param;
@@ -605,11 +622,11 @@ void* SysFs::Open(const char* pathname,dword flags)
 end:
 	EndTransfer(&hif);
 	if(ret!=0)
-		goto fail;
+		goto failed;
 	void* h=sysfs_get_handle();
 	fmap[h]=pRec;
 	return h;
-fail:
+failed:
 	delete pRec;
 	return NULL;
 }
