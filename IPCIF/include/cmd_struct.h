@@ -21,6 +21,8 @@ enum if_cmd_code
 	CMD_FSSEEK,
 	CMD_FSREAD,
 	CMD_FSWRITE,
+	CMD_FSGETSIZE,
+	CMD_FSSETSIZE,
 	CMD_MAKEDIR,
 	CMD_LSFILES,
 	CMD_FSMOVE,
@@ -109,6 +111,18 @@ struct dg_fsrdwr
 {
 	datagram_base header;
 	dgc_fsrdwr rdwr;
+};
+
+struct dgc_fssize
+{
+	uint len;
+	uint lenhigh;
+};
+
+struct dg_fssize
+{
+	datagram_base header;
+	dgc_fssize size;
 };
 
 struct dgc_fsmove

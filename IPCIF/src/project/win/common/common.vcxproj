@@ -104,7 +104,7 @@
     <ClInclude Include="..\..\..\..\include\datetime.h" />
     <ClInclude Include="..\..\..\..\include\dir_symbol.h" />
     <ClInclude Include="..\..\..\..\include\impexp.h" />
-    <ClInclude Include="..\..\..\..\include\Intger64.h" />
+    <ClInclude Include="..\..\..\..\include\Integer64.h" />
     <ClInclude Include="..\..\..\..\include\mutex.h" />
     <ClInclude Include="..\..\..\..\include\path.h" />
     <ClInclude Include="..\..\..\..\include\request_resolver.h" />

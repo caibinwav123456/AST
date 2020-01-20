@@ -23,6 +23,8 @@ static char* err_descs[] =
 	"Timeout",
 	"The desired module is not found",
 	"The module is not initiated",
+	"The desired FS system access is denied",
+	"FS handle invalid",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

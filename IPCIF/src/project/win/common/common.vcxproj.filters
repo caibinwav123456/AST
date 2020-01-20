@@ -95,10 +95,10 @@
     <ClInclude Include="..\..\..\..\include\dir_symbol.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\Intger64.h">
+    <ClInclude Include="..\..\..\..\include\impexp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\impexp.h">
+    <ClInclude Include="..\..\..\..\include\Integer64.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

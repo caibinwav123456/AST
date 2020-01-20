@@ -32,6 +32,7 @@ struct LinearBuffer
 		offhigh=0;
 		end=0;
 		seq=0;
+		heap_index=0;
 		valid=false;
 		dirty=false;
 	}
@@ -51,6 +52,7 @@ struct LinearBuffer
 	uint offhigh;
 	uint end;
 	int seq;
+	uint heap_index;
 	bool valid;
 	bool dirty;
 };
@@ -90,13 +92,32 @@ struct FileServerRec
 	dword sid;
 };
 void* sysfs_get_handle();
+struct offset64
+{
+	uint off;
+	uint offhigh;
+};
 struct BufferPtr
 {
-	int seq;
 	LinearBuffer* buffer;
 };
 bool operator<(BufferPtr a,BufferPtr b);
 bool operator<=(BufferPtr a,BufferPtr b);
+class less_buf_ptr
+{
+public:
+	bool operator()(const offset64& a,const offset64& b) const;
+};
+class assign_buf_ptr
+{
+public:
+	BufferPtr& operator()(BufferPtr& a,BufferPtr& b,uint index);
+};
+class swap_buf_ptr
+{
+public:
+	void operator()(BufferPtr& a,BufferPtr& b);
+};
 class SortedFileIoRec : public FileIoRec
 {
 public:
@@ -109,9 +130,14 @@ public:
 		for(int i=0;i<(int)nbuf;i++)
 		{
 			iobuf[i].Init(m);
+			BufferPtr ptr;
+			ptr.buffer=iobuf+i;
+			free_buf.push_back(ptr);
 		}
 	}
 	dword get_flags(){return flags;}
+	LinearBuffer* get_buffer(offset64 off);
+	bool add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq);
 private:
 	int get_seq()
 	{
@@ -119,7 +145,9 @@ private:
 		seq++;
 		return s;
 	}
-	Heap<BufferPtr> sorted_buf;
+	Heap<BufferPtr,assign_buf_ptr,swap_buf_ptr> sorted_buf;
+	vector<BufferPtr> free_buf;
+	map<offset64,BufferPtr,less_buf_ptr> map_buf;
 	int seq;
 	dword flags;
 };
@@ -156,8 +184,9 @@ public:
 	void* Open(const char* pathname,dword flags);
 	int Close(void* h);
 	int Seek(void* h,uint seektype,uint offset,uint* offhigh=NULL);
-	int Read(void* h,void* buf,uint len,uint* rdlen=NULL);
-	int Write(void* h,void* buf,uint len,uint* wrlen=NULL);
+	int ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen=NULL);
+	int GetFileSize(uint* low,uint* high=NULL);
+	int SetFileSize(uint low,uint high=0);
 	int MoveFile(const char* src,const char* dst);
 	int CopyFile(const char* src,const char* dst);
 	int DeleteFile(const char* pathname);

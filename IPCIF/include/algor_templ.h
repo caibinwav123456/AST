@@ -5,6 +5,16 @@
 #define algor_max(a,b) ((a)>(b)?(a):(b))
 #define algor_min(a,b) ((a)<(b)?(a):(b))
 template<class T>
+class normal_assign
+{
+public:
+	T& operator()(T& a,T& b,uint index)
+	{
+		a=b;
+		return a;
+	}
+};
+template<class T>
 inline void algor_swap(T& a,T& b)
 {
 	T t=a;
@@ -12,6 +22,15 @@ inline void algor_swap(T& a,T& b)
 	b=t;
 }
 template<class T>
+class nswap
+{
+public:
+	void operator()(T& a,T& b)
+	{
+		algor_swap(a,b);
+	}
+};
+template<class T,class assign=normal_assign<T>,class cswap=nswap<T>>
 class Heap
 {
 public:
@@ -28,16 +47,19 @@ public:
 	}
 	bool Add(T t,T& min)
 	{
+		assign local_assign;
+		cswap c_swap;
 		bool ret=(num==max_num);
 		if(!ret)
 		{
-			heap[num++]=t;
+			local_assign(heap[num],t,num);
+			num++;
 			for(uint i=num-1;i!=0;)
 			{
 				uint p=heap_parent(i);
 				if(heap[i]<heap[p])
 				{
-					algor_swap(heap[i],heap[p]);
+					c_swap(heap[i],heap[p]);
 					i=p;
 				}
 				else
@@ -48,12 +70,12 @@ public:
 		{
 			if(t<=heap[0])
 			{
-				min=t;
+				local_assign(min,t,0);
 				return ret;
 			}
-			min=heap[0];
-			heap[0]=t;
-			while(uint i=0)
+			local_assign(min,heap[0],0);
+			local_assign(heap[0],t,0);
+			for(uint i=0;;)
 			{
 				uint c0=heap_first_child(i);
 				uint c1=heap_second_child(i);
@@ -76,21 +98,23 @@ public:
 					else
 						c=c1;
 				}
-				algor_swap(heap[i],heap[c]);
+				c_swap(heap[i],heap[c]);
 				i=c;
 			}
 		}
 		return ret;
 	}
-	bool RemoveMin(T& min)
+	bool RemoveMin(T& min,uint order=0)
 	{
-		if(num==0)
+		assign local_assign;
+		cswap c_swap;
+		if(order>=num)
 			return false;
-		min=heap[0];
-		if(num!=1)
-			heap[0]=heap[num-1];
+		local_assign(min,heap[order],0);
+		if(order<num-1)
+			local_assign(heap[order],heap[num-1],order);
 		num--;
-		while(uint i=0)
+		for(uint i=order;;)
 		{
 			uint c0=heap_first_child(i);
 			uint c1=heap_second_child(i);
@@ -113,7 +137,7 @@ public:
 				else
 					c=c1;
 			}
-			algor_swap(heap[i],heap[c]);
+			c_swap(heap[i],heap[c]);
 			i=c;
 		}
 		return true;

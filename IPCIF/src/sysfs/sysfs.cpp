@@ -6,6 +6,8 @@
 #include "config_val_extern.h"
 #include "path.h"
 #include "common_request.h"
+#include "Integer64.h"
+#include <assert.h>
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
@@ -22,11 +24,89 @@ void* sysfs_get_handle()
 SysFs g_sysfs;
 bool operator<(BufferPtr a,BufferPtr b)
 {
-	return a.seq-b.seq<0;
+	return a.buffer->seq-b.buffer->seq<0;
 }
 bool operator<=(BufferPtr a,BufferPtr b)
 {
-	return a.seq-b.seq<=0;
+	return a.buffer->seq-b.buffer->seq<=0;
+}
+bool less_buf_ptr::operator()(const offset64& a,const offset64& b) const
+{
+	UInteger64 ua(a.off,&a.offhigh),ub(b.off,&b.offhigh);
+	return ua<ub;
+}
+BufferPtr& assign_buf_ptr::operator()(BufferPtr& a,BufferPtr& b,uint index)
+{
+	a.buffer=b.buffer;
+	a.buffer->heap_index=index;
+	return a;
+}
+void swap_buf_ptr::operator()(BufferPtr& a,BufferPtr& b)
+{
+	assert(a.buffer!=NULL&&b.buffer!=NULL);
+	if(a.buffer==b.buffer)
+		return;
+	algor_swap(a.buffer,b.buffer);
+	algor_swap(a.buffer->heap_index,b.buffer->heap_index);
+}
+LinearBuffer* SortedFileIoRec::get_buffer(offset64 off)
+{
+	if(!free_buf.empty())
+	{
+		LinearBuffer* buf=free_buf.back().buffer;
+		free_buf.pop_back();
+		return buf;
+	}
+	uint index=0;
+	BufferPtr bufptr;
+	map<offset64,BufferPtr,less_buf_ptr>::iterator it;
+	if((it=map_buf.find(off))!=map_buf.end())
+	{
+		BufferPtr tmpptr=it->second;
+		map_buf.erase(it);
+		bool b=sorted_buf.RemoveMin(bufptr,tmpptr.buffer->heap_index);
+		assert(b);
+		assert(tmpptr.buffer==bufptr.buffer);
+		return tmpptr.buffer;
+	}
+	if(sorted_buf.RemoveMin(bufptr))
+	{
+		offset64 toff;
+		toff.off=bufptr.buffer->offset;
+		toff.offhigh=bufptr.buffer->offhigh;
+		it=map_buf.find(toff);
+		assert(it!=map_buf.end());
+		map_buf.erase(it);
+		return bufptr.buffer;
+	}
+	else
+		return NULL;
+}
+bool SortedFileIoRec::add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq)
+{
+	assert(buf!=NULL);
+	BufferPtr bptr;
+	bptr.buffer=buf;
+	if(add_to_free)
+	{
+		buf->valid=false;
+		buf->dirty=false;
+		buf->heap_index=0;
+		free_buf.push_back(bptr);
+	}
+	else
+	{
+		if(update_seq)
+			buf->seq=get_seq();
+		BufferPtr ovbptr;
+		bool b=sorted_buf.Add(bptr,ovbptr);
+		assert(!b);
+		offset64 off;
+		off.off=buf->offset;
+		off.offhigh=buf->offhigh;
+		map_buf[off]=bptr;
+	}
+	return true;
 }
 bool ClearHandler(uint cmd,void* addr,void* param,int op);
 int SysFs::cb_reconn(void* param)
@@ -638,11 +718,56 @@ int SysFs::Seek(void* h,uint seektype,uint offset,uint* offhigh)
 {
 	return 0;
 }
-int SysFs::Read(void* h,void* buf,uint len,uint* rdlen)
+inline int check_access_rights(if_cmd_code cmd,SortedFileIoRec* pRec)
+{
+	switch(cmd)
+	{
+	case CMD_FSREAD:
+		if((pRec->get_flags()&FILE_READ)==0)
+			return ERR_FS_NO_ACCESS;
+		break;
+	case CMD_FSWRITE:
+		if((pRec->get_flags()&FILE_WRITE)==0)
+			return ERR_FS_NO_ACCESS;
+		break;
+	case CMD_FSGETSIZE:
+		if((pRec->get_flags()&FILE_READ)==0)
+			return ERR_FS_NO_ACCESS;
+		break;
+	case CMD_FSSETSIZE:
+		if((pRec->get_flags()&FILE_WRITE)==0)
+			return ERR_FS_NO_ACCESS;
+		break;
+	default:
+		return ERR_FS_NO_ACCESS;
+	}
+	return 0;
+}
+int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
+{
+	assert(cmd==CMD_FSREAD||cmd==CMD_FSWRITE);
+	if (!VALID(h))
+		return ERR_FS_INVALID_HANDLE;
+	if(fmap.find(h)==fmap.end())
+		return ERR_FS_INVALID_HANDLE;
+	SortedFileIoRec* pRec=fmap[h];
+	int ret=0;
+	if(0!=(ret=check_access_rights(cmd,pRec)))
+		return ret;
+	if(len==0)
+	{
+		if(rdwrlen!=NULL)
+			*rdwrlen=0;
+		return 0;
+	}
+
+	return 0;
+}
+int SysFs::GetFileSize(uint* low,uint* high)
 {
 	return 0;
 }
-int SysFs::Write(void* h,void* buf,uint len,uint* wrlen)
+int SysFs::SetFileSize(uint low,uint high)
 {
 	return 0;
 }

@@ -1,4 +1,4 @@
-#include "Intger64.h"
+#include "Integer64.h"
 #include "stdio.h"
 template<class T>
 _Integer64<T>::_Integer64(int l,const T* h)
@@ -20,7 +20,7 @@ template<class T>
 DLL _Integer64<T> operator+(const _Integer64<T>& a,const _Integer64<T>& b)
 {
 	T c;
-	int low=((~a.low<b.low?c=1:c=0),a.low+b.low);
+	int low=(int)((~a.low<b.low?c=1:c=0),a.low+b.low);
 	T high=a.high+b.high+c;
 	return _Integer64<T>(low,&high);
 }
@@ -28,7 +28,7 @@ template<class T>
 DLL _Integer64<T> operator-(const _Integer64<T>& a,const _Integer64<T>& b)
 {
 	T c;
-	int low=((a.low<b.low?c=1:c=0),a.low-b.low);
+	int low=(int)((a.low<b.low?c=1:c=0),a.low-b.low);
 	T high=a.high-b.high-c;
 	return _Integer64<T>(low,&high);
 }
