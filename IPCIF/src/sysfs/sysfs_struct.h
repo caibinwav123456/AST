@@ -9,6 +9,11 @@
 #include <map>
 #include <algorithm>
 using namespace std;
+struct offset64
+{
+	uint off;
+	uint offhigh;
+};
 struct fs_datagram_param
 {
 	datagram_base* dbase;
@@ -20,6 +25,13 @@ struct fs_datagram_param
 			void** hFile;
 			string* path;
 		}fsopen;
+		struct
+		{
+			void* hFile;
+			offset64 off;
+			void* buf;
+			uint* len;
+		}fsrdwr;
 	};
 };
 struct LinearBuffer
@@ -92,11 +104,6 @@ struct FileServerRec
 	dword sid;
 };
 void* sysfs_get_handle();
-struct offset64
-{
-	uint off;
-	uint offhigh;
-};
 struct BufferPtr
 {
 	LinearBuffer* buffer;
@@ -185,6 +192,7 @@ public:
 	int Close(void* h);
 	int Seek(void* h,uint seektype,uint offset,uint* offhigh=NULL);
 	int ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen=NULL);
+	int FlushBuffer();
 	int GetFileSize(uint* low,uint* high=NULL);
 	int SetFileSize(uint low,uint high=0);
 	int MoveFile(const char* src,const char* dst);
@@ -203,6 +211,9 @@ private:
 	int BeginTransfer(if_proc* pif,void** phif);
 	void EndTransfer(void** phif);
 	int ReOpen(SortedFileIoRec* pRec,void* hif);
+	int FlushBuffer(SortedFileIoRec* pRec);
+	int DisposeLB(const offset64& off,SortedFileIoRec* pRec,LinearBuffer* pLB);
+	int IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB);
 	static int cb_reconn(void* param);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;

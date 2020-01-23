@@ -32,5 +32,6 @@
 #define ERR_MODULE_NOT_INITED       _r(20)
 #define ERR_FS_NO_ACCESS            _r(21)
 #define ERR_FS_INVALID_HANDLE       _r(22)
+#define ERR_INVALID_PARAM           _r(23)
 
 #endif

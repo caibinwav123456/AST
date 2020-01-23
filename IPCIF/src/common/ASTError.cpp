@@ -25,6 +25,7 @@ static char* err_descs[] =
 	"The module is not initiated",
 	"The desired FS system access is denied",
 	"FS handle invalid",
+	"Invalid calling parameters",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

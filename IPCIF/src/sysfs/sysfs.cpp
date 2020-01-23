@@ -30,6 +30,33 @@ bool operator<=(BufferPtr a,BufferPtr b)
 {
 	return a.buffer->seq-b.buffer->seq<=0;
 }
+static inline bool get_offset_len(UInteger64& off,uint& len,UInteger64& bufoff,uint& start,uint& end,uint buf_len)
+{
+	if(len==0)
+		return false;
+	UInteger64 bottom_off=off;
+	bottom_off.low&=(~(buf_len-1));
+	uint hi=0;
+	UInteger64 top_off=bottom_off+UInteger64(buf_len,&hi);
+	if((top_off.high&(1<<31))!=0)
+		return false;
+	UInteger64 top=top_off-off;
+	assert(top.high==0);
+	off=top_off;
+	bufoff=bottom_off;
+	start=buf_len-top.low;
+	if(len<=top.low)
+	{
+		end=start+len;
+		len=0;
+	}
+	else
+	{
+		end=buf_len;
+		len-=top.low;
+	}
+	return true;
+}
 bool less_buf_ptr::operator()(const offset64& a,const offset64& b) const
 {
 	UInteger64 ua(a.off,&a.offhigh),ub(b.off,&b.offhigh);
@@ -140,9 +167,19 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 	int ret=0;
 	if(numbuf<1)
 		numbuf=1;
-	if(buflen==0)
-		buflen=1;
-	buflen=((buflen+1023)&~1023);
+	if(buflen<1024)
+		buflen=1024;
+	if(buflen>1024*1024)
+		buflen=1024*1024;
+	int l;
+	for(l=0;;l++)
+	{
+		if(buflen==1)
+			break;
+		buflen>>=1;
+	}
+	for(;l>0;l--)
+		buflen<<=1;
 	nbuf=numbuf;
 	buf_len=buflen;
 	if(pblk!=NULL)
@@ -639,7 +676,8 @@ int cb_fsc(void* addr,void* param,int op)
 	{
 		memcpy(dgp->dbase,addr,sizeof(datagram_base));
 	}
-	switch(dgp->dbase->cmd)
+	uint cmd=dgp->dbase->cmd;
+	switch(cmd)
 	{
 	case CMD_FSOPEN:
 		{
@@ -653,6 +691,27 @@ int cb_fsc(void* addr,void* param,int op)
 			if(op&OP_RETURN)
 			{
 				*dgp->fsopen.hFile=fsopen->open.hFile;
+			}
+		}
+		break;
+	case CMD_FSREAD:
+	case CMD_FSWRITE:
+		{
+			dg_fsrdwr* fsrdwr=(dg_fsrdwr*)addr;
+			if(op&OP_PARAM)
+			{
+				fsrdwr->rdwr.handle=dgp->fsrdwr.hFile;
+				fsrdwr->rdwr.offset=dgp->fsrdwr.off.off;
+				fsrdwr->rdwr.offhigh=dgp->fsrdwr.off.offhigh;
+				fsrdwr->rdwr.len=*dgp->fsrdwr.len;
+				if(cmd==CMD_FSWRITE)
+					memcpy(fsrdwr->rdwr.buf,dgp->fsrdwr.buf,*dgp->fsrdwr.len);
+			}
+			if(op&OP_RETURN)
+			{
+				*dgp->fsrdwr.len=fsrdwr->rdwr.len;
+				if(cmd==CMD_FSREAD&&dgp->dbase->ret==0)
+					memcpy(dgp->fsrdwr.buf,fsrdwr->rdwr.buf,*dgp->fsrdwr.len);
 			}
 		}
 		break;
@@ -680,14 +739,14 @@ void* SysFs::Open(const char* pathname,dword flags)
 {
 	if_proc* ifproc;
 	string path;
-	if(0!=fs_parse_path(&ifproc,path,string(pathname)))
+	int ret=0;
+	if(0!=(ret=fs_parse_path(&ifproc,path,string(pathname))))
 		return NULL;
 	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len,flags);
 	pRec->pif=ifproc;
 	pRec->path=path;
 	void* hif;
-	int ret=0;
-	if(0!=BeginTransfer(pRec->pif,&hif))
+	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
 		goto failed;
 	datagram_base dg;
 	init_current_datagram_base(&dg,CMD_FSOPEN);
@@ -748,9 +807,10 @@ int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
 	assert(cmd==CMD_FSREAD||cmd==CMD_FSWRITE);
 	if (!VALID(h))
 		return ERR_FS_INVALID_HANDLE;
-	if(fmap.find(h)==fmap.end())
+	map<void*,SortedFileIoRec*>::iterator it=fmap.find(h);
+	if(it==fmap.end())
 		return ERR_FS_INVALID_HANDLE;
-	SortedFileIoRec* pRec=fmap[h];
+	SortedFileIoRec* pRec=it->second;
 	int ret=0;
 	if(0!=(ret=check_access_rights(cmd,pRec)))
 		return ret;
@@ -760,7 +820,195 @@ int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
 			*rdwrlen=0;
 		return 0;
 	}
-
+	byte* bbuf=(byte*)buf;
+	UInteger64 pos(pRec->offset,&pRec->offhigh);
+	UInteger64 cur(pos);
+	UInteger64 bufoff;
+	uint start,end,left=len;
+	while(get_offset_len(cur,left,bufoff,start,end,buf_len))
+	{
+		assert(end>=start);
+		offset64 off;
+		off.off=bufoff.low;
+		off.offhigh=bufoff.high;
+		LinearBuffer* pLBuf=pRec->get_buffer(off);
+		assert(pLBuf!=NULL);
+		if(0!=(ret=DisposeLB(off,pRec,pLBuf)))
+		{
+			left+=(end-start);
+			break;
+		}
+		bool read_eof=false;
+		switch(cmd)
+		{
+		case CMD_FSREAD:
+			{
+				uint ought_to_copy=end-start;
+				uint bytes_avail=(pLBuf->end>start?pLBuf->end-start:0);
+				uint bytes_to_copy;
+				if(bytes_avail>=ought_to_copy)
+				{
+					bytes_to_copy=ought_to_copy;
+				}
+				else
+				{
+					bytes_to_copy=bytes_avail;
+					read_eof=true;
+					left+=(ought_to_copy-bytes_avail);
+				}
+				memcpy(bbuf,pLBuf->buf+start,bytes_to_copy);
+				bbuf+=bytes_to_copy;
+			}
+			break;
+		case CMD_FSWRITE:
+			if(start==end)
+				break;
+			memcpy(pLBuf->buf+start,bbuf,end-start);
+			bbuf+=(end-start);
+			pLBuf->end<end?(pLBuf->end=end):0;
+			pLBuf->dirty=true;
+			break;
+		}
+		pRec->add_buffer(pLBuf,false,true);
+		if(read_eof)
+			break;
+	}
+	assert(left<=len);
+	uint done=len-left;
+	uint dummy=0;
+	pos=pos+UInteger64(done,&dummy);
+	assert((pos.high&(1<<31))==0);
+	pRec->offset=pos.low;
+	pRec->offhigh=pos.high;
+	if(rdwrlen!=NULL)
+		*rdwrlen=done;
+	else if(done!=len)
+		return ERR_INVALID_PARAM;
+	return ret;
+}
+int SysFs::DisposeLB(const offset64& off,SortedFileIoRec* pRec,LinearBuffer* pLB)
+{
+	int ret=0;
+	if(pLB->valid)
+	{
+		UInteger64 off1(off.off,&off.offhigh),
+			off2(pLB->offset,&pLB->offhigh);
+		if(off1==off2)
+		{
+			if(pLB->end<buf_len&&!pLB->dirty)
+			{
+				//reload buffer
+				if(0!=(ret=IOBuf(CMD_FSREAD,pRec,pLB)))
+				{
+					pRec->add_buffer(pLB,true,false);
+					return ret;
+				}
+			}
+		}
+		else
+		{
+			if(pLB->dirty)
+			{
+				//write buffer
+				if(0!=(ret=IOBuf(CMD_FSWRITE,pRec,pLB)))
+				{
+					pRec->add_buffer(pLB,false,true);
+					return ret;
+				}
+				pLB->dirty=false;
+			}
+			//load buffer
+			pLB->offset=off.off;
+			pLB->offhigh=off.offhigh;
+			if(0!=(ret=IOBuf(CMD_FSREAD,pRec,pLB)))
+			{
+				pRec->add_buffer(pLB,true,false);
+				return ret;
+			}
+		}
+	}
+	else
+	{
+		//load buffer
+		pLB->offset=off.off;
+		pLB->offhigh=off.offhigh;
+		if(0!=(ret=IOBuf(CMD_FSREAD,pRec,pLB)))
+		{
+			pRec->add_buffer(pLB,true,false);
+			return ret;
+		}
+		pLB->valid=true;
+		pLB->dirty=false;
+	}
+	return 0;
+}
+int SysFs::IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB)
+{
+	assert(cmd==CMD_FSREAD||cmd==CMD_FSWRITE);
+	void* hif;
+	int ret=0;
+	datagram_base dg;
+	init_current_datagram_base(&dg,cmd);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsrdwr.hFile=pRec->hFile;
+	const uint size_if_buf=sizeof(dgc_fsrdwr::buf);
+	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
+		return ret;
+	uint bytes_to_transfer=(cmd==CMD_FSREAD?buf_len:pLB->end);
+	uint left=bytes_to_transfer;
+	UInteger64 off(pLB->offset,&pLB->offhigh);
+	uint dummy=0;
+	byte* bbuf=pLB->buf;
+	while(left>0)
+	{
+		assert((off.high&(1<<31))==0);
+		uint ought_to_transfer=(left>size_if_buf?size_if_buf:left);
+		uint transfer_once=ought_to_transfer;
+		param.fsrdwr.off.off=off.low;
+		param.fsrdwr.off.offhigh=off.high;
+		param.fsrdwr.len=&transfer_once;
+		param.fsrdwr.buf=bbuf;
+		if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+			goto end;
+		ret=dg.ret;
+end:
+		if(ret!=ERR_FS_INVALID_HANDLE)
+			goto end2;
+		pRec->hFile=NULL;
+		if(0!=(ret=ReOpen(pRec,hif)))
+			goto end2;
+		init_current_datagram_base(&dg,cmd);
+		param.fsrdwr.hFile=pRec->hFile;
+		if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+			goto end2;
+		ret=dg.ret;
+end2:
+		if(ret!=0)
+			break;
+		assert(transfer_once<=ought_to_transfer);
+		left-=transfer_once;
+		bbuf+=transfer_once;
+		off=off+UInteger64(transfer_once,&dummy);
+		if(transfer_once<ought_to_transfer)
+		{
+			if(cmd==CMD_FSWRITE)
+				ret=ERR_FILE_IO;
+			break;
+		}
+	}
+	EndTransfer(&hif);
+	assert(left<=bytes_to_transfer);
+	if(ret==0&&cmd==CMD_FSREAD)
+		pLB->end=bytes_to_transfer-left;
+	return ret;
+}
+int SysFs::FlushBuffer()
+{
+	return 0;
+}
+int SysFs::FlushBuffer(SortedFileIoRec* pRec)
+{
 	return 0;
 }
 int SysFs::GetFileSize(uint* low,uint* high)
