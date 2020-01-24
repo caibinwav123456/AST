@@ -8,6 +8,11 @@
 #include "common_request.h"
 #include "Integer64.h"
 #include <assert.h>
+#if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
+#define verify(m) assert(m)
+#else
+#define verify(m) (m)
+#endif
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
@@ -91,8 +96,7 @@ LinearBuffer* SortedFileIoRec::get_buffer(offset64 off)
 	{
 		BufferPtr tmpptr=it->second;
 		map_buf.erase(it);
-		bool b=sorted_buf.RemoveMin(bufptr,tmpptr.buffer->heap_index);
-		assert(b);
+		verify(sorted_buf.RemoveMin(bufptr,tmpptr.buffer->heap_index));
 		assert(tmpptr.buffer==bufptr.buffer);
 		return tmpptr.buffer;
 	}
@@ -126,8 +130,7 @@ bool SortedFileIoRec::add_buffer(LinearBuffer* buf,bool add_to_free,bool update_
 		if(update_seq)
 			buf->seq=get_seq();
 		BufferPtr ovbptr;
-		bool b=sorted_buf.Add(bptr,ovbptr);
-		assert(!b);
+		verify(!sorted_buf.Add(bptr,ovbptr));
 		offset64 off;
 		off.off=buf->offset;
 		off.offhigh=buf->offhigh;
@@ -952,7 +955,7 @@ int SysFs::IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB)
 	fs_datagram_param param;
 	param.dbase=&dg;
 	param.fsrdwr.hFile=pRec->hFile;
-	const uint size_if_buf=sizeof(dgc_fsrdwr::buf);
+	const uint size_if_buf=sizeof(((dgc_fsrdwr*)NULL)->buf);
 	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
 		return ret;
 	uint bytes_to_transfer=(cmd==CMD_FSREAD?buf_len:pLB->end);
