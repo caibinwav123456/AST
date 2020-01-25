@@ -33,5 +33,6 @@
 #define ERR_FS_NO_ACCESS            _r(21)
 #define ERR_FS_INVALID_HANDLE       _r(22)
 #define ERR_INVALID_PARAM           _r(23)
+#define ERR_FS_NEGATIVE_POSITION    _r(24)
 
 #endif

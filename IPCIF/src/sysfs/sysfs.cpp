@@ -76,17 +76,19 @@ void swap_buf_ptr::operator()(BufferPtr& a,BufferPtr& b)
 	algor_swap(a.buffer,b.buffer);
 	algor_swap(a.buffer->heap_index,b.buffer->heap_index);
 }
-LinearBuffer* SortedFileIoRec::get_buffer(offset64 off)
+LinearBuffer* SortedFileIoRec::get_buffer(offset64 off,bool get_oldest)
 {
+	uint index=0;
+	BufferPtr bufptr;
+	map<offset64,BufferPtr,less_buf_ptr>::iterator it;
+	if(get_oldest)
+		goto remove;
 	if(!free_buf.empty())
 	{
 		LinearBuffer* buf=free_buf.back().buffer;
 		free_buf.pop_back();
 		return buf;
 	}
-	uint index=0;
-	BufferPtr bufptr;
-	map<offset64,BufferPtr,less_buf_ptr>::iterator it;
 	if((it=map_buf.find(off))!=map_buf.end())
 	{
 		BufferPtr tmpptr=it->second;
@@ -95,6 +97,7 @@ LinearBuffer* SortedFileIoRec::get_buffer(offset64 off)
 		assert(tmpptr.buffer==bufptr.buffer);
 		return tmpptr.buffer;
 	}
+remove:
 	if(sorted_buf.RemoveMin(bufptr))
 	{
 		offset64 toff;
@@ -767,12 +770,78 @@ failed:
 	delete pRec;
 	return NULL;
 }
+SortedFileIoRec* SysFs::handle_to_rec_ptr(void* handle,map<void*,SortedFileIoRec*>::iterator* iter)
+{
+	if(!VALID(handle))
+		return NULL;
+	map<void*,SortedFileIoRec*>::iterator it=fmap.find(handle);
+	if(it==fmap.end())
+		return NULL;
+	if(iter!=NULL)
+		*iter=it;
+	return it->second;
+}
 int SysFs::Close(void* h)
 {
+	map<void*,SortedFileIoRec*>::iterator it;
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h,&it);
+	if(pRec==NULL)
+		return ERR_FS_INVALID_HANDLE;
+	int ret=0;
+	if(0!=(ret=FlushBuffer(pRec)))
+		return ret;
+	fmap.erase(it);
+	delete pRec;
 	return 0;
 }
-int SysFs::Seek(void* h,uint seektype,uint offset,uint* offhigh)
+int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 {
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
+	if(pRec==NULL)
+		return ERR_FS_INVALID_HANDLE;
+	Integer64 off(pRec->offset,(int*)&pRec->offhigh),
+		setoff(offset,offhigh);
+	int dummy=0;
+	int ret=0;
+	switch(seektype)
+	{
+	case SEEK_BEGIN:
+		if(setoff<Integer64(0,&dummy))
+			return ERR_FS_NEGATIVE_POSITION;
+		pRec->offset=setoff.low;
+		pRec->offhigh=(uint)setoff.high;
+		break;
+	case SEEK_CUR:
+		off=off+setoff;
+		if(off<Integer64(0,&dummy))
+			return ERR_FS_NEGATIVE_POSITION;
+		pRec->offset=off.low;
+		pRec->offhigh=(uint)off.high;
+		break;
+	case SEEK_END:
+		if(0!=(ret=GetFileSize(pRec,&off.low,(uint*)&off.high)))
+			return ret;
+		off=off+setoff;
+		if(off<Integer64(0,&dummy))
+			return ERR_FS_NEGATIVE_POSITION;
+		pRec->offset=off.low;
+		pRec->offhigh=(uint)off.high;
+		break;
+	default:
+		return ERR_INVALID_PARAM;
+	}
+	return 0;
+}
+int SysFs::GetPosition(void* h,uint* offset,uint* offhigh)
+{
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
+	if(pRec==NULL)
+		return ERR_FS_INVALID_HANDLE;
+	if(offhigh==NULL&&pRec->offhigh>0)
+		return ERR_INVALID_PARAM;
+	*offset=pRec->offset;
+	if(offhigh!=NULL)
+		*offhigh=pRec->offhigh;
 	return 0;
 }
 inline int check_access_rights(if_cmd_code cmd,SortedFileIoRec* pRec)
@@ -803,12 +872,9 @@ inline int check_access_rights(if_cmd_code cmd,SortedFileIoRec* pRec)
 int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
 {
 	assert(cmd==CMD_FSREAD||cmd==CMD_FSWRITE);
-	if (!VALID(h))
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
+	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
-	map<void*,SortedFileIoRec*>::iterator it=fmap.find(h);
-	if(it==fmap.end())
-		return ERR_FS_INVALID_HANDLE;
-	SortedFileIoRec* pRec=it->second;
 	int ret=0;
 	if(0!=(ret=check_access_rights(cmd,pRec)))
 		return ret;
@@ -881,7 +947,7 @@ int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
 	if(rdwrlen!=NULL)
 		*rdwrlen=done;
 	else if(done!=len)
-		return ERR_INVALID_PARAM;
+		return ret==0?ERR_INVALID_PARAM:ret;
 	return ret;
 }
 int SysFs::DisposeLB(const offset64& off,SortedFileIoRec* pRec,LinearBuffer* pLB)
@@ -973,7 +1039,6 @@ int SysFs::IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB)
 end:
 		if(ret!=ERR_FS_INVALID_HANDLE)
 			goto end2;
-		pRec->hFile=NULL;
 		if(0!=(ret=ReOpen(pRec,hif)))
 			goto end2;
 		init_current_datagram_base(&dg,cmd);
@@ -1001,19 +1066,55 @@ end2:
 		pLB->end=bytes_to_transfer-left;
 	return ret;
 }
-int SysFs::FlushBuffer()
+int SysFs::FlushBuffer(void* h)
 {
-	return 0;
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
+	if(pRec==NULL)
+		return ERR_FS_INVALID_HANDLE;
+	return FlushBuffer(pRec);
 }
 int SysFs::FlushBuffer(SortedFileIoRec* pRec)
 {
+	int ret=0;
+	offset64 dummy;
+	dummy.off=(uint)-1;
+	dummy.offhigh=(uint)-1;
+	LinearBuffer* pLB;
+	while(NULL!=(pLB=pRec->get_buffer(dummy,true)))
+	{
+		assert(pLB->valid);
+		if(pLB->dirty)
+		{
+			//write buffer
+			if(0!=(ret=IOBuf(CMD_FSWRITE,pRec,pLB)))
+			{
+				pRec->add_buffer(pLB,false,true);
+				return ret;
+			}
+		}
+		pRec->add_buffer(pLB,true,false);
+	}
 	return 0;
 }
-int SysFs::GetFileSize(uint* low,uint* high)
+int SysFs::GetFileSize(void* h,uint* low,uint* high)
+{
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
+	if(pRec==NULL)
+		return ERR_FS_INVALID_HANDLE;
+	return GetFileSize(pRec,low,high);
+}
+int SysFs::SetFileSize(void* h,uint low,uint high)
+{
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
+	if(pRec==NULL)
+		return ERR_FS_INVALID_HANDLE;
+	return SetFileSize(pRec,low,high);
+}
+int SysFs::GetFileSize(SortedFileIoRec*pRec,uint* low,uint* high)
 {
 	return 0;
 }
-int SysFs::SetFileSize(uint low,uint high)
+int SysFs::SetFileSize(SortedFileIoRec*pRec,uint low,uint high)
 {
 	return 0;
 }

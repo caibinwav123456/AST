@@ -26,6 +26,7 @@ static char* err_descs[] =
 	"The desired FS system access is denied",
 	"FS handle invalid",
 	"Invalid calling parameters",
+	"Trying to set a file pointer to a negative value",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

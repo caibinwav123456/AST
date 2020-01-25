@@ -143,7 +143,7 @@ public:
 		}
 	}
 	dword get_flags(){return flags;}
-	LinearBuffer* get_buffer(offset64 off);
+	LinearBuffer* get_buffer(offset64 off,bool get_oldest=false);
 	bool add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq);
 private:
 	int get_seq()
@@ -190,11 +190,12 @@ public:
 	if_proc* GetIfProcFromID(const string& id);
 	void* Open(const char* pathname,dword flags);
 	int Close(void* h);
-	int Seek(void* h,uint seektype,uint offset,uint* offhigh=NULL);
+	int Seek(void* h,uint seektype,int offset,int* offhigh=NULL);
+	int GetPosition(void* h,uint* offset,uint* offhigh=NULL);
 	int ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen=NULL);
-	int FlushBuffer();
-	int GetFileSize(uint* low,uint* high=NULL);
-	int SetFileSize(uint low,uint high=0);
+	int FlushBuffer(void* h);
+	int GetFileSize(void* h,uint* low,uint* high=NULL);
+	int SetFileSize(void* h,uint low,uint high=0);
 	int MoveFile(const char* src,const char* dst);
 	int CopyFile(const char* src,const char* dst);
 	int DeleteFile(const char* pathname);
@@ -212,8 +213,11 @@ private:
 	void EndTransfer(void** phif);
 	int ReOpen(SortedFileIoRec* pRec,void* hif);
 	int FlushBuffer(SortedFileIoRec* pRec);
+	int GetFileSize(SortedFileIoRec*pRec,uint* low,uint* high=NULL);
+	int SetFileSize(SortedFileIoRec*pRec,uint low,uint high=0);
 	int DisposeLB(const offset64& off,SortedFileIoRec* pRec,LinearBuffer* pLB);
 	int IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB);
+	SortedFileIoRec* handle_to_rec_ptr(void* handle,map<void*,SortedFileIoRec*>::iterator* iter=NULL);
 	static int cb_reconn(void* param);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
