@@ -8,11 +8,6 @@
 #include "common_request.h"
 #include "Integer64.h"
 #include <assert.h>
-#if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
-#define verify(m) assert(m)
-#else
-#define verify(m) (m)
-#endif
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]

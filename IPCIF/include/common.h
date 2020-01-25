@@ -9,6 +9,11 @@ typedef unsigned char uchar;
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
+#if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
+#define verify(m) assert(m)
+#else
+#define verify(m) (m)
+#endif
 #ifdef WIN32
 #pragma warning(disable:4996)
 #pragma warning(disable:4251)
