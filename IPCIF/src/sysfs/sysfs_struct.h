@@ -1,9 +1,9 @@
 #ifndef _SYSFS_STRUCT_H_
 #define _SYSFS_STRUCT_H_
 #include "common.h"
-#include "sysfs.h"
 #include "algor_templ.h"
 #include "process_data.h"
+#include "request_resolver.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -25,6 +25,7 @@ struct fs_datagram_param
 			void** hFile;
 			string* path;
 		}fsopen;
+		dgc_fsclose fsclose;
 		struct
 		{
 			void* hFile;
@@ -32,6 +33,7 @@ struct fs_datagram_param
 			void* buf;
 			uint* len;
 		}fsrdwr;
+		dgc_fssize* fssize;
 	};
 };
 struct LinearBuffer
@@ -103,7 +105,6 @@ struct FileServerRec
 	void* hFile;
 	dword sid;
 };
-void* sysfs_get_handle();
 struct BufferPtr
 {
 	LinearBuffer* buffer;
@@ -145,6 +146,10 @@ public:
 	dword get_flags(){return flags;}
 	LinearBuffer* get_buffer(offset64 off,bool get_oldest=false);
 	bool add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq);
+	Heap<BufferPtr,assign_buf_ptr,swap_buf_ptr>::iterator get_iter()
+	{
+		return sorted_buf.BeginIterate();
+	}
 private:
 	int get_seq()
 	{
@@ -194,13 +199,11 @@ public:
 	int GetPosition(void* h,uint* offset,uint* offhigh=NULL);
 	int ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen=NULL);
 	int FlushBuffer(void* h);
-	int GetFileSize(void* h,uint* low,uint* high=NULL);
-	int SetFileSize(void* h,uint low,uint high=0);
+	int GetSetFileSize(if_cmd_code cmd,void* h,uint* low,uint* high=NULL);
 	int MoveFile(const char* src,const char* dst);
 	int CopyFile(const char* src,const char* dst);
 	int DeleteFile(const char* pathname);
-	int GetFileAttr(const char* path,DateTime* datetime=NULL,dword* flags=NULL);
-	int SetFileAttr(const char* path,DateTime* datetime=NULL,dword* flags=NULL);
+	int GetSetFileAttr(if_cmd_code cmd,const char* path,DateTime* datetime=NULL,dword* flags=NULL);
 	int ListFile(const char* path,vector<string> files);
 	int MakeDir(const char* path);
 private:
@@ -213,12 +216,12 @@ private:
 	void EndTransfer(void** phif);
 	int ReOpen(SortedFileIoRec* pRec,void* hif);
 	int FlushBuffer(SortedFileIoRec* pRec);
-	int GetFileSize(SortedFileIoRec*pRec,uint* low,uint* high=NULL);
-	int SetFileSize(SortedFileIoRec*pRec,uint low,uint high=0);
+	int GetSetFileSize(if_cmd_code cmd,SortedFileIoRec*pRec,uint* low,uint* high=NULL);
 	int DisposeLB(const offset64& off,SortedFileIoRec* pRec,LinearBuffer* pLB);
 	int IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB);
 	SortedFileIoRec* handle_to_rec_ptr(void* handle,map<void*,SortedFileIoRec*>::iterator* iter=NULL);
 	static int cb_reconn(void* param);
+	void* sysfs_get_handle();
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
 	vector<if_proc*> ifvproc;

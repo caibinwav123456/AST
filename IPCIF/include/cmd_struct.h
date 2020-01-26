@@ -115,6 +115,7 @@ struct dg_fsrdwr
 
 struct dgc_fssize
 {
+	void* handle;
 	uint len;
 	uint lenhigh;
 };

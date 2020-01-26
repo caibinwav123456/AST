@@ -12,13 +12,16 @@ DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
 #define MAX_CONNECT_TIMES 10
-void* sysfs_get_handle()
+void* SysFs::sysfs_get_handle()
 {
 	static uint i=1;
-	void* h=(void*)i;
-	i++;
-	if(i==(uint)-1)
-		i=1;
+	void* h;
+	do{
+		h=(void*)i;
+		i++;
+		if(i==(uint)-1)
+			i=1;
+	}while(fmap.find(h)!=fmap.end());
 	return h;
 }
 SysFs g_sysfs;
@@ -716,6 +719,23 @@ int cb_fsc(void* addr,void* param,int op)
 			}
 		}
 		break;
+	case CMD_FSCLOSE:
+		{
+			dg_fsclose* fsclose=(dg_fsclose*)addr;
+			if(op&OP_PARAM)
+				fsclose->close=dgp->fsclose;
+		}
+		break;
+	case CMD_FSGETSIZE:
+	case CMD_FSSETSIZE:
+		{
+			dg_fssize* fssize=(dg_fssize*)addr;
+			if(op&OP_PARAM)
+				fssize->size=*dgp->fssize;
+			if(op&OP_RETURN&&cmd==CMD_FSGETSIZE&&dgp->dbase->ret==0)
+				*dgp->fssize=fssize->size;
+		}
+		break;
 	}
 	return 0;
 }
@@ -790,9 +810,24 @@ int SysFs::Close(void* h)
 	int ret=0;
 	if(0!=(ret=FlushBuffer(pRec)))
 		return ret;
+	void* hif;
+	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
+		return ret;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_FSCLOSE);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsclose.handle=pRec->hFile;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	EndTransfer(&hif);
+	if(ret!=0)
+		return ret;
 	fmap.erase(it);
 	delete pRec;
-	return 0;
+	return ret;
 }
 int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 {
@@ -819,7 +854,7 @@ int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 		pRec->offhigh=(uint)off.high;
 		break;
 	case SEEK_END:
-		if(0!=(ret=GetFileSize(pRec,&off.low,(uint*)&off.high)))
+		if(0!=(ret=GetSetFileSize(CMD_FSGETSIZE,pRec,&off.low,(uint*)&off.high)))
 			return ret;
 		off=off+setoff;
 		if(off<Integer64(0,&dummy))
@@ -1039,6 +1074,10 @@ int SysFs::IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB)
 end:
 		if(ret!=ERR_FS_INVALID_HANDLE)
 			goto end2;
+		EndTransfer(&hif);
+		sys_sleep(200);
+		if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
+			return ret;
 		if(0!=(ret=ReOpen(pRec,hif)))
 			goto end2;
 		init_current_datagram_base(&dg,cmd);
@@ -1096,27 +1135,74 @@ int SysFs::FlushBuffer(SortedFileIoRec* pRec)
 	}
 	return 0;
 }
-int SysFs::GetFileSize(void* h,uint* low,uint* high)
+int SysFs::GetSetFileSize(if_cmd_code cmd,void* h,uint* low,uint* high)
 {
 	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
-	return GetFileSize(pRec,low,high);
+	return GetSetFileSize(cmd,pRec,low,high);
 }
-int SysFs::SetFileSize(void* h,uint low,uint high)
+int SysFs::GetSetFileSize(if_cmd_code cmd,SortedFileIoRec*pRec,uint* low,uint* high)
 {
-	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
-	if(pRec==NULL)
-		return ERR_FS_INVALID_HANDLE;
-	return SetFileSize(pRec,low,high);
-}
-int SysFs::GetFileSize(SortedFileIoRec*pRec,uint* low,uint* high)
-{
-	return 0;
-}
-int SysFs::SetFileSize(SortedFileIoRec*pRec,uint low,uint high)
-{
-	return 0;
+	assert(cmd==CMD_FSGETSIZE||cmd==CMD_FSSETSIZE);
+	int ret=0;
+	if(0!=(ret=check_access_rights(cmd,pRec)))
+		return ret;
+	if(cmd==CMD_FSSETSIZE)
+	{
+		if(0!=(ret=FlushBuffer(pRec)))
+			return ret;
+	}
+	dgc_fssize ds;
+	ds.handle=pRec->hFile;
+	ds.len=(cmd==CMD_FSGETSIZE?0:*low);
+	ds.lenhigh=(cmd==CMD_FSGETSIZE?0:(high==NULL?0:*high));
+	datagram_base dg;
+	init_current_datagram_base(&dg,cmd);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fssize=&ds;
+	void* hif;
+	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
+		return ret;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	if(ret!=ERR_FS_INVALID_HANDLE)
+		goto end2;
+	EndTransfer(&hif);
+	sys_sleep(200);
+	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
+		return ret;
+	if(0!=(ret=ReOpen(pRec,hif)))
+		goto end2;
+	init_current_datagram_base(&dg,cmd);
+	ds.handle=pRec->hFile;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end2;
+	ret=dg.ret;
+end2:
+	EndTransfer(&hif);
+	if(cmd==CMD_FSGETSIZE&&ret==0)
+	{
+		UInteger64 size64(ds.len,&ds.lenhigh);
+		uint dummy=0;
+		for(Heap<BufferPtr,assign_buf_ptr,swap_buf_ptr>::iterator it=pRec->get_iter();it;it++)
+		{
+			UInteger64 end_buf(it->buffer->offset,&it->buffer->offhigh);
+			end_buf=end_buf+UInteger64(it->buffer->end,&dummy);
+			if(size64<end_buf)
+				size64=end_buf;
+		}
+		assert((size64.high&(1<<31))==0);
+		if(high==NULL&&size64.high>0)
+			return ERR_INVALID_PARAM;
+		*low=size64.low;
+		if(high!=NULL)
+			*high=size64.high;
+	}
+	return ret;
 }
 int SysFs::MoveFile(const char* src,const char* dst)
 {
@@ -1130,11 +1216,7 @@ int SysFs::DeleteFile(const char* pathname)
 {
 	return 0;
 }
-int SysFs::GetFileAttr(const char* path,DateTime* datetime,dword* flags)
-{
-	return 0;
-}
-int SysFs::SetFileAttr(const char* path,DateTime* datetime,dword* flags)
+int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,DateTime* datetime,dword* flags)
 {
 	return 0;
 }

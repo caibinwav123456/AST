@@ -34,6 +34,33 @@ template<class T,class assign=normal_assign<T>,class cswap=nswap<T>>
 class Heap
 {
 public:
+	class iterator
+	{
+		friend class Heap<T,assign,cswap>;
+		uint i;
+		uint num;
+		T* ptr;
+		iterator(uint n,T* p):i(0),num(n),ptr(p)
+		{
+		}
+	public:
+		void operator++(int)
+		{
+			i++;
+		}
+		operator bool()
+		{
+			return i<num;
+		}
+		const T& operator*()
+		{
+			return ptr[i];
+		}
+		const T* operator->()
+		{
+			return ptr+i;
+		}
+	};
 	Heap(uint n)
 	{
 		max_num=(n<1?1:n);
@@ -141,6 +168,10 @@ public:
 			i=c;
 		}
 		return true;
+	}
+	iterator BeginIterate()
+	{
+		return iterator(num,heap);
 	}
 private:
 	T* heap;
