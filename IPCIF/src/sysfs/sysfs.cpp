@@ -1367,7 +1367,7 @@ end:
 	EndTransfer(&hif);
 	if(ret==0&&cmd==CMD_FSGETATTR)
 	{
-		if(mask&FS_ATTR_FLAGS&&flags!=NULL)
+		if((mask&FS_ATTR_FLAGS)&&flags!=NULL)
 			*flags=tflags;
 		if(datetime!=NULL)
 		{
