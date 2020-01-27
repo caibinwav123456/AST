@@ -784,6 +784,28 @@ int cb_fsc(void* addr,void* param,int op)
 			}
 		}
 		break;
+	case CMD_LSFILES:
+		{
+			dg_fslsfiles* fslsfiles=(dg_fslsfiles*)addr;
+			if(op&OP_PARAM)
+			{
+				fslsfiles->files.handle=*dgp->fslsfiles.handle;
+				fslsfiles->files.nfiles=0;
+				strcpy(fslsfiles->files.path,dgp->fslsfiles.handle==NULL?
+					dgp->fslsfiles.path->c_str():"");
+			}
+			if((op&OP_RETURN)&&dgp->dbase->ret==0)
+			{
+				*dgp->fslsfiles.handle=fslsfiles->files.handle;
+				*dgp->fslsfiles.nfiles=fslsfiles->files.nfiles;
+				int i;
+				for(i=0;i<LSBUFFER_ELEMENTS&&*dgp->fslsfiles.nfiles>0;i++,(*dgp->fslsfiles.nfiles)--)
+				{
+					dgp->fslsfiles.files->push_back(fslsfiles->files.file[i]);
+				}
+			}
+		}
+		break;
 	}
 	return 0;
 }
@@ -858,23 +880,29 @@ int SysFs::Close(void* h)
 	int ret=0;
 	if(0!=(ret=FlushBuffer(pRec)))
 		return ret;
+	ret=CloseHandle(pRec->hFile,pRec->pif);
+	if(ret!=0&&ret!=ERR_FS_INVALID_HANDLE)
+		return ret;
+	fmap.erase(it);
+	delete pRec;
+	return ret;
+}
+int SysFs::CloseHandle(void* h,if_proc* pif)
+{
+	int ret=0;
 	void* hif;
-	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
+	if(0!=(ret=BeginTransfer(pif,&hif)))
 		return ret;
 	datagram_base dg;
 	init_current_datagram_base(&dg,CMD_FSCLOSE);
 	fs_datagram_param param;
 	param.dbase=&dg;
-	param.fsclose.handle=pRec->hFile;
+	param.fsclose.handle=h;
 	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
 		goto end;
 	ret=dg.ret;
 end:
 	EndTransfer(&hif);
-	if(ret!=0)
-		return ret;
-	fmap.erase(it);
-	delete pRec;
 	return ret;
 }
 int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
@@ -884,19 +912,18 @@ int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 		return ERR_FS_INVALID_HANDLE;
 	Integer64 off(pRec->offset,(int*)&pRec->offhigh),
 		setoff(offset,offhigh);
-	int dummy=0;
 	int ret=0;
 	switch(seektype)
 	{
 	case SEEK_BEGIN:
-		if(setoff<Integer64(0,&dummy))
+		if(setoff<Integer64(0))
 			return ERR_FS_NEGATIVE_POSITION;
 		pRec->offset=setoff.low;
 		pRec->offhigh=(uint)setoff.high;
 		break;
 	case SEEK_CUR:
 		off=off+setoff;
-		if(off<Integer64(0,&dummy))
+		if(off<Integer64(0))
 			return ERR_FS_NEGATIVE_POSITION;
 		pRec->offset=off.low;
 		pRec->offhigh=(uint)off.high;
@@ -905,7 +932,7 @@ int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 		if(0!=(ret=GetSetFileSize(CMD_FSGETSIZE,pRec,&off.low,(uint*)&off.high)))
 			return ret;
 		off=off+setoff;
-		if(off<Integer64(0,&dummy))
+		if(off<Integer64(0))
 			return ERR_FS_NEGATIVE_POSITION;
 		pRec->offset=off.low;
 		pRec->offhigh=(uint)off.high;
@@ -1288,7 +1315,80 @@ end:
 }
 int SysFs::CopyFile(const char* src,const char* dst)
 {
-	return 0;
+	int ret=0;
+	if_proc *ifsrc,*ifdst;
+	string puresrc,puredst;
+	const uint bufsize=8*_1K;
+	UInteger64 srclen;
+	uint dummy=0;
+	UInteger64 once(bufsize,&dummy);
+	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src)))
+		return ret;
+	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
+		return ret;
+	if(ifsrc==ifdst&&puresrc==puredst)
+		return 0;
+	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE);
+	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE|FILE_TRUNCATE_EXISTING);
+	if(hsrc==NULL||hdst==NULL)
+	{
+		ret=ERR_FILE_IO;
+		goto end;
+	}
+	byte* buf=new byte[bufsize];
+	if(0!=(ret=(GetSetFileSize(CMD_FSGETSIZE,hsrc,&srclen.low,&srclen.high))))
+		goto end2;
+	while(srclen>UInteger64(0))
+	{
+		UInteger64 len64=(srclen>once?once:srclen);
+		uint len=len64.low;
+		uint rdwr=0;
+		if(0!=(ret=fs_read_write(true,hsrc,buf,len,&rdwr)))
+			break;
+		if(rdwr!=len)
+		{
+			ret=ERR_FILE_IO;
+			break;
+		}
+		if(0!=(ret=fs_read_write(false,hdst,buf,len,&rdwr)))
+			break;
+		if(rdwr!=len)
+		{
+			ret=ERR_FILE_IO;
+			break;
+		}
+		srclen=srclen-len64;
+	}
+end2:
+	delete[] buf;
+end:
+	if(VALID(hsrc))
+	{
+		int retc;
+		for(int t=10;t>0&&0!=(retc=Close(hsrc));t--)
+		{
+			if(retc==ERR_FS_INVALID_HANDLE)
+				break;
+			sys_sleep(100);
+		}
+		if(ret==0)
+			ret=retc;
+	}
+	if(VALID(hdst))
+	{
+		int retc;
+		for(int t=10;t>0&&0!=(retc=Close(hdst));t--)
+		{
+			if(retc==ERR_FS_INVALID_HANDLE)
+				break;
+			sys_sleep(100);
+		}
+		if(ret!=0)
+			DeleteFile(dst);
+		else
+			ret=retc;
+	}
+	return ret;
 }
 int SysFs::DeleteFile(const char* pathname)
 {
@@ -1312,7 +1412,7 @@ end:
 	EndTransfer(&hif);
 	return ret;
 }
-int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,DateTime* datetime,dword* flags)
+int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags,DateTime* datetime)
 {
 	assert(cmd==CMD_FSGETATTR||cmd==CMD_FSSETATTR);
 	int ret=0;
@@ -1381,9 +1481,50 @@ end:
 	}
 	return ret;
 }
-int SysFs::ListFile(const char* path,vector<string> files)
+int SysFs::ListFile(const char* path,vector<string>& files)
 {
-	return 0;
+	int ret=0;
+	if_proc* ifpath;
+	string purepath;
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,path)))
+		return ret;
+	files.clear();
+	uint nfile=0;
+	void* hls=NULL;
+	void* hif;
+	if(0!=(ret=BeginTransfer(ifpath,&hif)))
+		return ret;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_LSFILES);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fslsfiles.path=&purepath;
+	param.fslsfiles.files=&files;
+	param.fslsfiles.nfiles=&nfile;
+	param.fslsfiles.handle=&hls;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+	while(ret==0&&nfile>0)
+	{
+		init_current_datagram_base(&dg,CMD_LSFILES);
+		if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+			break;
+		ret=dg.ret;
+	}
+end:
+	EndTransfer(&hif);
+	if(ret!=0&&VALID(hls))
+	{
+		int retc;
+		for(int t=10;t>0&&0!=(retc=CloseHandle(hls,ifpath));t--)
+		{
+			if(retc==ERR_FS_INVALID_HANDLE)
+				break;
+			sys_sleep(100);
+		}
+	}
+	return ret;
 }
 int SysFs::MakeDir(const char* path)
 {
@@ -1405,5 +1546,31 @@ int SysFs::MakeDir(const char* path)
 	ret=dg.ret;
 end:
 	EndTransfer(&hif);
+	return ret;
+}
+int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen)
+{
+	uint left=len;
+	uint rdwr=0;
+	int ret=0;
+	byte* _buf=(byte*)buf;
+	while(left>0)
+	{
+		rdwr=0;
+		if(0!=(ret=g_sysfs.ReadWrite(read?CMD_FSREAD:CMD_FSWRITE,h,_buf,left,&rdwr)))
+			break;
+		if(rdwr==0)
+			break;
+		_buf+=rdwr;
+		left-=rdwr;
+	}
+	if(rdwrlen!=NULL)
+	{
+		*rdwrlen=len-left;
+	}
+	else if(left>0&&ret==0)
+	{
+		return ERR_INVALID_PARAM;
+	}
 	return ret;
 }

@@ -3,8 +3,23 @@
 #include "common.h"
 #define MAX_FILE_PATH 1024
 #define MAX_FILE_NAME 256
+#define LSBUFFER_ELEMENTS 12
 #define _1K 1024
 #define _1M (1024*1024)
+
+#define FS_ATTR_FLAGS_DIR     1
+#define FS_IS_DIR(flags)      ((flags&FS_ATTR_FLAGS_DIR)!=0)
+#define FS_ATTR_FLAGS         1
+#define FS_ATTR_CREATION_DATE 2
+#define FS_ATTR_MODIFY_DATE   4
+#define FS_ATTR_ACCESS_DATE   8
+enum fs_attr_datetime
+{
+	fs_attr_creation_date=0,
+	fs_attr_modify_date,
+	fs_attr_access_date,
+};
+
 enum if_cmd_code
 {
 	//cmd
@@ -186,7 +201,7 @@ struct dgc_fslsfiles
 	uint nfiles;
 	void* handle;
 	char path[MAX_FILE_PATH];
-	char file[12][MAX_FILE_NAME];
+	char file[LSBUFFER_ELEMENTS][MAX_FILE_NAME];
 };
 
 struct dg_fslsfiles

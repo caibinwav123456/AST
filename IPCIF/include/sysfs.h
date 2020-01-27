@@ -7,5 +7,21 @@ extern "C" {
 DLLAPI(int) fsc_init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
 DLLAPI(void) fsc_exit();
 DLLAPI(int) fsc_suspend(int bsusp);
+DLLAPI(void*) fs_open(char* pathname,dword flags);
+DLLAPI(int) fs_close(void* h);
+DLLAPI(int) fs_seek(void* h,uint seektype,int offset,int* offhigh=NULL);
+DLLAPI(int) fs_tell(void* h,uint* offset,uint* offhigh=NULL);
+DLLAPI(int) fs_read(void* h,void* buf,uint len,uint* rdlen=NULL);
+DLLAPI(int) fs_write(void* h,void* buf,uint len,uint* wrlen=NULL);
+DLLAPI(int) fs_flush(void* h);
+DLLAPI(int) fs_get_file_size(void* h,uint* low,uint* high=NULL);
+DLLAPI(int) fs_set_file_size(void* h,uint* low,uint* high=NULL);
+DLLAPI(int) fs_move(char* src,char* dst);
+DLLAPI(int) fs_copy(char* src,char* dst);
+DLLAPI(int) fs_delete(char* path);
+DLLAPI(int) fs_get_attr(char* path,dword mask,dword flags=0,DateTime* date=NULL);
+DLLAPI(int) fs_set_attr(char* path,dword mask,dword* flags=NULL,DateTime* date=NULL);
+DLLAPI(int) fs_mkdir(char* path);
+DLL int fs_ftraverse(char* pathname,int(*cb)(char*,dword,void*),void* param);
 }
 #endif

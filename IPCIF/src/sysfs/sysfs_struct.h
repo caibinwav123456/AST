@@ -9,16 +9,6 @@
 #include <map>
 #include <algorithm>
 using namespace std;
-#define FS_ATTR_FLAGS         1
-#define FS_ATTR_CREATION_DATE 2
-#define FS_ATTR_MODIFY_DATE   4
-#define FS_ATTR_ACCESS_DATE   8
-enum fs_attr_datetime
-{
-	fs_attr_creation_date=0,
-	fs_attr_modify_date,
-	fs_attr_access_date,
-};
 struct offset64
 {
 	uint off;
@@ -64,6 +54,13 @@ struct fs_datagram_param
 			dword* flags;
 			string* path;
 		}fsattr;
+		struct
+		{
+			uint *nfiles;
+			void** handle;
+			string* path;
+			vector<string>* files;
+		}fslsfiles;
 	};
 };
 struct LinearBuffer
@@ -202,6 +199,7 @@ enum E_FS_MODE
 #define FC_EXIT  1
 #define FC_CLEAR 2
 #define FC_MASK  (FC_EXIT|FC_CLEAR)
+int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen=NULL);
 class SysFs
 {
 public:
@@ -232,8 +230,8 @@ public:
 	int MoveFile(const char* src,const char* dst);
 	int CopyFile(const char* src,const char* dst);
 	int DeleteFile(const char* pathname);
-	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,DateTime* datetime=NULL,dword* flags=NULL);
-	int ListFile(const char* path,vector<string> files);
+	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags=NULL,DateTime* datetime=NULL);
+	int ListFile(const char* path,vector<string>& files);
 	int MakeDir(const char* path);
 private:
 	int ConnectServer(if_proc* pif,void** phif,bool once=false);
@@ -244,6 +242,7 @@ private:
 	int BeginTransfer(if_proc* pif,void** phif);
 	void EndTransfer(void** phif);
 	if_proc* GetIfProcFromID(const string& id);
+	int CloseHandle(void* h,if_proc* pif);
 	int ReOpen(SortedFileIoRec* pRec,void* hif);
 	int FlushBuffer(SortedFileIoRec* pRec);
 	int GetSetFileSize(if_cmd_code cmd,SortedFileIoRec*pRec,uint* low,uint* high=NULL);
