@@ -9,6 +9,16 @@
 #include <map>
 #include <algorithm>
 using namespace std;
+#define FS_ATTR_FLAGS         1
+#define FS_ATTR_CREATION_DATE 2
+#define FS_ATTR_MODIFY_DATE   4
+#define FS_ATTR_ACCESS_DATE   8
+enum fs_attr_datetime
+{
+	fs_attr_creation_date=0,
+	fs_attr_modify_date,
+	fs_attr_access_date,
+};
 struct offset64
 {
 	uint off;
@@ -34,6 +44,26 @@ struct fs_datagram_param
 			uint* len;
 		}fsrdwr;
 		dgc_fssize* fssize;
+		struct
+		{
+			string* src;
+			string* dst;
+		}fsmove;
+		struct
+		{
+			string* path;
+		}fsdelete;
+		struct
+		{
+			string* path;
+		}fsmkdir;
+		struct
+		{
+			dword mask;
+			DateTime* date;
+			dword* flags;
+			string* path;
+		}fsattr;
 	};
 };
 struct LinearBuffer
@@ -192,7 +222,6 @@ public:
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
-	if_proc* GetIfProcFromID(const string& id);
 	void* Open(const char* pathname,dword flags);
 	int Close(void* h);
 	int Seek(void* h,uint seektype,int offset,int* offhigh=NULL);
@@ -203,7 +232,7 @@ public:
 	int MoveFile(const char* src,const char* dst);
 	int CopyFile(const char* src,const char* dst);
 	int DeleteFile(const char* pathname);
-	int GetSetFileAttr(if_cmd_code cmd,const char* path,DateTime* datetime=NULL,dword* flags=NULL);
+	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,DateTime* datetime=NULL,dword* flags=NULL);
 	int ListFile(const char* path,vector<string> files);
 	int MakeDir(const char* path);
 private:
@@ -214,6 +243,7 @@ private:
 	int EnumStorageModule(vector<proc_data>* pdata);
 	int BeginTransfer(if_proc* pif,void** phif);
 	void EndTransfer(void** phif);
+	if_proc* GetIfProcFromID(const string& id);
 	int ReOpen(SortedFileIoRec* pRec,void* hif);
 	int FlushBuffer(SortedFileIoRec* pRec);
 	int GetSetFileSize(if_cmd_code cmd,SortedFileIoRec*pRec,uint* low,uint* high=NULL);
@@ -222,6 +252,7 @@ private:
 	SortedFileIoRec* handle_to_rec_ptr(void* handle,map<void*,SortedFileIoRec*>::iterator* iter=NULL);
 	static int cb_reconn(void* param);
 	void* sysfs_get_handle();
+	int fs_parse_path(if_proc** ppif,string& path,const string& in_path);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
 	vector<if_proc*> ifvproc;

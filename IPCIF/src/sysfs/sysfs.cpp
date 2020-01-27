@@ -7,6 +7,7 @@
 #include "path.h"
 #include "common_request.h"
 #include "Integer64.h"
+#include "datetime.h"
 #include <assert.h>
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
@@ -597,7 +598,7 @@ int SysFs::EnumStorageModule(vector<proc_data>* pdata)
 	}
 	return 0;
 }
-static int fs_parse_path(if_proc** ppif,string& path,const string& in_path)
+int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 {
 	vector<string> split_in_path,split_out_path;
 	split_path(in_path,split_in_path,'/');
@@ -610,12 +611,12 @@ static int fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);
 		if(if_id.empty())
 			return ERR_INVALID_PATH;
-		if(NULL==(ifproc=g_sysfs.GetIfProcFromID(if_id)))
+		if(NULL==(ifproc=GetIfProcFromID(if_id)))
 			return ERR_INVALID_PATH;
 	}
 	else
 	{
-		if(NULL==(ifproc=g_sysfs.GetIfProcFromID("")))
+		if(NULL==(ifproc=GetIfProcFromID("")))
 			return ERR_INVALID_PATH;
 	}
 	split_in_path.erase(split_in_path.begin());
@@ -732,8 +733,55 @@ int cb_fsc(void* addr,void* param,int op)
 			dg_fssize* fssize=(dg_fssize*)addr;
 			if(op&OP_PARAM)
 				fssize->size=*dgp->fssize;
-			if(op&OP_RETURN&&cmd==CMD_FSGETSIZE&&dgp->dbase->ret==0)
+			if((op&OP_RETURN)&&cmd==CMD_FSGETSIZE&&dgp->dbase->ret==0)
 				*dgp->fssize=fssize->size;
+		}
+		break;
+	case CMD_FSMOVE:
+		{
+			dg_fsmove* fsmove=(dg_fsmove*)addr;
+			if(op&OP_PARAM)
+			{
+				strcpy(fsmove->move.src,dgp->fsmove.src->c_str());
+				strcpy(fsmove->move.dst,dgp->fsmove.dst->c_str());
+			}
+		}
+		break;
+	case CMD_FSDELETE:
+		{
+			dg_fsdel* fsdel=(dg_fsdel*)addr;
+			if(op&OP_PARAM)
+				strcpy(fsdel->del.path,dgp->fsdelete.path->c_str());
+		}
+		break;
+	case CMD_MAKEDIR:
+		{
+			dg_fsmkdir* fsmkdir=(dg_fsmkdir*)addr;
+			if(op&OP_PARAM)
+				strcpy(fsmkdir->dir.path,dgp->fsmkdir.path->c_str());			
+		}
+		break;
+	case CMD_FSGETATTR:
+	case CMD_FSSETATTR:
+		{
+			dg_fsattr* fsattr=(dg_fsattr*)addr;
+			if(op&OP_PARAM)
+			{
+				strcpy(fsattr->attr.path,dgp->fsattr.path->c_str());
+				fsattr->attr.mask=dgp->fsattr.mask;
+			}
+			if((op&OP_PARAM)&&cmd==CMD_FSSETATTR)
+			{
+				fsattr->attr.flags=*dgp->fsattr.flags;
+				for(int i=0;i<3;i++)
+					fsattr->attr.date[i].date=dgp->fsattr.date[i];
+			}
+			if((op&OP_RETURN)&&cmd==CMD_FSGETATTR&&dgp->dbase->ret==0)
+			{
+				*dgp->fsattr.flags=fsattr->attr.flags;
+				for(int i=0;i<3;i++)
+					dgp->fsattr.date[i]=fsattr->attr.date[i].date;
+			}
 		}
 		break;
 	}
@@ -1206,7 +1254,37 @@ end2:
 }
 int SysFs::MoveFile(const char* src,const char* dst)
 {
-	return 0;
+	int ret=0;
+	if_proc *ifsrc,*ifdst;
+	string puresrc,puredst;
+	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src)))
+		return ret;
+	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
+		return ret;
+	if(ifsrc!=ifdst)
+	{
+		if(0!=(ret=CopyFile(src,dst)))
+			return ret;
+		if(0!=(ret=DeleteFile(src)))
+			return ret;
+		return 0;
+	}
+	if_proc* pif=ifsrc;
+	void* hif;
+	if(0!=(ret=BeginTransfer(pif,&hif)))
+		return ret;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_FSMOVE);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsmove.src=&puresrc;
+	param.fsmove.dst=&puredst;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	EndTransfer(&hif);
+	return ret;
 }
 int SysFs::CopyFile(const char* src,const char* dst)
 {
@@ -1214,11 +1292,94 @@ int SysFs::CopyFile(const char* src,const char* dst)
 }
 int SysFs::DeleteFile(const char* pathname)
 {
-	return 0;
+	int ret=0;
+	if_proc* ifpath;
+	string purepath;
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,pathname)))
+		return ret;
+	void* hif;
+	if(0!=(ret=BeginTransfer(ifpath,&hif)))
+		return ret;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_FSDELETE);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsdelete.path=&purepath;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	EndTransfer(&hif);
+	return ret;
 }
-int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,DateTime* datetime,dword* flags)
+int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,DateTime* datetime,dword* flags)
 {
-	return 0;
+	assert(cmd==CMD_FSGETATTR||cmd==CMD_FSSETATTR);
+	int ret=0;
+	if_proc* ifpath;
+	string purepath;
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,path)))
+		return ret;
+	void* hif;
+	if(0!=(ret=BeginTransfer(ifpath,&hif)))
+		return ret;
+	dword tflags=(cmd==CMD_FSGETATTR?0:((mask&FS_ATTR_FLAGS)&&flags!=NULL?*flags:0));
+	DateTime tdate[3];
+	CDateTime date;
+	for(int i=0;i<3;i++)
+		tdate[i]=*(DateTime*)&date;
+	if(cmd==CMD_FSSETATTR&&datetime!=NULL)
+	{
+		if(mask&FS_ATTR_CREATION_DATE)
+		{
+			tdate[fs_attr_creation_date]=datetime[fs_attr_creation_date];
+			CDateTime validate(tdate[fs_attr_creation_date]);
+			if(!validate.ValidDate())
+				return ERR_INVALID_PARAM;
+		}
+		if(mask&FS_ATTR_MODIFY_DATE)
+		{
+			tdate[fs_attr_modify_date]=datetime[fs_attr_modify_date];
+			CDateTime validate(tdate[fs_attr_modify_date]);
+			if(!validate.ValidDate())
+				return ERR_INVALID_PARAM;
+		}
+		if(mask&FS_ATTR_ACCESS_DATE)
+		{
+			tdate[fs_attr_access_date]=datetime[fs_attr_access_date];
+			CDateTime validate(tdate[fs_attr_access_date]);
+			if(!validate.ValidDate())
+				return ERR_INVALID_PARAM;
+		}
+	}
+	datagram_base dg;
+	init_current_datagram_base(&dg,cmd);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsattr.path=&purepath;
+	param.fsattr.mask=mask;
+	param.fsattr.flags=&tflags;
+	param.fsattr.date=tdate;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	EndTransfer(&hif);
+	if(ret==0&&cmd==CMD_FSGETATTR)
+	{
+		if(mask&FS_ATTR_FLAGS&&flags!=NULL)
+			*flags=tflags;
+		if(datetime!=NULL)
+		{
+			if(mask&FS_ATTR_CREATION_DATE)
+				datetime[fs_attr_creation_date]=tdate[fs_attr_creation_date];
+			if(mask&FS_ATTR_MODIFY_DATE)
+				datetime[fs_attr_modify_date]=tdate[fs_attr_modify_date];
+			if(mask&FS_ATTR_ACCESS_DATE)
+				datetime[fs_attr_access_date]=tdate[fs_attr_access_date];
+		}
+	}
+	return ret;
 }
 int SysFs::ListFile(const char* path,vector<string> files)
 {
@@ -1226,5 +1387,23 @@ int SysFs::ListFile(const char* path,vector<string> files)
 }
 int SysFs::MakeDir(const char* path)
 {
-	return 0;
+	int ret=0;
+	if_proc* ifpath;
+	string purepath;
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,path)))
+		return ret;
+	void* hif;
+	if(0!=(ret=BeginTransfer(ifpath,&hif)))
+		return ret;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_MAKEDIR);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsmkdir.path=&purepath;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	EndTransfer(&hif);
+	return ret;
 }

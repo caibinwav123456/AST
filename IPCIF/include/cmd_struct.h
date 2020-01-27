@@ -4,6 +4,7 @@
 #define MAX_FILE_PATH 1024
 #define MAX_FILE_NAME 256
 #define _1K 1024
+#define _1M (1024*1024)
 enum if_cmd_code
 {
 	//cmd
@@ -145,6 +146,7 @@ struct dgc_fsdel
 
 struct dg_fsdel
 {
+	datagram_base header;
 	dgc_fsdel del;
 };
 
