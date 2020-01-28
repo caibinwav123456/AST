@@ -533,8 +533,8 @@ inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& ps
 	data.cmdline=pstat.cmdline;
 	data.id=pstat.id;
 	data.ambiguous=!!pstat.ambiguous;
-	data.hproc = NULL;
-	data.hthrd_shelter = NULL;
+	data.hproc=NULL;
+	data.hthrd_shelter=NULL;
 	pdata.push_back(data);
 	return true;
 }
@@ -650,7 +650,7 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 	if(mode==fsmode_permanent_if)
 	{
 		sys_wait_sem(mutex->get_mutex());
-		if(quitcode!=0||pif->hif==NULL)
+		if(quitcode!=0||!VALID(pif->hif))
 		{
 			sys_signal_sem(mutex->get_mutex());
 			sys_signal_sem(sem);
@@ -791,7 +791,7 @@ int cb_fsc(void* addr,void* param,int op)
 			{
 				fslsfiles->files.handle=*dgp->fslsfiles.handle;
 				fslsfiles->files.nfiles=0;
-				strcpy(fslsfiles->files.path,dgp->fslsfiles.handle==NULL?
+				strcpy(fslsfiles->files.path,!VALID(*dgp->fslsfiles.handle)?
 					dgp->fslsfiles.path->c_str():"");
 			}
 			if((op&OP_RETURN)&&dgp->dbase->ret==0)
@@ -1330,7 +1330,7 @@ int SysFs::CopyFile(const char* src,const char* dst)
 		return 0;
 	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE);
 	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE|FILE_TRUNCATE_EXISTING);
-	if(hsrc==NULL||hdst==NULL)
+	if(!VALID(hsrc)||!VALID(hdst))
 	{
 		ret=ERR_FILE_IO;
 		goto end;
