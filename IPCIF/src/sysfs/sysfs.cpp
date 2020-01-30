@@ -1382,6 +1382,7 @@ int SysFs::CopyFile(const char* src,const char* dst)
 			ret=ERR_FILE_IO;
 			break;
 		}
+		rdwr=0;
 		if(0!=(ret=fs_read_write(false,hdst,buf,len,&rdwr)))
 			break;
 		if(rdwr!=len)
