@@ -1360,6 +1360,7 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	while(srclen>UInteger64(0))
 	{
 		UInteger64 len64=(srclen>once?once:srclen);
+		assert(len64.high==0);
 		uint len=len64.low;
 		uint rdwr=0;
 		if(0!=(ret=fs_read_write(true,hsrc,buf,len,&rdwr)))
