@@ -1330,7 +1330,11 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
 		return ret;
 	dword sflags=0,dflags=0;
-	if(0!=(ret=GetSetFileAttr(CMD_FSGETATTR,src,FS_ATTR_FLAGS,&sflags)))
+	DateTime date[3];
+	if(0!=(ret=GetSetFileAttr(CMD_FSGETATTR,src,
+		FS_ATTR_FLAGS|FS_ATTR_CREATION_DATE
+		|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,
+		&sflags,date)))
 		return ret;
 	if(ifsrc==ifdst&&puresrc==puredst)
 		return 0;
@@ -1340,7 +1344,15 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	if(FS_IS_DIR(sflags))
 	{
 		if(dret!=0)
-			return MakeDir(dst);
+		{
+			if(0!=(ret=MakeDir(dst)))
+				return ret;
+			GetSetFileAttr(CMD_FSSETATTR,dst,
+				FS_ATTR_FLAGS|FS_ATTR_CREATION_DATE
+				|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,
+				&sflags,date);
+			return ret;
+		}
 		else if(!FS_IS_DIR(dflags))
 			return ERR_FILE_IO;
 		return 0;
@@ -1408,6 +1420,13 @@ end:
 		if(ret!=0)
 			DeleteFile(dst);
 	}
+	if(ret!=0)
+		goto no_stat_end;
+	GetSetFileAttr(CMD_FSSETATTR,dst,
+		FS_ATTR_FLAGS|FS_ATTR_CREATION_DATE
+		|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,
+		&sflags,date);
+no_stat_end:
 	return ret;
 }
 int SysFs::DeleteFile(const char* pathname)
