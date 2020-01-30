@@ -14,6 +14,11 @@ struct offset64
 	uint off;
 	uint offhigh;
 };
+struct fsls_element
+{
+	string filename;
+	dword flags;
+};
 struct fs_datagram_param
 {
 	datagram_base* dbase;
@@ -59,7 +64,7 @@ struct fs_datagram_param
 			uint *nfiles;
 			void** handle;
 			string* path;
-			vector<string>* files;
+			vector<fsls_element>* files;
 		}fslsfiles;
 	};
 };
@@ -231,7 +236,7 @@ public:
 	int CopyFile(const char* src,const char* dst);
 	int DeleteFile(const char* pathname);
 	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags=NULL,DateTime* datetime=NULL);
-	int ListFile(const char* path,vector<string>& files);
+	int ListFile(const char* path,vector<fsls_element>& files);
 	int MakeDir(const char* path);
 private:
 	int ConnectServer(if_proc* pif,void** phif,bool once=false);

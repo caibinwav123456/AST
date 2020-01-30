@@ -23,10 +23,11 @@ static char* err_descs[] =
 	"Timeout",
 	"The desired module is not found",
 	"The module is not initiated",
+	"Invalid calling parameters",
 	"The desired FS system access is denied",
 	"FS handle invalid",
-	"Invalid calling parameters",
 	"Trying to set a file pointer to a negative value",
+	"File path does not exist",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

@@ -175,14 +175,14 @@ int sys_fstat(char* pathname, dword* type)
 		*type=(PathIsDirectoryA(pathname)?FILE_TYPE_DIR:FILE_TYPE_NORMAL);
 	return 0;
 }
-inline void check_file(WIN32_FIND_DATAA& data, int(*cb)(char*, dword, void*), void* param, int& ret)
+inline void check_file(WIN32_FIND_DATAA& data, int(*cb)(char*, dword, void*, char), void* param, int& ret)
 {
 	if(strcmp(data.cFileName,".")!=0&&strcmp(data.cFileName,"..")!=0)
 	if(0!=cb(data.cFileName,data.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY?
-		FILE_TYPE_DIR:FILE_TYPE_NORMAL,param))
+		FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'\\'))
 		ret=ERR_FILE_IO;
 }
-int sys_ftraverse(char* pathname, int(*cb)(char*, dword, void*), void* param)
+int sys_ftraverse(char* pathname, int(*cb)(char*, dword, void*, char), void* param)
 {
 	WIN32_FIND_DATAA data;
 	memset(&data,0,sizeof(data));

@@ -54,7 +54,7 @@ struct process_stat
 struct file_recurse_callback
 {
 	int (*_fstat_)(char* pathname, dword* type);
-	int (*_ftraverse_)(char* pathname, int(*cb)(char*, dword, void*), void* param);
+	int (*_ftraverse_)(char* pathname, int(*cb)(char*, dword, void*, char), void* param);
 	int (*_mkdir_)(char* path);
 	int (*_fcopy_)(char* from, char* to);
 	int (*_fdelete_)(char* pathname);
@@ -77,9 +77,11 @@ DLLAPI(void*) find_first_exe(process_stat* pstat);
 DLLAPI(int) find_next_exe(void* handle,process_stat* pstat);
 DLLAPI(void) find_exe_close(void* handle);
 DLL int __LOGFILE(uint level,uint ftype,char* file,int line,char* format,...);
-DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback);
-DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback);
+DLLAPI(int) recurse_fcopy(char* from,char* to,file_recurse_callback* callback,char dsym);
+DLLAPI(int) recurse_fdelete(char* pathname,file_recurse_callback* callback,char dsym);
 DLLAPI(char*) get_error_desc(int errcode);
+DLLAPI(int) sys_recurse_fcopy(char* from,char* to);
+DLLAPI(int) sys_recurse_fdelete(char* pathname);
 #ifdef __cplusplus
 }
 #endif
@@ -96,16 +98,6 @@ inline void init_process_stat(process_stat* pstat, char* name)
 	strcpy(pstat->file,name);
 }
 #define init_current_datagram_base(data, cmd) init_datagram_base(data, cmd, get_current_executable_id(), get_session_id())
-inline int sys_recurse_fcopy(char* from, char* to)
-{
-	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
-	return recurse_fcopy(from,to,&cb);
-}
-inline int sys_recurse_fdelete(char* pathname)
-{
-	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
-	return recurse_fdelete(pathname,&cb);
-}
 #ifdef __cplusplus
 struct AstError
 {

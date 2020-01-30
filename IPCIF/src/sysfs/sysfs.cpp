@@ -801,7 +801,10 @@ int cb_fsc(void* addr,void* param,int op)
 				int i;
 				for(i=0;i<LSBUFFER_ELEMENTS&&*dgp->fslsfiles.nfiles>0;i++,(*dgp->fslsfiles.nfiles)--)
 				{
-					dgp->fslsfiles.files->push_back(fslsfiles->files.file[i]);
+					fsls_element fsls;
+					fsls.filename=fslsfiles->files.file[i].name;
+					fsls.flags=fslsfiles->files.file[i].flags;
+					dgp->fslsfiles.files->push_back(fsls);
 				}
 			}
 		}
@@ -1326,8 +1329,24 @@ int SysFs::CopyFile(const char* src,const char* dst)
 		return ret;
 	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
 		return ret;
+	dword sflags=0,dflags=0;
+	if(0!=(ret=GetSetFileAttr(CMD_FSGETATTR,src,FS_ATTR_FLAGS,&sflags)))
+		return ret;
 	if(ifsrc==ifdst&&puresrc==puredst)
 		return 0;
+	int dret=GetSetFileAttr(CMD_FSGETATTR,src,FS_ATTR_FLAGS,&dflags);
+	if(dret!=0&&dret!=ERR_FS_FILE_NOT_EXIST)
+		return dret;
+	if(FS_IS_DIR(sflags))
+	{
+		if(dret!=0)
+			return MakeDir(dst);
+		else if(!FS_IS_DIR(dflags))
+			return ERR_FILE_IO;
+		return 0;
+	}
+	else if(dret==0&&FS_IS_DIR(dflags))
+		return ERR_FILE_IO;
 	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE);
 	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE|FILE_TRUNCATE_EXISTING);
 	if(!VALID(hsrc)||!VALID(hdst))
@@ -1383,10 +1402,10 @@ end:
 				break;
 			sys_sleep(100);
 		}
+		if(ret==0)
+			ret=retc;
 		if(ret!=0)
 			DeleteFile(dst);
-		else
-			ret=retc;
 	}
 	return ret;
 }
@@ -1481,7 +1500,7 @@ end:
 	}
 	return ret;
 }
-int SysFs::ListFile(const char* path,vector<string>& files)
+int SysFs::ListFile(const char* path,vector<fsls_element>& files)
 {
 	int ret=0;
 	if_proc* ifpath;

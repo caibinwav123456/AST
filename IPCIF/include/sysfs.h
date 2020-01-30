@@ -22,6 +22,8 @@ DLLAPI(int) fs_delete(char* path);
 DLLAPI(int) fs_get_attr(char* path,dword mask,dword flags=0,DateTime* date=NULL);
 DLLAPI(int) fs_set_attr(char* path,dword mask,dword* flags=NULL,DateTime* date=NULL);
 DLLAPI(int) fs_mkdir(char* path);
-DLL int fs_ftraverse(char* pathname,int(*cb)(char*,dword,void*),void* param);
+DLL int fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param);
+DLLAPI(int) fs_recurse_copy(char* from,char* to);
+DLLAPI(int) fs_recurse_delete(char* pathname);
 }
 #endif

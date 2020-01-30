@@ -30,9 +30,10 @@
 #define ERR_TIMEOUT                 _r(18)
 #define ERR_MODULE_NOT_FOUND        _r(19)
 #define ERR_MODULE_NOT_INITED       _r(20)
-#define ERR_FS_NO_ACCESS            _r(21)
-#define ERR_FS_INVALID_HANDLE       _r(22)
-#define ERR_INVALID_PARAM           _r(23)
+#define ERR_INVALID_PARAM           _r(21)
+#define ERR_FS_NO_ACCESS            _r(22)
+#define ERR_FS_INVALID_HANDLE       _r(23)
 #define ERR_FS_NEGATIVE_POSITION    _r(24)
+#define ERR_FS_FILE_NOT_EXIST       _r(25)
 
 #endif

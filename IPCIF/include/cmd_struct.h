@@ -196,12 +196,18 @@ struct dg_fsmkdir
 	dgc_fsmkdir dir;
 };
 
+struct fslsfile_wrap
+{
+	char name[MAX_FILE_NAME];
+	dword flags;
+};
+
 struct dgc_fslsfiles
 {
 	uint nfiles;
 	void* handle;
 	char path[MAX_FILE_PATH];
-	char file[LSBUFFER_ELEMENTS][MAX_FILE_NAME];
+	fslsfile_wrap file[LSBUFFER_ELEMENTS];
 };
 
 struct dg_fslsfiles
