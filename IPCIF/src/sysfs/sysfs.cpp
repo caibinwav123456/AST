@@ -1299,6 +1299,8 @@ int SysFs::MoveFile(const char* src,const char* dst)
 			return ret;
 		return 0;
 	}
+	if(puresrc==puredst)
+		return 0;
 	if_proc* pif=ifsrc;
 	void* hif;
 	if(0!=(ret=BeginTransfer(pif,&hif)))
