@@ -15,13 +15,12 @@ DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define MAX_CONNECT_TIMES 10
 void* SysFs::sysfs_get_handle()
 {
-	static uint i=1;
+	static byte* i=(byte*)1;
 	void* h;
 	do{
-		h=(void*)i;
-		i++;
-		if(i==(uint)-1)
-			i=1;
+		h=(i++);
+		if(i==(byte*)-1)
+			i=(byte*)1;
 	}while(fmap.find(h)!=fmap.end());
 	return h;
 }

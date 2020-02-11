@@ -10,7 +10,7 @@ extern "C" {
 #define IF_ID_SIZE     51
 #define IF_USAGE_SIZE  21
 #define MAX_IF_COUNT   4
-#define LOGFILE(level,ftype,format,...) __LOGFILE(level,ftype,__FILE__,__LINE__,format,__VA_ARGS__)
+#define LOGFILE(level,ftype,format,...) __LOGFILE(level,ftype,__FILE__,__LINE__,format,##__VA_ARGS__)
 enum log_ftype
 {
 	log_ftype_info=0,

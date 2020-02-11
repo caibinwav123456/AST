@@ -133,8 +133,8 @@ struct FileServerKey
 };
 struct FileServerRec
 {
-	void* caller;
-	void* hFile;
+	FileServerKey key;
+	void* fd;
 	dword sid;
 };
 struct BufferPtr

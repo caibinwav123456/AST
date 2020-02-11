@@ -1,4 +1,5 @@
 #include "config.h"
+#include <string.h>
 #include <assert.h>
 const byte seps[]={' ','\t','\r','\n'};
 bool trim_space(byte c)

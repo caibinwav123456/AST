@@ -1,4 +1,7 @@
+#ifndef _ALGOR_TEMPL_H_
+#define _ALGOR_TEMPL_H_
 #include "common.h"
+#include <assert.h>
 #define heap_first_child(n) (2*(n)+1)
 #define heap_second_child(n) (2*(n)+2)
 #define heap_parent(n) (((n)-1)/2)
@@ -178,3 +181,103 @@ private:
 	uint num;
 	uint max_num;
 };
+template<class T>
+class BiRingNode
+{
+	BiRingNode<T>* prev;
+	BiRingNode<T>* next;
+public:
+	T t;
+	BiRingNode()
+	{
+		next=prev=this;
+	}
+	BiRingNode<T>* GetNext()
+	{
+		return next;
+	}
+	BiRingNode<T>* GetPrev()
+	{
+		return prev;
+	}
+	void AttachAfter(BiRingNode<T>* node)
+	{
+		next=node->next;
+		prev=node;
+		node->next=this;
+		next->prev=this;
+	}
+	void Detach()
+	{
+		if(next==this)
+		{
+			assert(prev==this);
+			return;
+		}
+		next->prev=prev;
+		prev->next=next;
+		next=prev=this;
+	}
+};
+template<class T>
+class BiRing : public BiRingNode<T>
+{
+public:
+	class iterator
+	{
+		friend class BiRing<T>;
+		BiRingNode<T>* node;
+		BiRingNode<T>* ring;
+		iterator(BiRingNode<T>* _node,BiRingNode<T>* _ring)
+		{
+			node=_node;
+			ring=_ring;
+		}
+	public:
+		void operator++(int)
+		{
+			node=node->GetNext();
+		}
+		void operator--(int)
+		{
+			node=node->GetPrev();
+		}
+		operator bool()
+		{
+			return node!=ring;
+		}
+		BiRingNode<T>& operator*()
+		{
+			return *node;
+		}
+		BiRingNode<T>* operator->()
+		{
+			return node;
+		}
+	};
+	virtual ~BiRing(){}
+	void AddNodeToBegin(BiRingNode<T>* node)
+	{
+		node->AttachAfter(this);
+	}
+	BiRingNode<T>* GetNodeFromTail()
+	{
+		if(GetNext()==this)
+		{
+			assert(GetPrev()==this);
+			return NULL;
+		}
+		BiRingNode<T>* ret=GetPrev();
+		ret->Detach();
+		return ret;
+	}
+	iterator BeginIterate()
+	{
+		return iterator(GetNext(),this);
+	}
+	iterator BeginReverseIterate()
+	{
+		return iterator(GetPrev(),this);
+	}
+};
+#endif
