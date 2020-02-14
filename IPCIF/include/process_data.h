@@ -15,6 +15,27 @@ struct if_proc
 	int prior;
 	proc_data* pdata;
 };
+typedef struct _intf_fsdrv
+{
+
+}intf_fsdrv,*pintf_fsdrv;
+struct storage_mod_info;
+struct if_info_storage
+{
+	string drv_name;
+	string mount_cmd;
+	string format_cmd;
+	pintf_fsdrv drvcall;
+	storage_mod_info* sto_mod;
+	if_proc* ifproc;
+};
+struct storage_mod_info
+{
+	string mod_name;
+	void* hMod;
+	pintf_fsdrv(*STO_GET_INTF_FUNC)(char*);
+	vector<if_info_storage> storage_drvs;
+};
 struct proc_data
 {
 	void* hproc;

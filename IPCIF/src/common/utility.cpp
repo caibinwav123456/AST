@@ -5,6 +5,8 @@
 #include "syslog.h"
 #include "dir_symbol.h"
 #include <stdarg.h>
+#define IF_INFO_SIZE IF_USAGE_SIZE
+#define IF_INFO_TAG_SIZE 41
 DEFINE_UINT_VAL(sys_log_level,0);
 DEFINE_STRING_VAL(if_user,"");
 const char* g_info[]={"info",NULL};
@@ -21,8 +23,7 @@ public:
 	int GetProcStat(process_stat* pstat);
 	int Init();
 	void Exit();
-	main_process_info* GetMainInfo();
-	if_ids* GetIfIds();
+	int GetStoageInfo(char* name,if_id_info_storage* pifinfo);
 	void* FindFirstExecutable(process_stat* pstat);
 	int FindNextExecutable(void* handle,process_stat* pstat);
 	void FindExecutableClose(void* handle);
@@ -41,6 +42,10 @@ DLLAPI(dword) get_session_id()
 {
 	static dword id=0;
 	return id++;
+}
+DLLAPI(process_stat*) get_current_executable_stat()
+{
+	return &_hCurrentProc.proc_stat;
 }
 DLLAPI(char*) get_current_executable_name()
 {
@@ -175,7 +180,7 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->ambiguous=ambiguous?1:0;
 	if(pstat->ifs!=NULL)
 	{
-		char buf[21];
+		char buf[IF_INFO_SIZE];
 		string str;
 		pstat->ifs->count=0;
 		memset(pstat->ifs->if_id,0,sizeof(if_id_info)*MAX_IF_COUNT);
@@ -209,7 +214,7 @@ int process_identifier::GetProcStat(process_stat* pstat)
 	pstat->file[FILE_NAME_SIZE-1]=0;
 	ConfigProfile::iterator it;
 	int ret=0;
-	char buf[21];
+	char buf[IF_INFO_SIZE];
 	for(it=config.BeginIterate(CONFIG_SECTION_EXEC);it;it++)
 	{
 		if(it->first!="")
@@ -261,11 +266,15 @@ int process_identifier::GetProcStat(process_stat* pstat)
 }
 DLLAPI(main_process_info*) get_main_info()
 {
-	return _hCurrentProc.GetMainInfo();
+	return &_hCurrentProc.main_info;
 }
 DLLAPI(if_ids*) get_if_ids()
 {
-	return _hCurrentProc.GetIfIds();
+	return &_hCurrentProc.ifs;
+}
+DLLAPI(int) get_if_storage_info(char* name,if_id_info_storage* pifinfo)
+{
+	return _hCurrentProc.GetStoageInfo(name,pifinfo);
 }
 DLLAPI(void*) find_first_exe(process_stat* pstat)
 {
@@ -293,13 +302,29 @@ void process_identifier::Exit()
 {
 	log_sys.Exit();
 }
-main_process_info* process_identifier::GetMainInfo()
+int process_identifier::GetStoageInfo(char* name,if_id_info_storage* pifinfo)
 {
-	return &main_info;
-}
-if_ids* process_identifier::GetIfIds()
-{
-	return &ifs;
+	memset(pifinfo,0,sizeof(if_id_info_storage));
+	char buf[IF_INFO_TAG_SIZE];
+	sprintf(buf,CFG_SECTION_IF_INFO,name);
+	string info;
+	if(config.GetCongfigItem(buf,CFG_IF_STO_MOD_NAME,info))
+		strcpy(pifinfo->mod_name,(char*)info.c_str());
+	else
+		strcpy(pifinfo->mod_name,DEF_STO_MOD_NAME);
+	if(!config.GetCongfigItem(buf,CFG_IF_STO_DRV_NAME,info))
+		goto failed;
+	strcpy(pifinfo->drv_name,(char*)info.c_str());
+	if(!config.GetCongfigItem(buf,CFG_IF_STO_MOUNT_CMD,info))
+		goto failed;
+	strcpy(pifinfo->mount_cmd,(char*)info.c_str());
+	if(!config.GetCongfigItem(buf,CFG_IF_STO_FORMAT_CMD,info))
+		goto failed;
+	strcpy(pifinfo->format_cmd,(char*)info.c_str());
+	return 0;
+failed:
+	memset(pifinfo,0,sizeof(if_id_info_storage));
+	return ERR_FS_DEV_NOT_FOUND;
 }
 void* process_identifier::FindFirstExecutable(process_stat* pstat)
 {

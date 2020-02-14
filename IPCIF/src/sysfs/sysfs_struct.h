@@ -131,11 +131,13 @@ struct FileServerKey
 	void* caller;
 	void* hFile;
 };
+class SrvProcRing;
 struct FileServerRec
 {
 	FileServerKey key;
 	void* fd;
 	dword sid;
+	SrvProcRing* proc_ring;
 };
 struct BufferPtr
 {
@@ -147,6 +149,11 @@ class less_buf_ptr
 {
 public:
 	bool operator()(const offset64& a,const offset64& b) const;
+};
+class less_servrec_ptr
+{
+public:
+	bool operator()(const FileServerKey& a,const FileServerKey& b) const;
 };
 class assign_buf_ptr
 {
@@ -272,4 +279,41 @@ private:
 	int quitcode;
 };
 extern SysFs g_sysfs;
+class SrvProcRing : public BiRing<FileServerRec>
+{
+public:
+	SrvProcRing()
+	{
+		hFileReserve=(byte*)1;
+	}
+private:
+	byte* hFileReserve;
+};
+class FsServer
+{
+public:
+	FsServer(if_info_storage* pinfo)
+	{
+		if_info=pinfo;
+	}
+	int Init();
+	void Exit();
+private:
+	map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> smap;
+	map<void*,SrvProcRing*> proc_id_map;
+	if_info_storage* if_info;
+};
+class FssContainer
+{
+public:
+	FssContainer()
+	{
+	}
+	int Init(vector<if_proc>* pif);
+	void Exit();
+private:
+	vector<FsServer*> vfs_srv;
+	vector<storage_mod_info> vfs_mod;
+};
+extern FssContainer g_fssrv;
 #endif

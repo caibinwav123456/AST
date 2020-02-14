@@ -2,6 +2,9 @@
 #define _ALGOR_TEMPL_H_
 #include "common.h"
 #include <assert.h>
+#include <map>
+#include <vector>
+using namespace std;
 #define heap_first_child(n) (2*(n)+1)
 #define heap_second_child(n) (2*(n)+2)
 #define heap_parent(n) (((n)-1)/2)
@@ -256,6 +259,10 @@ public:
 		}
 	};
 	virtual ~BiRing(){}
+	bool Empty()
+	{
+		return GetNext()==this;
+	}
 	void AddNodeToBegin(BiRingNode<T>* node)
 	{
 		node->AttachAfter(this);
@@ -279,5 +286,200 @@ public:
 	{
 		return iterator(GetPrev(),this);
 	}
+};
+template<class Key,class T,class Pr=less<Key>>
+class KeyTree
+{
+public:
+	class TreeNode
+	{
+		friend class KeyTree<Key,T,Pr>;
+		Key key;
+		TreeNode* parent;
+		bool bHead;
+		map<Key,TreeNode*,Pr> child;
+	public:
+		T t;
+		TreeNode(Key _key)
+		{
+			key=_key;
+			parent=NULL;
+			bHead=false;
+		}
+		virtual ~TreeNode()
+		{
+			for(typename map<Key,TreeNode*,Pr>::iterator it=child.begin();it!=child.end();it++)
+			{
+				delete it->second;
+			}
+			child.clear();
+		}
+		TreeNode* GetParent(){return parent;}
+		TreeNode* GetChild(Key child_key)
+		{
+			typename map<Key,TreeNode*,Pr>::iterator it=child.find(child_key);
+			if(it==child.end())
+				return NULL;
+			else
+				return it->second;
+		}
+		bool AddTo(TreeNode* node)
+		{
+			if(bHead)
+				return false;
+			else
+			{
+				if(node->child.find(key)!=node->child.end())
+					return false;
+				parent=node;
+				node->child[key]=this;
+				return true;
+			}
+		}
+		bool Detach()
+		{
+			if(bHead||parent==NULL)
+				return false;
+			typename map<Key,TreeNode*,Pr>::iterator it=parent->child.find(key);
+			if(it!=parent->child.end())
+				parent->child.erase(it);
+			parent=NULL;
+			return true;
+		}
+		typename map<Key,TreeNode*,Pr>::iterator get_iter_begin()
+		{
+			return child.begin();
+		}
+		typename map<Key,TreeNode*,Pr>::iterator get_iter_end()
+		{
+			return child.end();
+		}
+	};
+	class iterator
+	{
+		friend class KeyTree<Key,T,Pr>;
+		TreeNode* cur_node;
+		vector<typename map<Key,TreeNode*,Pr>::iterator> it_child;
+		bool cur_first;
+		iterator(TreeNode* _cur_node,bool _cur_first):cur_first(_cur_first)
+		{
+			cur_node=_cur_node;
+			it_child.push_back(cur_node->get_iter_begin());
+			if(!cur_first)
+			{
+				while(it_child.back()!=cur_node->get_iter_end())
+				{
+					cur_node=it_child.back()->second;
+					it_child.push_back(cur_node->get_iter_begin());
+				}
+			}
+		}
+	public:
+		operator bool()
+		{
+			return !it_child.empty();
+		}
+		TreeNode& operator*()
+		{
+			return *cur_node;
+		}
+		TreeNode* operator->()
+		{
+			return cur_node;
+		}
+		void operator++(int)
+		{
+			if(it_child.empty())
+				return;
+			if(cur_first)
+			{
+				if(it_child.back()!=cur_node->get_iter_end())
+				{
+					cur_node=it_child.back()->second;
+					it_child.push_back(cur_node->get_iter_begin());
+				}
+				else
+				{
+					do{
+						it_child.pop_back();
+						assert(cur_node!=NULL);
+						cur_node=cur_node->GetParent();
+						if(it_child.empty())
+							break;
+						it_child.back()++;
+					}while((!it_child.empty())&&it_child.back()==cur_node->get_iter_end());
+					if(!it_child.empty())
+					{
+						cur_node=it_child.back()->second;
+						it_child.push_back(cur_node->get_iter_begin());
+					}
+				}
+			}
+			else
+			{
+				if(it_child.back()==cur_node->get_iter_end())
+				{
+					it_child.pop_back();
+					assert(cur_node!=NULL);
+					cur_node=cur_node->GetParent();
+					if(!it_child.empty())
+					{
+						it_child.back()++;
+						while(it_child.back()!=cur_node->get_iter_end())
+						{
+							cur_node=it_child.back()->second;
+							it_child.push_back(cur_node->get_iter_begin());
+						}
+					}
+				}
+				else
+					assert(false);
+			}
+		}
+	};
+	KeyTree(Key headkey)
+	{
+		head=new TreeNode(headkey);
+		head->bHead=true;
+	}
+	virtual ~KeyTree()
+	{
+		delete head;
+	}
+	bool LinkToHead(TreeNode* node)
+	{
+		return node->AddTo(head);
+	}
+	T& get_t_ref()
+	{
+		return head->t;
+	}
+	TreeNode* GetNode(vector<Key>& vKey,bool(*bset)(vector<Key>&,int)=NULL)
+	{
+		TreeNode* tn=head;
+		for(int i=0;i<(int)vKey.size();i++)
+		{
+			if(tn->child.find(vKey[i])!=tn->child.end())
+				tn=tn->child[vKey[i]];
+			else if(bset!=NULL)
+			{
+				if(bset(vKey,i))
+				{
+					TreeNode* node=new TreeNode;
+					node->AddTo(tn);
+					tn=node;
+				}
+			}
+			else
+				return NULL;
+		}
+		return tn;
+	}
+	iterator BeginIterate(TreeNode* node=NULL,bool cur_first=true)
+	{
+		return iterator(node==NULL?head:node,cur_first);
+	}
+private:
+	TreeNode* head;
 };
 #endif

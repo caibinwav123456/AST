@@ -28,6 +28,7 @@ static char* err_descs[] =
 	"FS handle invalid",
 	"Trying to set a file pointer to a negative value",
 	"File path does not exist",
+	"File system device not found",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

@@ -26,6 +26,11 @@ void sys_close_thread(void* hthread);
 int sys_wait_process(void* hproc, uint time=0);
 int sys_wait_thread(void* hthread, uint time=0);
 
+//Dynamic linked library operations
+void* sys_load_library(char* name);
+void sys_free_library(void* handle);
+void* sys_get_lib_proc(void* handle, char* procname);
+
 //File operations
 #define FILE_OPEN_EXISTING       0
 #define FILE_CREATE_NEW          1

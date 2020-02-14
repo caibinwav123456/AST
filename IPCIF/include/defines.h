@@ -25,4 +25,20 @@
 #define CFG_IF_USAGE_STORAGE "storage"
 #define CFG_IF_USAGE_NET "net"
 
+#define CFG_SECTION_IF_INFO "if_info_%s"
+
+#define CFG_IF_STO_MOD_NAME "mod_name"
+#define CFG_IF_STO_DRV_NAME "drv_name"
+#define CFG_IF_STO_MOUNT_CMD "mount_cmd"
+#define CFG_IF_STO_FORMAT_CMD "format_cmd"
+
+#ifdef WIN32
+#define DEF_STO_MOD_NAME "fsdrv.dll"
+#else
+#define DEF_STO_MOD_NAME "libfsdrv.so"
+#endif
+#define GET_NAME(M) #M
+#define STO_GET_INTF_FUNC get_storage_drv_interface
+#define STO_GET_INTF_FUNC_NAME GET_NAME(STO_GET_INTF_FUNC)
+
 #endif

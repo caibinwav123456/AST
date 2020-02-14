@@ -244,3 +244,16 @@ int sys_wait_thread(void* hthread, uint time)
 		return ERR_TIMEOUT;
 	return 0;
 }
+
+void* sys_load_library(char* name)
+{
+	return (void*)LoadLibraryA(name);
+}
+void sys_free_library(void* handle)
+{
+	FreeLibrary((HMODULE)handle);
+}
+void* sys_get_lib_proc(void* handle,char* procname)
+{
+	return (void*)GetProcAddress((HMODULE)handle,procname);
+}

@@ -32,6 +32,13 @@ struct if_id_info
 	uint thrdcnt;
 	int prior;
 };
+struct if_id_info_storage
+{
+	char mod_name[FILE_NAME_SIZE];
+	char drv_name[FILE_NAME_SIZE];
+	char mount_cmd[MAX_DIR_SIZE];
+	char format_cmd[MAX_DIR_SIZE];
+};
 struct if_ids
 {
 	int count;
@@ -64,6 +71,7 @@ DLLAPI(int) mainly_initial();
 DLLAPI(void) mainly_exit();
 DLLAPI(void*) get_executable_id(char* name);
 DLLAPI(dword) get_session_id();
+DLLAPI(process_stat*) get_current_executable_stat();
 DLLAPI(char*) get_current_executable_name();
 DLLAPI(void*) get_current_executable_id();
 DLLAPI(char*) get_current_directory();
@@ -73,6 +81,7 @@ DLLAPI(int) is_manager();
 DLLAPI(char*) get_if_user();
 DLLAPI(main_process_info*) get_main_info();
 DLLAPI(if_ids*) get_if_ids();
+DLLAPI(int) get_if_storage_info(char* name,if_id_info_storage* pifinfo);
 DLLAPI(void*) find_first_exe(process_stat* pstat);
 DLLAPI(int) find_next_exe(void* handle,process_stat* pstat);
 DLLAPI(void) find_exe_close(void* handle);

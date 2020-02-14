@@ -35,5 +35,6 @@
 #define ERR_FS_INVALID_HANDLE       _r(23)
 #define ERR_FS_NEGATIVE_POSITION    _r(24)
 #define ERR_FS_FILE_NOT_EXIST       _r(25)
+#define ERR_FS_DEV_NOT_FOUND        _r(26)
 
 #endif
