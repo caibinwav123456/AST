@@ -195,6 +195,7 @@ public:
 	{
 		next=prev=this;
 	}
+	virtual ~BiRingNode(){}
 	BiRingNode<T>* GetNext()
 	{
 		return next;
@@ -306,13 +307,17 @@ public:
 			parent=NULL;
 			bHead=false;
 		}
-		virtual ~TreeNode()
+		void Clear()
 		{
 			for(typename map<Key,TreeNode*,Pr>::iterator it=child.begin();it!=child.end();it++)
 			{
 				delete it->second;
 			}
 			child.clear();
+		}
+		virtual ~TreeNode()
+		{
+			Clear();
 		}
 		TreeNode* GetParent(){return parent;}
 		TreeNode* GetChild(Key child_key)
@@ -441,6 +446,10 @@ public:
 	{
 		head=new TreeNode(headkey);
 		head->bHead=true;
+	}
+	void Clear()
+	{
+		head->Clear();
 	}
 	virtual ~KeyTree()
 	{
