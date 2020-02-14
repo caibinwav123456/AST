@@ -154,6 +154,8 @@ int SysFs::cb_reconn(void* param)
 			pass=true;
 			for(int i=0;i<(int)sysfs->ifvproc.size();i++)
 			{
+				if(VALID(sysfs->ifvproc[i]->hif))
+					continue;
 				if(0!=sysfs->ConnectServer(sysfs->ifvproc[i],&sysfs->ifvproc[i]->hif))
 					pass=false;
 				if(sysfs->quitcode!=0)
