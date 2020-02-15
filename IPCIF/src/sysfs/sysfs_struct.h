@@ -284,6 +284,7 @@ class SrvProcRing : public BiRing<FileServerRec>
 public:
 	SrvProcRing()
 	{
+		memset(&t,0,sizeof(t));
 		hFileReserve=(byte*)1;
 	}
 private:
@@ -292,28 +293,36 @@ private:
 class FsServer
 {
 public:
-	FsServer(if_info_storage* pinfo)
+	FsServer(if_info_storage* pinfo,void** _psem)
 	{
 		if_info=pinfo;
+		psem=_psem;
+		hthrd_server=NULL;
+		quitcode=ERR_MODULE_NOT_INITED;
 	}
 	int Init();
 	void Exit();
 private:
 	map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> smap;
 	map<void*,SrvProcRing*> proc_id_map;
+	void* hthrd_server;
 	if_info_storage* if_info;
+	void** psem;
+	int quitcode;
 };
 class FssContainer
 {
 public:
 	FssContainer()
 	{
+		sem=NULL;
 	}
 	int Init(vector<if_proc>* pif);
 	void Exit();
 private:
 	vector<FsServer*> vfs_srv;
 	vector<storage_mod_info> vfs_mod;
+	void* sem;
 };
 extern FssContainer g_fssrv;
 #endif

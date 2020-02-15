@@ -2,6 +2,7 @@
 #include "sysfs_struct.h"
 #include "config_val_extern.h"
 #include "utility.h"
+DEFINE_UINT_VAL(fsserver_handle_pass,8);
 FssContainer g_fssrv;
 bool less_servrec_ptr::operator()(const FileServerKey& a, const FileServerKey& b) const
 {
@@ -62,6 +63,9 @@ int FssContainer::Init(vector<if_proc>* pif)
 			vfs_mod[i].storage_drvs[j].sto_mod=&vfs_mod[i];
 		}
 	}
+	sem=sys_create_sem(fsserver_handle_pass,fsserver_handle_pass,NULL);
+	if(!VALID(sem))
+		return ERR_GENERIC;
 	for(int i=0;i<(int)vfs_mod.size();i++)
 	{
 		vfs_mod[i].hMod=sys_load_library((char*)vfs_mod[i].mod_name.c_str());
@@ -78,7 +82,7 @@ int FssContainer::Init(vector<if_proc>* pif)
 		}
 		for(int j=0;j<(int)vfs_mod[i].storage_drvs.size();j++)
 		{
-			FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j]);
+			FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j],&sem);
 			if(0!=(ret=srv->Init()))
 			{
 				delete srv;
@@ -98,6 +102,11 @@ void FssContainer::Exit()
 		delete vfs_srv[i];
 	}
 	vfs_srv.clear();
+	if(VALID(sem))
+	{
+		sys_close_sem(sem);
+		sem=NULL;
+	}
 	for(int i=0;i<(int)vfs_mod.size();i++)
 	{
 		if(VALID(vfs_mod[i].hMod))
@@ -107,6 +116,8 @@ void FssContainer::Exit()
 }
 int FsServer::Init()
 {
+	if(psem==NULL||*psem==NULL)
+		return ERR_GENERIC;
 	if(if_info==NULL)
 		return ERR_GENERIC;
 	if_info->drvcall=if_info->sto_mod->STO_GET_INTF_FUNC((char*)if_info->drv_name.c_str());
