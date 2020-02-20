@@ -118,3 +118,16 @@ DLLAPI(int) fs_recurse_delete(char* pathname)
 	file_recurse_callback cb={cb_fs_stat,fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
 	return recurse_fdelete(pathname,&cb,'/');
 }
+
+DLLAPI(int) fss_init(vector<if_proc>* pif,RequestResolver* resolver)
+{
+	return g_fssrv.Init(pif,resolver);
+}
+DLLAPI(void) fss_exit()
+{
+	g_fssrv.Exit();
+}
+DLLAPI(int) fss_suspend(int bsusp)
+{
+	return g_fssrv.SuspendIO(!!bsusp,1000);
+}

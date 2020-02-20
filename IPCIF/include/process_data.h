@@ -17,7 +17,11 @@ struct if_proc
 };
 typedef struct _intf_fsdrv
 {
-
+	int(*format)(char* cmd);
+	void*(*mount)(char* cmd);
+	void(*unmount)(void* hdev);
+	void*(*open)(void* hdev, char* pathname, dword flags);
+	void(*close)(void* hdev,void* hfile);
 }intf_fsdrv,*pintf_fsdrv;
 struct storage_mod_info;
 struct if_info_storage
@@ -25,6 +29,7 @@ struct if_info_storage
 	string drv_name;
 	string mount_cmd;
 	string format_cmd;
+	void* hdev;
 	pintf_fsdrv drvcall;
 	storage_mod_info* sto_mod;
 	if_proc* ifproc;
@@ -68,5 +73,11 @@ inline void init_proc_data(proc_data* pdata)
 	pdata->id=NULL;
 	pdata->ambiguous=false;
 }
+inline void init_if_info_storage(if_info_storage* if_sto)
+{
+	if_sto->drvcall=NULL;
+	if_sto->hdev=NULL;
+	if_sto->ifproc=NULL;
+	if_sto->sto_mod=NULL;
+}
 #endif
-

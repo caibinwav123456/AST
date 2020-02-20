@@ -97,7 +97,7 @@ int main_entry(main_args)
 	init.user=get_if_user();
 	init.id=get_main_info()->manager_if0;
 	init.nthread=get_main_info()->manager_if0_cnt;
-	init.smem_size=sizeof(dg_manager);
+	init.smem_size=SIZE_IF_MANAGER;
 	void* if_mgr=NULL;
 	astmgr_data data;
 	data.ready_quit=data.quit=false;

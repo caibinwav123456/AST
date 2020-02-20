@@ -25,5 +25,8 @@ DLLAPI(int) fs_mkdir(char* path);
 DLL int fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param);
 DLLAPI(int) fs_recurse_copy(char* from,char* to);
 DLLAPI(int) fs_recurse_delete(char* pathname);
+DLLAPI(int) fss_init(vector<if_proc>* pif,RequestResolver* resolver);
+DLLAPI(void) fss_exit();
+DLLAPI(int) fss_suspend(int bsusp);
 }
 #endif

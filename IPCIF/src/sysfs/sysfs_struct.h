@@ -292,23 +292,29 @@ private:
 };
 class FsServer
 {
+	friend int fs_server(void* param);
+	friend int cb_fs_server(void* addr,void* param,int op);
 public:
-	FsServer(if_info_storage* pinfo,void** _psem)
+	FsServer(if_info_storage* pinfo,void** _psem,int* pquit)
 	{
 		if_info=pinfo;
 		psem=_psem;
 		hthrd_server=NULL;
-		quitcode=ERR_MODULE_NOT_INITED;
+		quitcode=pquit;
 	}
 	int Init();
 	void Exit();
+	void Clear(void* proc_id,bool cl_root=false);
+	bool Reset(void* proc_id);
 private:
+	int CreateInterface();
+	int MountDev();
 	map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> smap;
 	map<void*,SrvProcRing*> proc_id_map;
 	void* hthrd_server;
 	if_info_storage* if_info;
 	void** psem;
-	int quitcode;
+	int* quitcode;
 };
 class FssContainer
 {
@@ -316,13 +322,19 @@ public:
 	FssContainer()
 	{
 		sem=NULL;
+		quitcode=ERR_MODULE_NOT_INITED;
+		locked=false;
 	}
-	int Init(vector<if_proc>* pif);
+	int Init(vector<if_proc>* pif,RequestResolver* resolver);
 	void Exit();
+	int SuspendIO(bool bsusp,uint time=0);
+	bool ReqHandler(uint cmd,void* addr,void* param,int op);
 private:
 	vector<FsServer*> vfs_srv;
 	vector<storage_mod_info> vfs_mod;
 	void* sem;
+	bool locked;
+	int quitcode;
 };
 extern FssContainer g_fssrv;
 #endif

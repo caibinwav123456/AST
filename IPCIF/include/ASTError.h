@@ -36,5 +36,7 @@
 #define ERR_FS_NEGATIVE_POSITION    _r(24)
 #define ERR_FS_FILE_NOT_EXIST       _r(25)
 #define ERR_FS_DEV_NOT_FOUND        _r(26)
+#define ERR_FS_DEV_MOUNT_FAILED     _r(27)
+#define ERR_FS_DEV_FORMAT_FAILED    _r(28)
 
 #endif

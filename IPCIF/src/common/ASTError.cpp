@@ -29,6 +29,8 @@ static char* err_descs[] =
 	"Trying to set a file pointer to a negative value",
 	"File path does not exist",
 	"File system device not found",
+	"File system device mount failed",
+	"File system device format failed",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

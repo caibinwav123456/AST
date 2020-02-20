@@ -6,6 +6,7 @@
 #define LSBUFFER_ELEMENTS 12
 #define _1K 1024
 #define _1M (1024*1024)
+#define ALIGN_4BYTES(M) (((M)+3)&~3)
 
 #define FS_ATTR_FLAGS_DIR     1
 #define FS_IS_DIR(flags)      ((flags&FS_ATTR_FLAGS_DIR)!=0)
@@ -225,6 +226,26 @@ struct dg_manager
 		dgc_clear dc;
 	};
 };
+#define SIZE_IF_MANAGER ALIGN_4BYTES(sizeof(dg_manager))
+
+//Storage interface
+struct dg_storage
+{
+	datagram_base header;
+	union
+	{
+		dgc_fsopen fsopen;
+		dgc_fsclose fsclose;
+		dgc_fsrdwr fsrdwr;
+		dgc_fssize fssize;
+		dgc_fsmove fsmove;
+		dgc_fsdel fsdel;
+		dgc_fsattr fsattr;
+		dgc_fsmkdir fsmkdir;
+		dgc_fslsfiles fslsfiles;
+	};
+};
+#define SIZE_IF_STORAGE ALIGN_4BYTES(sizeof(dg_storage))
 
 #pragma pack(pop)
 

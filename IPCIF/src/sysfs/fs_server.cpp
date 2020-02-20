@@ -1,8 +1,15 @@
+#define DLL_IMPORT
 #include "common.h"
 #include "sysfs_struct.h"
+#include "interface.h"
 #include "config_val_extern.h"
 #include "utility.h"
+#define cifproc if_info->ifproc
+#define cstomod if_info->sto_mod
+#define chdev if_info->hdev
+#define cdrvcall if_info->drvcall
 DEFINE_UINT_VAL(fsserver_handle_pass,8);
+DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
 FssContainer g_fssrv;
 bool less_servrec_ptr::operator()(const FileServerKey& a, const FileServerKey& b) const
 {
@@ -25,9 +32,15 @@ T* find_in_vector(vector<T>& v,T& element,bool(*equal_func)(T&,T&))
 	}
 	return NULL;
 }
-int FssContainer::Init(vector<if_proc>* pif)
+bool ServerClearHandler(uint cmd,void* addr,void* param,int op)
+{
+	return g_fssrv.ReqHandler(cmd,addr,param,op);
+}
+int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 {
 	int ret=0;
+	if(pif==NULL||resolver==NULL)
+		return ERR_INVALID_PARAM;
 	vector<if_proc>& ifs=*pif;
 	if_id_info_storage ifstorage;
 	for(int i=0;i<(int)ifs.size();i++)
@@ -48,8 +61,7 @@ int FssContainer::Init(vector<if_proc>* pif)
 		}
 		storage_mod_info& sto_mod=*psto_mod;
 		if_info_storage drv_info;
-		drv_info.drvcall=NULL;
-		drv_info.sto_mod=NULL;
+		init_if_info_storage(&drv_info);
 		drv_info.ifproc=&ifs[i];
 		drv_info.drv_name=ifstorage.drv_name;
 		drv_info.mount_cmd=ifstorage.mount_cmd;
@@ -63,9 +75,11 @@ int FssContainer::Init(vector<if_proc>* pif)
 			vfs_mod[i].storage_drvs[j].sto_mod=&vfs_mod[i];
 		}
 	}
+	resolver->AddHandler(ServerClearHandler);
 	sem=sys_create_sem(fsserver_handle_pass,fsserver_handle_pass,NULL);
 	if(!VALID(sem))
 		return ERR_GENERIC;
+	quitcode=0;
 	for(int i=0;i<(int)vfs_mod.size();i++)
 	{
 		vfs_mod[i].hMod=sys_load_library((char*)vfs_mod[i].mod_name.c_str());
@@ -82,7 +96,7 @@ int FssContainer::Init(vector<if_proc>* pif)
 		}
 		for(int j=0;j<(int)vfs_mod[i].storage_drvs.size();j++)
 		{
-			FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j],&sem);
+			FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j],&sem,&quitcode);
 			if(0!=(ret=srv->Init()))
 			{
 				delete srv;
@@ -96,6 +110,8 @@ int FssContainer::Init(vector<if_proc>* pif)
 }
 void FssContainer::Exit()
 {
+	quitcode=ERR_MODULE_NOT_INITED;
+	SuspendIO(false);
 	for(int i=0;i<(int)vfs_srv.size();i++)
 	{
 		vfs_srv[i]->Exit();
@@ -114,18 +130,228 @@ void FssContainer::Exit()
 	}
 	vfs_mod.clear();
 }
+int FssContainer::SuspendIO(bool bsusp,uint time)
+{
+	if(bsusp)
+	{
+		if(locked)
+			return 0;
+		for(int i=0;i<(int)fsserver_handle_pass;i++)
+		{
+			if(ERR_TIMEOUT==sys_wait_sem(sem,time))
+			{
+				for(;i>0;i--)
+				{
+					sys_signal_sem(sem);
+				}
+				return ERR_BUSY;
+			}
+		}
+		locked=true;
+		return 0;
+	}
+	else
+	{
+		if(!locked)
+			return 0;
+		for(int i=0;i<(int)fsserver_handle_pass;i++)
+		{
+			sys_signal_sem(sem);
+		}
+		locked=false;
+		return 0;
+	}
+	return 0;
+}
+bool FssContainer::ReqHandler(uint cmd,void* addr,void* param,int op)
+{
+	bool clear=false;
+	bool ret=false;
+	dg_clear* dc=NULL;
+	switch(cmd)
+	{
+	case CMD_CLEAR_ALL:
+		clear=true;
+		break;
+	case CMD_CLEAR:
+		dc=(dg_clear*)addr;
+		clear=true;
+		break;
+	}
+	if(clear)
+	{
+		SuspendIO(true);
+		for(int i=0;i<(int)vfs_srv.size();i++)
+		{
+			if(vfs_srv[i]->Reset(dc==NULL?NULL:dc->clear.id))
+				ret=true;
+		}
+		SuspendIO(false);
+	}
+	return ret;
+}
+int cb_fs_server(void* addr,void* param,int op);
+int fs_server(void* param)
+{
+	FsServer* fssrvr=(FsServer*)param;
+	while(*fssrvr->quitcode==0)
+	{
+		sys_wait_sem(*fssrvr->psem);
+		sys_signal_sem(*fssrvr->psem);
+		if(*fssrvr->quitcode!=0)
+			break;
+		listen_if(fssrvr->cifproc->hif,cb_fs_server,param,100);
+	}
+	return 0;
+}
 int FsServer::Init()
 {
-	if(psem==NULL||*psem==NULL)
+	if(psem==NULL||!VALID(*psem))
 		return ERR_GENERIC;
-	if(if_info==NULL)
+	if(quitcode==NULL)
 		return ERR_GENERIC;
-	if_info->drvcall=if_info->sto_mod->STO_GET_INTF_FUNC((char*)if_info->drv_name.c_str());
-	if(if_info->drvcall==NULL)
+	if(if_info==NULL||cifproc==NULL||cstomod==NULL)
 		return ERR_GENERIC;
+	if(NULL==(cdrvcall=cstomod->STO_GET_INTF_FUNC((char*)if_info->drv_name.c_str())))
+		return ERR_GENERIC;
+	int ret=0;
+	if(0!=(ret=CreateInterface()))
+		goto failed;
+	if(0!=(ret=MountDev()))
+		goto failed;
+	hthrd_server=sys_create_thread(fs_server,this);
+	if(!VALID(hthrd_server))
+	{
+		ret=ERR_GENERIC;
+		goto failed;
+	}
 	return 0;
+failed:
+	if(VALID(chdev))
+	{
+		cdrvcall->unmount(chdev);
+		chdev=NULL;
+	}
+	if(VALID(cifproc->hif))
+	{
+		close_if(cifproc->hif);
+		cifproc->hif=NULL;
+	}
+	return ret;
 }
 void FsServer::Exit()
 {
-
+	assert(VALID(hthrd_server));
+	sys_wait_thread(hthrd_server);
+	sys_close_thread(hthrd_server);
+	hthrd_server=NULL;
+	Clear(NULL,true);
+	if(VALID(chdev))
+	{
+		cdrvcall->unmount(chdev);
+		chdev=NULL;
+	}
+	if(VALID(cifproc->hif))
+	{
+		close_if(cifproc->hif);
+		cifproc->hif=NULL;
+	}
+}
+inline void clear_ring(
+	map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr>& smap,
+	SrvProcRing* proc_ring,pintf_fsdrv if_drv,void* hdev)
+{
+	BiRingNode<FileServerRec>* node;
+	while(NULL!=(node=proc_ring->GetNodeFromTail()))
+	{
+		if(VALID(node->t.fd))
+			if_drv->close(hdev,node->t.fd);
+		map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr>::iterator it
+			=smap.find(node->t.key);
+		assert(it!=smap.end());
+		assert(it->second==node);
+		smap.erase(it);
+		delete node;
+	}
+}
+void FsServer::Clear(void* proc_id,bool cl_root)
+{
+	if(VALID(proc_id))
+	{
+		map<void*,SrvProcRing*>::iterator it=proc_id_map.find(proc_id);
+		if(it==proc_id_map.end())
+			return;
+		SrvProcRing* ring=it->second;
+		clear_ring(smap,ring,cdrvcall,chdev);
+		if(cl_root)
+		{
+			proc_id_map.erase(it);
+			delete ring;
+		}
+		return;
+	}
+	map<void*, SrvProcRing*>::iterator it;
+	while((it=proc_id_map.begin())!=proc_id_map.end())
+	{
+		SrvProcRing* ring=it->second;
+		clear_ring(smap,ring,cdrvcall,chdev);
+		if(cl_root)
+		{
+			proc_id_map.erase(it);
+			delete ring;
+		}
+	}
+	assert(smap.empty());
+}
+bool FsServer::Reset(void* proc_id)
+{
+	bool exist=(VALID(proc_id)?(proc_id_map.find(proc_id)!=proc_id_map.end()
+		&&!proc_id_map[proc_id]->Empty()):smap.empty());
+	Clear(proc_id);
+	reset_if(cifproc->hif);
+	return exist;
+}
+int FsServer::CreateInterface()
+{
+	int ret=0;
+	if_initial init;
+	init.user=get_if_user();
+	init.id=(char*)cifproc->id.c_str();
+	init.nthread=cifproc->cnt;
+	init.smem_size=SIZE_IF_STORAGE;
+	if(0!=(ret=setup_if(&init,&cifproc->hif)))
+	{
+		LOGFILE(0,log_ftype_error,"Create interfafe %s failed, quitting...",init.id);
+		return ret;
+	}
+	return 0;
+}
+int FsServer::MountDev()
+{
+	int ret=0;
+	chdev=cdrvcall->mount((char*)if_info->mount_cmd.c_str());
+	if(!VALID(chdev))
+	{
+		LOGFILE(0,log_ftype_error,"Mount fs on interface %s failed, %s",(char*)cifproc->id.c_str(),
+			fsserver_try_format_on_mount_fail?"try formatting...":"quitting...");
+		if(!fsserver_try_format_on_mount_fail)
+			return ERR_FS_DEV_MOUNT_FAILED;
+		if(0!=(ret=cdrvcall->format((char*)if_info->format_cmd.c_str())))
+		{
+			LOGFILE(0,log_ftype_error,"Format fs on interface %s failed, quitting...",(char*)cifproc->id.c_str());
+			return ret;
+		}
+		LOGFILE(0,log_ftype_error,"Format fs on interface %s successful.",(char*)cifproc->id.c_str());
+		chdev=cdrvcall->mount((char*)if_info->mount_cmd.c_str());
+		if(!VALID(chdev))
+		{
+			LOGFILE(0,log_ftype_error,"Mount fs on interface %s still failed, quitting...",(char*)cifproc->id.c_str());
+			return ERR_FS_DEV_MOUNT_FAILED;
+		}
+	}
+	return 0;
+}
+int cb_fs_server(void* addr,void* param,int op)
+{
+	return 0;
 }
