@@ -197,10 +197,13 @@ int fs_server(void* param)
 	while(*fssrvr->quitcode==0)
 	{
 		sys_wait_sem(*fssrvr->psem);
-		sys_signal_sem(*fssrvr->psem);
 		if(*fssrvr->quitcode!=0)
+		{
+			sys_signal_sem(*fssrvr->psem);
 			break;
+		}
 		listen_if(fssrvr->cifproc->hif,cb_fs_server,param,100);
+		sys_signal_sem(*fssrvr->psem);
 	}
 	return 0;
 }
@@ -290,15 +293,23 @@ void FsServer::Clear(void* proc_id,bool cl_root)
 		}
 		return;
 	}
-	map<void*, SrvProcRing*>::iterator it;
-	while((it=proc_id_map.begin())!=proc_id_map.end())
+	map<void*,SrvProcRing*>::iterator it;
+	if(cl_root)
 	{
-		SrvProcRing* ring=it->second;
-		clear_ring(smap,ring,cdrvcall,chdev);
-		if(cl_root)
+		while((it=proc_id_map.begin())!=proc_id_map.end())
 		{
+			SrvProcRing* ring=it->second;
+			clear_ring(smap,ring,cdrvcall,chdev);
 			proc_id_map.erase(it);
 			delete ring;
+		}
+	}
+	else
+	{
+		for(it=proc_id_map.begin();it!=proc_id_map.end();it++)
+		{
+			SrvProcRing* ring=it->second;
+			clear_ring(smap,ring,cdrvcall,chdev);
 		}
 	}
 	assert(smap.empty());
