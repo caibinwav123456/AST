@@ -132,11 +132,21 @@ struct FileServerKey
 	void* hFile;
 };
 class SrvProcRing;
+#define FSSERVER_REC_TYPE_FILE_DESCRIPTOR 0
+#define FSSERVER_REC_TYPE_FILE_LIST       1
 struct FileServerRec
 {
 	FileServerKey key;
-	void* fd;
-	dword sid;
+	uint type;
+	union
+	{
+		void* fd;
+		struct
+		{
+			vector<fsls_element>* pvfiles;
+			int index;
+		};
+	};
 	SrvProcRing* proc_ring;
 };
 struct BufferPtr
@@ -279,17 +289,30 @@ private:
 	int quitcode;
 };
 extern SysFs g_sysfs;
+class FsServer;
 class SrvProcRing : public BiRing<FileServerRec>
 {
 public:
-	SrvProcRing()
+	SrvProcRing(FsServer* srv,void* proc_id):pfssrv(srv)
 	{
 		memset(&t,0,sizeof(t));
+		memset(&backup_data,0,sizeof(backup_data));
+		t.key.caller=proc_id;
+		t.proc_ring=this;
+		backup_data.header.cmd=(uint)-1;
 		hFileReserve=(byte*)1;
 	}
+	dg_storage* GetBackupData()
+	{
+		return &backup_data;
+	}
+	void* get_handle();
 private:
 	byte* hFileReserve;
+	FsServer* pfssrv;
+	dg_storage backup_data;
 };
+typedef map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> fs_key_map;
 class FsServer
 {
 	friend int fs_server(void* param);
@@ -306,11 +329,26 @@ public:
 	void Exit();
 	void Clear(void* proc_id,bool cl_root=false);
 	bool Reset(void* proc_id);
+	bool CheckExist(void* proc_id,void* hfile)
+	{
+		FileServerKey key;
+		key.caller=proc_id;
+		key.hFile=hfile;
+		return smap.find(key)!=smap.end();
+	}
 private:
 	int CreateInterface();
 	int MountDev();
-	map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> smap;
+	bool RestoreData(datagram_base* data);
+	void BackupData(datagram_base* data);
+	bool AddProcRing(void* proc_id);
+	int HandleOpen(dg_fsopen* fsopen);
+	int HandleClose(dg_fsclose* fsclose);
+	int HandleReadWrite(dg_fsrdwr* fsrdwr);
+	BiRingNode<FileServerRec>* get_fs_node(void* proc_id,void* h,fs_key_map::iterator* it=NULL);
+	fs_key_map smap;
 	map<void*,SrvProcRing*> proc_id_map;
+	map<uint,int> cmd_data_size_map;
 	void* hthrd_server;
 	if_info_storage* if_info;
 	void** psem;

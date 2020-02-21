@@ -20,8 +20,10 @@ typedef struct _intf_fsdrv
 	int(*format)(char* cmd);
 	void*(*mount)(char* cmd);
 	void(*unmount)(void* hdev);
-	void*(*open)(void* hdev, char* pathname, dword flags);
+	void*(*open)(void* hdev,char* pathname,dword flags);
 	void(*close)(void* hdev,void* hfile);
+	int(*read)(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen);
+	int(*write)(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen);
 }intf_fsdrv,*pintf_fsdrv;
 struct storage_mod_info;
 struct if_info_storage

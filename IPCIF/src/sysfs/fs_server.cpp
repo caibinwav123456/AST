@@ -32,6 +32,16 @@ T* find_in_vector(vector<T>& v,T& element,bool(*equal_func)(T&,T&))
 	}
 	return NULL;
 }
+void* SrvProcRing::get_handle()
+{
+	void* h;
+	do{
+		h=(hFileReserve++);
+		if(hFileReserve==(byte*)-1)
+			hFileReserve=(byte*)1;
+	}while(pfssrv->CheckExist(t.key.caller,h));
+	return h;
+}
 bool ServerClearHandler(uint cmd,void* addr,void* param,int op)
 {
 	return g_fssrv.ReqHandler(cmd,addr,param,op);
@@ -217,6 +227,40 @@ int FsServer::Init()
 		return ERR_GENERIC;
 	if(NULL==(cdrvcall=cstomod->STO_GET_INTF_FUNC((char*)if_info->drv_name.c_str())))
 		return ERR_GENERIC;
+	uint cmd_array[]={
+		CMD_FSOPEN,
+		CMD_FSCLOSE,
+		CMD_FSREAD,
+		CMD_FSWRITE,
+		CMD_FSGETSIZE,
+		CMD_FSSETSIZE,
+		CMD_MAKEDIR,
+		CMD_LSFILES,
+		CMD_FSMOVE,
+		CMD_FSDELETE,
+		CMD_FSGETATTR,
+		CMD_FSSETATTR,
+	};
+	uint cmd_data_size_array[]={
+		sizeof(dg_fsopen)-sizeof(((dgc_fsopen*)NULL)->path),
+		sizeof(dg_fsclose),
+		sizeof(dg_fsrdwr),
+		sizeof(dg_fsrdwr)-sizeof(((dgc_fsrdwr*)NULL)->buf),
+		sizeof(dg_fssize),
+		sizeof(dg_fssize),
+		sizeof(datagram_base),//fsmkdir
+		sizeof(dg_fslsfiles),
+		sizeof(datagram_base),//fsmove
+		sizeof(datagram_base),//fsdel
+		sizeof(dg_fsattr)-sizeof(((dgc_fsattr*)NULL)->path),
+		sizeof(datagram_base),//fsattr
+	};
+	assert(sizeof(cmd_array)/sizeof(uint)
+		==sizeof(cmd_data_size_array)/sizeof(uint));
+	for(int i=0;i<(int)(sizeof(cmd_array)/sizeof(uint));i++)
+	{
+		cmd_data_size_map[cmd_array[i]]=cmd_data_size_array[i];
+	}
 	int ret=0;
 	if(0!=(ret=CreateInterface()))
 		goto failed;
@@ -240,6 +284,7 @@ failed:
 		close_if(cifproc->hif);
 		cifproc->hif=NULL;
 	}
+	cmd_data_size_map.clear();
 	return ret;
 }
 void FsServer::Exit()
@@ -259,18 +304,28 @@ void FsServer::Exit()
 		close_if(cifproc->hif);
 		cifproc->hif=NULL;
 	}
+	cmd_data_size_map.clear();
 }
-inline void clear_ring(
-	map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr>& smap,
-	SrvProcRing* proc_ring,pintf_fsdrv if_drv,void* hdev)
+inline void clear_node(BiRingNode<FileServerRec>* node,pintf_fsdrv if_drv,void* hdev)
+{
+	switch(node->t.type)
+	{
+	case FSSERVER_REC_TYPE_FILE_DESCRIPTOR:
+		if(VALID(node->t.fd))
+			if_drv->close(hdev,node->t.fd);
+		break;
+	case FSSERVER_REC_TYPE_FILE_LIST:
+		delete node->t.pvfiles;
+		break;
+	}
+}
+inline void clear_ring(fs_key_map& smap,SrvProcRing* proc_ring,pintf_fsdrv if_drv,void* hdev)
 {
 	BiRingNode<FileServerRec>* node;
 	while(NULL!=(node=proc_ring->GetNodeFromTail()))
 	{
-		if(VALID(node->t.fd))
-			if_drv->close(hdev,node->t.fd);
-		map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr>::iterator it
-			=smap.find(node->t.key);
+		clear_node(node,if_drv,hdev);
+		fs_key_map::iterator it=smap.find(node->t.key);
 		assert(it!=smap.end());
 		assert(it->second==node);
 		smap.erase(it);
@@ -362,7 +417,199 @@ int FsServer::MountDev()
 	}
 	return 0;
 }
+bool FsServer::RestoreData(datagram_base* data)
+{
+	if(!VALID(data->caller))
+		return false;
+	map<void*,SrvProcRing*>::iterator it;
+	if((it=proc_id_map.find(data->caller))==proc_id_map.end())
+		return false;
+	SrvProcRing* ring=it->second;
+	if(data->cmd==ring->GetBackupData()->header.cmd
+		&&data->sid==ring->GetBackupData()->header.sid)
+	{
+		assert(cmd_data_size_map.find(data->cmd)!=cmd_data_size_map.end());
+		memcpy(data,ring->GetBackupData(),cmd_data_size_map[data->cmd]);
+		return true;
+	}
+	return false;
+}
+void FsServer::BackupData(datagram_base* data)
+{
+	if(data->ret!=0)
+		return;
+	map<void*,SrvProcRing*>::iterator it;
+	if((it=proc_id_map.find(data->caller))==proc_id_map.end())
+		return;
+	SrvProcRing* ring=it->second;
+	assert(cmd_data_size_map.find(data->cmd)!=cmd_data_size_map.end());
+	memcpy(ring->GetBackupData(),data,cmd_data_size_map[data->cmd]);
+}
+bool FsServer::AddProcRing(void* proc_id)
+{
+	map<void*,SrvProcRing*>::iterator it;
+	if((it=proc_id_map.find(proc_id))!=proc_id_map.end())
+		return false;
+	proc_id_map[proc_id]=new SrvProcRing(this,proc_id);
+	return true;
+}
 int cb_fs_server(void* addr,void* param,int op)
 {
+	FsServer* srv=(FsServer*)param;
+	datagram_base* dbase=(datagram_base*)addr;
+	if(srv->RestoreData(dbase))
+		return 0;
+	srv->AddProcRing(dbase->caller);
+	uint cmd=dbase->cmd;
+	switch(cmd)
+	{
+	case CMD_FSOPEN:
+		{
+			dg_fsopen* fsopen=(dg_fsopen*)addr;
+			srv->HandleOpen(fsopen);
+		}
+		break;
+	case CMD_FSREAD:
+	case CMD_FSWRITE:
+		{
+			dg_fsrdwr* fsrdwr=(dg_fsrdwr*)addr;
+			srv->HandleReadWrite(fsrdwr);
+		}
+		break;
+	case CMD_FSCLOSE:
+		{
+			dg_fsclose* fsclose=(dg_fsclose*)addr;
+			srv->HandleClose(fsclose);
+		}
+		break;
+	case CMD_FSGETSIZE:
+	case CMD_FSSETSIZE:
+		{
+			dg_fssize* fssize=(dg_fssize*)addr;
+		}
+		break;
+	case CMD_FSMOVE:
+		{
+			dg_fsmove* fsmove=(dg_fsmove*)addr;
+		}
+		break;
+	case CMD_FSDELETE:
+		{
+			dg_fsdel* fsdel=(dg_fsdel*)addr;
+		}
+		break;
+	case CMD_MAKEDIR:
+		{
+			dg_fsmkdir* fsmkdir=(dg_fsmkdir*)addr;
+		}
+		break;
+	case CMD_FSGETATTR:
+	case CMD_FSSETATTR:
+		{
+			dg_fsattr* fsattr=(dg_fsattr*)addr;
+		}
+		break;
+	case CMD_LSFILES:
+		{
+			dg_fslsfiles* fslsfiles=(dg_fslsfiles*)addr;
+		}
+		break;
+	}
+	srv->BackupData(dbase);
 	return 0;
+}
+BiRingNode<FileServerRec>* FsServer::get_fs_node(void* proc_id,void* h,fs_key_map::iterator* iter)
+{
+	FileServerKey key;
+	key.caller=proc_id;
+	key.hFile=h;
+	fs_key_map::iterator it;
+	if((it=smap.find(key))!=smap.end())
+	{
+		if(iter!=NULL)
+			*iter=it;
+		return it->second;
+	}
+	return NULL;
+}
+int FsServer::HandleOpen(dg_fsopen* fsopen)
+{
+	int ret=0;
+	void* hfile=cdrvcall->open(chdev,fsopen->open.path,fsopen->open.flags);
+	if(VALID(hfile))
+	{
+		FileServerKey key;
+		key.caller=fsopen->header.caller;
+		SrvProcRing* ring=proc_id_map[key.caller];
+		void* h=ring->get_handle();
+		key.hFile=h;
+		BiRingNode<FileServerRec>* node=new BiRingNode<FileServerRec>;
+		node->t.type=FSSERVER_REC_TYPE_FILE_DESCRIPTOR;
+		node->t.fd=hfile;
+		node->t.key=key;
+		node->t.proc_ring=ring;
+		ring->AddNodeToBegin(node);
+		smap[key]=node;
+		fsopen->open.hFile=hfile;
+	}
+	else
+	{
+		ret=ERR_FILE_IO;
+	}
+	fsopen->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleClose(dg_fsclose* fsclose)
+{
+	int ret=0;
+	fs_key_map::iterator it;
+	BiRingNode<FileServerRec>* node=get_fs_node(
+		fsclose->header.caller,fsclose->close.handle,&it);
+	if(node!=NULL)
+	{
+		clear_node(node,cdrvcall,chdev);
+		node->Detach();
+		smap.erase(it);
+		delete node;
+	}
+	else
+	{
+		ret=ERR_FS_INVALID_HANDLE;
+	}
+	fsclose->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleReadWrite(dg_fsrdwr* fsrdwr)
+{
+	int ret=0;
+	BiRingNode<FileServerRec>* node=get_fs_node(
+		fsrdwr->header.caller,fsrdwr->rdwr.handle);
+	if(node!=NULL)
+	{
+		uint rdwrlen=0;
+		switch(fsrdwr->header.cmd)
+		{
+		case CMD_FSREAD:
+			ret=cdrvcall->read(chdev,node->t.fd,
+				fsrdwr->rdwr.offset,fsrdwr->rdwr.offhigh,
+				fsrdwr->rdwr.len,fsrdwr->rdwr.buf,&rdwrlen);
+			fsrdwr->rdwr.len=rdwrlen;
+			break;
+		case CMD_FSWRITE:
+			ret=cdrvcall->write(chdev,node->t.fd,
+				fsrdwr->rdwr.offset,fsrdwr->rdwr.offhigh,
+				fsrdwr->rdwr.len,fsrdwr->rdwr.buf,&rdwrlen);
+			fsrdwr->rdwr.len=rdwrlen;
+			break;
+		default:
+			ret=ERR_FILE_IO;
+			break;
+		}
+	}
+	else
+	{
+		ret=ERR_FS_INVALID_HANDLE;
+	}
+	fsrdwr->header.ret=ret;
+	return ret;
 }

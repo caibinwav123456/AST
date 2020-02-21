@@ -35,7 +35,6 @@ enum if_cmd_code
 	//storage
 	CMD_FSOPEN,
 	CMD_FSCLOSE,
-	CMD_FSSEEK,
 	CMD_FSREAD,
 	CMD_FSWRITE,
 	CMD_FSGETSIZE,
