@@ -9,19 +9,53 @@
 #include "Integer64.h"
 #include "datetime.h"
 #include <assert.h>
+#define sem_safe_release(sem) \
+	if(VALID(sem)) \
+	{ \
+		sys_close_sem(sem); \
+		sem=NULL; \
+	}
+#define uninited_return_val(v) if(quitcode!=0)return (v)
+#define uninited_return if(quitcode!=0)return quitcode
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
 #define MAX_CONNECT_TIMES 10
+inline SortedFileIoRec* get_from_fmap(map<void*,SortedFileIoRec*>& fmap,void* h,void* protect)
+{
+	map<void*,SortedFileIoRec*>::iterator it;
+	SortedFileIoRec* pRec=NULL;
+	sys_wait_sem(protect);
+	if((it=fmap.find(h))!=fmap.end())
+		pRec=it->second;
+	sys_signal_sem(protect);
+	return pRec;
+}
+inline void add_to_fmap(map<void*,SortedFileIoRec*>& fmap,void* h,SortedFileIoRec* pRec,void* protect)
+{
+	sys_wait_sem(protect);
+	fmap[h]=pRec;
+	sys_signal_sem(protect);
+}
+inline void remove_from_fmap(map<void*,SortedFileIoRec*>& fmap,void* h,void* protect)
+{
+	map<void*,SortedFileIoRec*>::iterator it;
+	sys_wait_sem(protect);
+	if((it=fmap.find(h))!=fmap.end())
+		fmap.erase(it);
+	sys_signal_sem(protect);
+}
 void* SysFs::sysfs_get_handle()
 {
 	static byte* i=(byte*)1;
 	void* h;
+	sys_wait_sem(fmap_protect);
 	do{
 		h=(i++);
 		if(i==(byte*)-1)
 			i=(byte*)1;
 	}while(fmap.find(h)!=fmap.end());
+	sys_signal_sem(fmap_protect);
 	return h;
 }
 SysFs g_sysfs;
@@ -220,18 +254,23 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 		mode=fsmode_instant_if;
 	}
 	sem=sys_create_sem(sysfs_query_pass,sysfs_query_pass,NULL);
+	fmap_protect=sys_create_sem(1,1,NULL);
 	bool b=(mode==fsmode_semipermanent_if);
+	bool b2=(mode==fsmode_permanent_if);
+	if(b2)
+		mutex_protect=sys_create_sem(1,1,NULL);
 	if(b)
 	{
 		sem_reconn=sys_create_sem(0,1,NULL);
 		flag_protect=sys_create_sem(1,1,NULL);
 	}
-	if(!VALID(sem)||(b&&(!VALID(sem_reconn)||!VALID(flag_protect))))
+	if((!VALID(sem))||(!VALID(fmap_protect))||(b&&(!VALID(sem_reconn)||!VALID(flag_protect)))||(b2&&(!VALID(mutex_protect))))
 	{
 		ret=ERR_GENERIC;
 		goto failed;
 	}
 	flags=0;
+	lock_cnt=0;
 	quitcode=0;
 	if(b)
 	{
@@ -265,21 +304,11 @@ failed:
 	}
 	pvdata.clear();
 	ifvproc.clear();
-	if(VALID(sem))
-	{
-		sys_close_sem(sem);
-		sem=NULL;
-	}
-	if(VALID(sem_reconn))
-	{
-		sys_close_sem(sem_reconn);
-		sem_reconn=NULL;
-	}
-	if(VALID(flag_protect))
-	{
-		sys_close_sem(flag_protect);
-		flag_protect=NULL;
-	}
+	sem_safe_release(sem);
+	sem_safe_release(sem_reconn);
+	sem_safe_release(flag_protect);
+	sem_safe_release(mutex_protect);
+	sem_safe_release(fmap_protect);
 	mutex=NULL;
 	return ret;
 }
@@ -287,6 +316,7 @@ void SysFs::Exit()
 {
 	quitcode=ERR_MODULE_NOT_INITED;
 	SuspendIO(false);
+	sys_sleep(10);
 	if(VALID(hthrd_reconn))
 	{
 		sys_signal_sem(sem_reconn);
@@ -312,21 +342,11 @@ void SysFs::Exit()
 	fmap.clear();
 	pvdata.clear();
 	ifvproc.clear();
-	if(VALID(sem))
-	{
-		sys_close_sem(sem);
-		sem=NULL;
-	}
-	if(VALID(sem_reconn))
-	{
-		sys_close_sem(sem_reconn);
-		sem_reconn=NULL;
-	}
-	if(VALID(flag_protect))
-	{
-		sys_close_sem(flag_protect);
-		flag_protect=NULL;
-	}
+	sem_safe_release(sem);
+	sem_safe_release(sem_reconn);
+	sem_safe_release(flag_protect);
+	sem_safe_release(mutex_protect);
+	sem_safe_release(fmap_protect);
 	mutex=NULL;
 }
 int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
@@ -628,6 +648,24 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 	*ppif=ifproc;
 	return 0;
 }
+void SysFs::mutex_p()
+{
+	int cnt;
+	sys_wait_sem(mutex_protect);
+	cnt=(lock_cnt--);
+	sys_signal_sem(mutex_protect);
+	if(cnt==0)
+		sys_wait_sem(mutex->get_mutex());
+}
+void SysFs::mutex_v()
+{
+	int cnt;
+	sys_wait_sem(mutex_protect);
+	cnt=(++lock_cnt);
+	sys_signal_sem(mutex_protect);
+	if(cnt==0)
+		sys_signal_sem(mutex->get_mutex());
+}
 int SysFs::BeginTransfer(if_proc* pif,void** phif)
 {
 	int ret=0;
@@ -650,10 +688,10 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 	}
 	if(mode==fsmode_permanent_if)
 	{
-		sys_wait_sem(mutex->get_mutex());
+		mutex_p();
 		if(quitcode!=0||!VALID(pif->hif))
 		{
-			sys_signal_sem(mutex->get_mutex());
+			mutex_v();
 			sys_signal_sem(sem);
 			return quitcode==0?ERR_GENERIC:quitcode;;
 		}
@@ -665,7 +703,7 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 void SysFs::EndTransfer(void** phif)
 {
 	if(mode==fsmode_permanent_if)
-		sys_signal_sem(mutex->get_mutex());
+		mutex_v();
 	sys_signal_sem(sem);
 	if(mode==fsmode_instant_if&&VALID(*phif))
 		close_if(*phif);
@@ -832,6 +870,7 @@ end:
 }
 void* SysFs::Open(const char* pathname,dword flags)
 {
+	uninited_return_val(NULL);
 	if_proc* ifproc;
 	string path;
 	int ret=0;
@@ -858,27 +897,22 @@ end:
 	if(ret!=0)
 		goto failed;
 	void* h=sysfs_get_handle();
-	fmap[h]=pRec;
+	add_to_fmap(fmap,h,pRec,fmap_protect);
 	return h;
 failed:
 	delete pRec;
 	return NULL;
 }
-SortedFileIoRec* SysFs::handle_to_rec_ptr(void* handle,map<void*,SortedFileIoRec*>::iterator* iter)
+SortedFileIoRec* SysFs::handle_to_rec_ptr(void* handle)
 {
 	if(!VALID(handle))
 		return NULL;
-	map<void*,SortedFileIoRec*>::iterator it=fmap.find(handle);
-	if(it==fmap.end())
-		return NULL;
-	if(iter!=NULL)
-		*iter=it;
-	return it->second;
+	return get_from_fmap(fmap,handle,fmap_protect);
 }
 int SysFs::Close(void* h)
 {
-	map<void*,SortedFileIoRec*>::iterator it;
-	SortedFileIoRec* pRec=handle_to_rec_ptr(h,&it);
+	uninited_return;
+	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
 	int ret=0;
@@ -887,7 +921,7 @@ int SysFs::Close(void* h)
 	ret=CloseHandle(pRec->hFile,pRec->pif);
 	if(ret!=0&&ret!=ERR_FS_INVALID_HANDLE)
 		return ret;
-	fmap.erase(it);
+	remove_from_fmap(fmap,h,fmap_protect);
 	delete pRec;
 	return ret;
 }
@@ -911,6 +945,7 @@ end:
 }
 int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 {
+	uninited_return;
 	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
@@ -948,6 +983,7 @@ int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 }
 int SysFs::GetPosition(void* h,uint* offset,uint* offhigh)
 {
+	uninited_return;
 	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
@@ -985,6 +1021,7 @@ inline int check_access_rights(if_cmd_code cmd,SortedFileIoRec* pRec)
 }
 int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
 {
+	uninited_return;
 	assert(cmd==CMD_FSREAD||cmd==CMD_FSWRITE);
 	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
@@ -1186,6 +1223,7 @@ end2:
 }
 int SysFs::FlushBuffer(void* h)
 {
+	uninited_return;
 	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
@@ -1216,6 +1254,7 @@ int SysFs::FlushBuffer(SortedFileIoRec* pRec)
 }
 int SysFs::GetSetFileSize(if_cmd_code cmd,void* h,uint* low,uint* high)
 {
+	uninited_return;
 	SortedFileIoRec* pRec=handle_to_rec_ptr(h);
 	if(pRec==NULL)
 		return ERR_FS_INVALID_HANDLE;
@@ -1285,6 +1324,7 @@ end2:
 }
 int SysFs::MoveFile(const char* src,const char* dst)
 {
+	uninited_return;
 	int ret=0;
 	if_proc *ifsrc,*ifdst;
 	string puresrc,puredst;
@@ -1321,6 +1361,7 @@ end:
 }
 int SysFs::CopyFile(const char* src,const char* dst)
 {
+	uninited_return;
 	int ret=0;
 	if_proc *ifsrc,*ifdst;
 	string puresrc,puredst;
@@ -1435,6 +1476,7 @@ no_stat_end:
 }
 int SysFs::DeleteFile(const char* pathname)
 {
+	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;
@@ -1457,6 +1499,7 @@ end:
 }
 int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags,DateTime* datetime)
 {
+	uninited_return;
 	assert(cmd==CMD_FSGETATTR||cmd==CMD_FSSETATTR);
 	int ret=0;
 	if_proc* ifpath;
@@ -1526,6 +1569,7 @@ end:
 }
 int SysFs::ListFile(const char* path,vector<fsls_element>& files)
 {
+	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;
@@ -1571,6 +1615,7 @@ end:
 }
 int SysFs::MakeDir(const char* path)
 {
+	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;

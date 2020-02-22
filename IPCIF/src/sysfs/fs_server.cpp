@@ -486,32 +486,38 @@ int cb_fs_server(void* addr,void* param,int op)
 	case CMD_FSSETSIZE:
 		{
 			dg_fssize* fssize=(dg_fssize*)addr;
+			srv->HandleGetSetSize(fssize);
 		}
 		break;
 	case CMD_FSMOVE:
 		{
 			dg_fsmove* fsmove=(dg_fsmove*)addr;
+			srv->HandleMove(fsmove);
 		}
 		break;
 	case CMD_FSDELETE:
 		{
 			dg_fsdel* fsdel=(dg_fsdel*)addr;
+			srv->HandleDelete(fsdel);
 		}
 		break;
 	case CMD_MAKEDIR:
 		{
 			dg_fsmkdir* fsmkdir=(dg_fsmkdir*)addr;
+			srv->HandleMakeDir(fsmkdir);
 		}
 		break;
 	case CMD_FSGETATTR:
 	case CMD_FSSETATTR:
 		{
 			dg_fsattr* fsattr=(dg_fsattr*)addr;
+			srv->HandleGetSetAttr(fsattr);
 		}
 		break;
 	case CMD_LSFILES:
 		{
 			dg_fslsfiles* fslsfiles=(dg_fslsfiles*)addr;
+			srv->HandleListFiles(fslsfiles);
 		}
 		break;
 	}
@@ -532,25 +538,56 @@ BiRingNode<FileServerRec>* FsServer::get_fs_node(void* proc_id,void* h,fs_key_ma
 	}
 	return NULL;
 }
+void* FsServer::AddNode(void* proc_id,FileServerRec* pRec)
+{
+	FileServerKey key;
+	key.caller=proc_id;
+	SrvProcRing* ring=proc_id_map[key.caller];
+	void* h=ring->get_handle();
+	key.hFile=h;
+	BiRingNode<FileServerRec>* node=new BiRingNode<FileServerRec>;
+	node->t.type=pRec->type;
+	switch(node->t.type)
+	{
+	case FSSERVER_REC_TYPE_FILE_DESCRIPTOR:
+		node->t.fd=pRec->fd;
+		break;
+	case FSSERVER_REC_TYPE_FILE_LIST:
+		node->t.pvfiles=pRec->pvfiles;
+		node->t.index=pRec->index;
+		break;
+	default:
+		assert(false);
+	}
+	node->t.key=key;
+	node->t.proc_ring=ring;
+	ring->AddNodeToBegin(node);
+	smap[key]=node;
+	return h;
+}
+bool FsServer::RemoveNode(void* proc_id,void* h)
+{
+	fs_key_map::iterator it;
+	BiRingNode<FileServerRec>* node=get_fs_node(
+		proc_id,h,&it);
+	if(node==NULL)
+		return false;
+	clear_node(node,cdrvcall,chdev);
+	node->Detach();
+	smap.erase(it);
+	delete node;
+	return true;
+}
 int FsServer::HandleOpen(dg_fsopen* fsopen)
 {
 	int ret=0;
 	void* hfile=cdrvcall->open(chdev,fsopen->open.path,fsopen->open.flags);
 	if(VALID(hfile))
 	{
-		FileServerKey key;
-		key.caller=fsopen->header.caller;
-		SrvProcRing* ring=proc_id_map[key.caller];
-		void* h=ring->get_handle();
-		key.hFile=h;
-		BiRingNode<FileServerRec>* node=new BiRingNode<FileServerRec>;
-		node->t.type=FSSERVER_REC_TYPE_FILE_DESCRIPTOR;
-		node->t.fd=hfile;
-		node->t.key=key;
-		node->t.proc_ring=ring;
-		ring->AddNodeToBegin(node);
-		smap[key]=node;
-		fsopen->open.hFile=hfile;
+		FileServerRec rec;
+		rec.type=FSSERVER_REC_TYPE_FILE_DESCRIPTOR;
+		rec.fd=hfile;
+		fsopen->open.hFile=AddNode(fsopen->header.caller,&rec);
 	}
 	else
 	{
@@ -562,17 +599,7 @@ int FsServer::HandleOpen(dg_fsopen* fsopen)
 int FsServer::HandleClose(dg_fsclose* fsclose)
 {
 	int ret=0;
-	fs_key_map::iterator it;
-	BiRingNode<FileServerRec>* node=get_fs_node(
-		fsclose->header.caller,fsclose->close.handle,&it);
-	if(node!=NULL)
-	{
-		clear_node(node,cdrvcall,chdev);
-		node->Detach();
-		smap.erase(it);
-		delete node;
-	}
-	else
+	if(!RemoveNode(fsclose->header.caller,fsclose->close.handle))
 	{
 		ret=ERR_FS_INVALID_HANDLE;
 	}
@@ -611,5 +638,165 @@ int FsServer::HandleReadWrite(dg_fsrdwr* fsrdwr)
 		ret=ERR_FS_INVALID_HANDLE;
 	}
 	fsrdwr->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleGetSetSize(dg_fssize* fssize)
+{
+	int ret=0;
+	BiRingNode<FileServerRec>* node=get_fs_node(
+		fssize->header.caller,fssize->size.handle);
+	if(node!=NULL)
+	{
+		switch(fssize->header.cmd)
+		{
+		case CMD_FSGETSIZE:
+			ret=cdrvcall->getsize(chdev,node->t.fd,
+				&fssize->size.len,&fssize->size.lenhigh);
+			break;
+		case CMD_FSSETSIZE:
+			ret=cdrvcall->setsize(chdev,node->t.fd,
+				fssize->size.len,fssize->size.lenhigh);
+			break;
+		default:
+			ret=ERR_FILE_IO;
+			break;
+		}
+	}
+	else
+	{
+		ret=ERR_FS_INVALID_HANDLE;
+	}
+	fssize->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleMove(dg_fsmove* fsmove)
+{
+	int ret=cdrvcall->move(chdev,fsmove->move.src,fsmove->move.dst);
+	fsmove->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleDelete(dg_fsdel* fsdel)
+{
+	int ret=cdrvcall->del(chdev,fsdel->del.path);
+	fsdel->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleMakeDir(dg_fsmkdir* fsmkdir)
+{
+	int ret=cdrvcall->mkdir(chdev,fsmkdir->dir.path);
+	fsmkdir->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleGetSetAttr(dg_fsattr* fsattr)
+{
+	int ret=0;
+	switch(fsattr->header.cmd)
+	{
+	case CMD_FSGETATTR:
+		if(fsattr->attr.mask&FS_ATTR_FLAGS)
+			ret=cdrvcall->getattr(chdev,fsattr->attr.path,&fsattr->attr.flags);
+		if(fsattr->attr.mask&FS_ATTR_DATE)
+		{
+			DateTime date[3];
+			cdrvcall->getfiletime(chdev,fsattr->attr.path,fsattr->attr.mask
+				&FS_ATTR_DATE,date);
+			if(fsattr->attr.mask&FS_ATTR_CREATION_DATE)
+				fsattr->attr.date[fs_attr_creation_date].date=date[fs_attr_creation_date];
+			if(fsattr->attr.mask&FS_ATTR_MODIFY_DATE)
+				fsattr->attr.date[fs_attr_modify_date].date=date[fs_attr_modify_date];
+			if(fsattr->attr.mask&FS_ATTR_ACCESS_DATE)
+				fsattr->attr.date[fs_attr_access_date].date=date[fs_attr_access_date];
+		}
+		break;
+	case CMD_FSSETATTR:
+		if(fsattr->attr.mask&FS_ATTR_FLAGS)
+			ret=cdrvcall->setattr(chdev,fsattr->attr.path,fsattr->attr.flags);
+		if(fsattr->attr.mask&FS_ATTR_DATE)
+		{
+			DateTime date[3];
+			if(fsattr->attr.mask&FS_ATTR_CREATION_DATE)
+				date[fs_attr_creation_date]=fsattr->attr.date[fs_attr_creation_date].date;
+			if(fsattr->attr.mask&FS_ATTR_MODIFY_DATE)
+				date[fs_attr_modify_date]=fsattr->attr.date[fs_attr_modify_date].date;
+			if(fsattr->attr.mask&FS_ATTR_ACCESS_DATE)
+				date[fs_attr_access_date]=fsattr->attr.date[fs_attr_access_date].date;
+			cdrvcall->setfiletime(chdev,fsattr->attr.path,fsattr->attr.mask
+				&FS_ATTR_DATE,date);
+		}
+		break;
+	default:
+		ret=ERR_FILE_IO;
+		break;
+	}
+	fsattr->header.ret=ret;
+	return ret;
+}
+int FsServer::HandleListFiles(dg_fslsfiles* fslsfiles)
+{
+	int ret=0;
+	vector<fsls_element>* files;
+	BiRingNode<FileServerRec>* node;
+	fs_key_map::iterator it;
+	int index=0;
+	uint nfile;
+	bool newlist;
+	void* hls=fslsfiles->files.handle;
+	if(!VALID(hls))
+	{
+		newlist=true;
+		files=new vector<fsls_element>;
+		if(0!=(ret=cdrvcall->listfiles(chdev,fslsfiles->files.path,files)))
+		{
+			delete files;
+			goto end;
+		}
+	}
+	else
+	{
+		newlist=false;
+		node=get_fs_node(fslsfiles->header.caller,hls,&it);
+		if(node!=NULL)
+		{
+			assert(node->t.type==FSSERVER_REC_TYPE_FILE_LIST);
+			files=node->t.pvfiles;
+			index=node->t.index;
+		}
+		else
+		{
+			ret=ERR_FS_INVALID_HANDLE;
+			goto end;
+		}
+	}
+	nfile=files->size()-(uint)index;
+	for(int i=0;i<LSBUFFER_ELEMENTS&&index<(int)files->size();i++,index++)
+	{
+		strcpy(fslsfiles->files.file[i].name,(*files)[i].filename.c_str());
+		fslsfiles->files.file[i].flags=(*files)[i].flags;
+	}
+	fslsfiles->files.nfiles=nfile;
+	if(index==(int)files->size())
+	{
+		if(newlist)
+			delete files;
+		else
+			RemoveNode(fslsfiles->header.caller,hls);
+		fslsfiles->files.handle=NULL;
+	}
+	else
+	{
+		if(newlist)
+		{
+			FileServerRec rec;
+			rec.type=FSSERVER_REC_TYPE_FILE_LIST;
+			rec.pvfiles=files;
+			rec.index=index;
+			hls=AddNode(fslsfiles->header.caller,&rec);
+		}
+		else
+			node->t.index=index;
+		fslsfiles->files.handle=hls;
+	}
+end:
+	fslsfiles->header.ret=ret;
 	return ret;
 }

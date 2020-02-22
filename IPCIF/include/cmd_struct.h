@@ -14,6 +14,7 @@
 #define FS_ATTR_CREATION_DATE 2
 #define FS_ATTR_MODIFY_DATE   4
 #define FS_ATTR_ACCESS_DATE   8
+#define FS_ATTR_DATE (FS_ATTR_CREATION_DATE|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE)
 enum fs_attr_datetime
 {
 	fs_attr_creation_date=0,

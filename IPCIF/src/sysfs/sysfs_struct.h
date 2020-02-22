@@ -9,16 +9,6 @@
 #include <map>
 #include <algorithm>
 using namespace std;
-struct offset64
-{
-	uint off;
-	uint offhigh;
-};
-struct fsls_element
-{
-	string filename;
-	dword flags;
-};
 struct fs_datagram_param
 {
 	datagram_base* dbase;
@@ -233,9 +223,12 @@ public:
 		sem=NULL;
 		sem_reconn=NULL;
 		flag_protect=NULL;
+		mutex_protect=NULL;
+		fmap_protect=NULL;
 		hthrd_reconn=NULL;
 		mutex=NULL;
 		flags=0;
+		lock_cnt=0;
 		quitcode=ERR_MODULE_NOT_INITED;
 	}
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
@@ -270,10 +263,12 @@ private:
 	int GetSetFileSize(if_cmd_code cmd,SortedFileIoRec*pRec,uint* low,uint* high=NULL);
 	int DisposeLB(const offset64& off,SortedFileIoRec* pRec,LinearBuffer* pLB);
 	int IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB);
-	SortedFileIoRec* handle_to_rec_ptr(void* handle,map<void*,SortedFileIoRec*>::iterator* iter=NULL);
+	SortedFileIoRec* handle_to_rec_ptr(void* handle);
 	static int cb_reconn(void* param);
 	void* sysfs_get_handle();
 	int fs_parse_path(if_proc** ppif,string& path,const string& in_path);
+	void mutex_p();
+	void mutex_v();
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
 	vector<if_proc*> ifvproc;
@@ -283,9 +278,12 @@ private:
 	void* sem;
 	void* sem_reconn;
 	void* flag_protect;
+	void* mutex_protect;
+	void* fmap_protect;
 	void* hthrd_reconn;
 	cmutex* mutex;
 	dword flags;
+	int lock_cnt;
 	int quitcode;
 };
 extern SysFs g_sysfs;
@@ -342,9 +340,17 @@ private:
 	bool RestoreData(datagram_base* data);
 	void BackupData(datagram_base* data);
 	bool AddProcRing(void* proc_id);
+	void* AddNode(void* proc_id,FileServerRec* pRec);
+	bool RemoveNode(void* proc_id,void* h);
 	int HandleOpen(dg_fsopen* fsopen);
 	int HandleClose(dg_fsclose* fsclose);
 	int HandleReadWrite(dg_fsrdwr* fsrdwr);
+	int HandleGetSetSize(dg_fssize* fssize);
+	int HandleMove(dg_fsmove* fsmove);
+	int HandleDelete(dg_fsdel* fsdel);
+	int HandleMakeDir(dg_fsmkdir* fsmkdir);
+	int HandleGetSetAttr(dg_fsattr* fsattr);
+	int HandleListFiles(dg_fslsfiles* fslsfiles);
 	BiRingNode<FileServerRec>* get_fs_node(void* proc_id,void* h,fs_key_map::iterator* it=NULL);
 	fs_key_map smap;
 	map<void*,SrvProcRing*> proc_id_map;
