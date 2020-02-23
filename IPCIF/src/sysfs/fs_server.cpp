@@ -372,7 +372,7 @@ void FsServer::Clear(void* proc_id,bool cl_root)
 bool FsServer::Reset(void* proc_id)
 {
 	bool exist=(VALID(proc_id)?(proc_id_map.find(proc_id)!=proc_id_map.end()
-		&&!proc_id_map[proc_id]->Empty()):smap.empty());
+		&&!proc_id_map[proc_id]->Empty()):!smap.empty());
 	Clear(proc_id);
 	reset_if(cifproc->hif);
 	return exist;
