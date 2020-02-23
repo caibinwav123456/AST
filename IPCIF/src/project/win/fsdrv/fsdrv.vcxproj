@@ -85,6 +85,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\fsdrv\fsdrv.cpp" />
+    <ClCompile Include="..\..\..\fsdrv\native_fs.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\include\fsdrv_interface.h" />
+    <ClInclude Include="..\..\..\fsdrv\fsdrv.h" />
+    <ClInclude Include="..\..\..\fsdrv\native_fs.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
