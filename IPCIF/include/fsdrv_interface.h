@@ -11,6 +11,8 @@ struct fsls_element
 };
 typedef struct _intf_fsdrv
 {
+	int(*init)();
+	void(*uninit)();
 	int(*format)(char* cmd);
 	void*(*mount)(char* cmd);
 	void(*unmount)(void* hdev);

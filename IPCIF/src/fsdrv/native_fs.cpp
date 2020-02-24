@@ -1,5 +1,13 @@
 #include "native_fs.h"
 #include "algor_templ.h"
+int fs_native_init()
+{
+	return 0;
+}
+void fs_native_uninit()
+{
+
+}
 int fs_native_format(char* cmd)
 {
 	return 0;

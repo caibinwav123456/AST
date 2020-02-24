@@ -22,22 +22,29 @@ struct offset64
 	uint offhigh;
 };
 struct storage_mod_info;
+struct storage_drv_info;
 struct if_info_storage
 {
-	string drv_name;
 	string mount_cmd;
 	string format_cmd;
 	void* hdev;
-	pintf_fsdrv drvcall;
+	storage_drv_info* sto_drv;
 	storage_mod_info* sto_mod;
 	if_proc* ifproc;
+};
+struct storage_drv_info
+{
+	string drv_name;
+	pintf_fsdrv drvcall;
+	bool inited;
+	vector<if_info_storage> storage_devs;
 };
 struct storage_mod_info
 {
 	string mod_name;
 	void* hMod;
 	pintf_fsdrv(*STO_GET_INTF_FUNC)(char*);
-	vector<if_info_storage> storage_drvs;
+	vector<storage_drv_info> storage_drvs;
 };
 struct proc_data
 {
@@ -73,9 +80,9 @@ inline void init_proc_data(proc_data* pdata)
 }
 inline void init_if_info_storage(if_info_storage* if_sto)
 {
-	if_sto->drvcall=NULL;
 	if_sto->hdev=NULL;
 	if_sto->ifproc=NULL;
 	if_sto->sto_mod=NULL;
+	if_sto->sto_drv=NULL;
 }
 #endif

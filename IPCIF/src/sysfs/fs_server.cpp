@@ -6,8 +6,9 @@
 #include "utility.h"
 #define cifproc if_info->ifproc
 #define cstomod if_info->sto_mod
+#define cstodrv if_info->sto_drv
 #define chdev if_info->hdev
-#define cdrvcall if_info->drvcall
+#define cdrvcall if_info->sto_drv->drvcall
 DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
 FssContainer g_fssrv;
@@ -21,6 +22,10 @@ bool less_servrec_ptr::operator()(const FileServerKey& a, const FileServerKey& b
 bool equal_mod(storage_mod_info& a,storage_mod_info& b)
 {
 	return a.mod_name==b.mod_name;
+}
+bool equal_drv(storage_drv_info& a,storage_drv_info& b)
+{
+	return a.drv_name==b.drv_name;
 }
 template<class T>
 T* find_in_vector(vector<T>& v,T& element,bool(*equal_func)(T&,T&))
@@ -70,19 +75,33 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 			psto_mod->mod_name=ifstorage.mod_name;
 		}
 		storage_mod_info& sto_mod=*psto_mod;
-		if_info_storage drv_info;
-		init_if_info_storage(&drv_info);
-		drv_info.ifproc=&ifs[i];
-		drv_info.drv_name=ifstorage.drv_name;
-		drv_info.mount_cmd=ifstorage.mount_cmd;
-		drv_info.format_cmd=ifstorage.format_cmd;
-		sto_mod.storage_drvs.push_back(drv_info);
+		storage_drv_info dummy_drv,*psto_drv;
+		dummy_drv.drv_name=ifstorage.drv_name;
+		if(NULL==(psto_drv=find_in_vector(sto_mod.storage_drvs,dummy_drv,equal_drv)))
+		{
+			sto_mod.storage_drvs.push_back(storage_drv_info());
+			psto_drv=&sto_mod.storage_drvs.back();
+			psto_drv->drv_name=ifstorage.drv_name;
+			psto_drv->drvcall=NULL;
+			psto_drv->inited=false;
+		}
+		storage_drv_info& sto_drv=*psto_drv;
+		if_info_storage dev_info;
+		init_if_info_storage(&dev_info);
+		dev_info.ifproc=&ifs[i];
+		dev_info.mount_cmd=ifstorage.mount_cmd;
+		dev_info.format_cmd=ifstorage.format_cmd;
+		sto_drv.storage_devs.push_back(dev_info);
 	}
 	for(int i=0;i<(int)vfs_mod.size();i++)
 	{
 		for(int j=0;j<(int)vfs_mod[i].storage_drvs.size();j++)
 		{
-			vfs_mod[i].storage_drvs[j].sto_mod=&vfs_mod[i];
+			for(int k=0;k<(int)vfs_mod[i].storage_drvs[j].storage_devs.size();k++)
+			{
+				vfs_mod[i].storage_drvs[j].storage_devs[k].sto_mod=&vfs_mod[i];
+				vfs_mod[i].storage_drvs[j].storage_devs[k].sto_drv=&vfs_mod[i].storage_drvs[j];
+			}
 		}
 	}
 	resolver->AddHandler(ServerClearHandler);
@@ -106,14 +125,30 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 		}
 		for(int j=0;j<(int)vfs_mod[i].storage_drvs.size();j++)
 		{
-			FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j],&sem,&quitcode);
-			if(0!=(ret=srv->Init()))
+			vfs_mod[i].storage_drvs[j].drvcall=vfs_mod[i].STO_GET_INTF_FUNC(
+				(char*)vfs_mod[i].storage_drvs[j].drv_name.c_str());
+			if(!VALID(vfs_mod[i].storage_drvs[j].drvcall))
 			{
-				delete srv;
+				Exit();
+				return ERR_GENERIC;
+			}
+			if(0!=(ret=vfs_mod[i].storage_drvs[j].drvcall->init()))
+			{
 				Exit();
 				return ret;
 			}
-			vfs_srv.push_back(srv);
+			vfs_mod[i].storage_drvs[j].inited=true;
+			for(int k=0;k<(int)vfs_mod[i].storage_drvs[j].storage_devs.size();k++)
+			{
+				FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j].storage_devs[k],&sem,&quitcode);
+				if(0!=(ret=srv->Init()))
+				{
+					delete srv;
+					Exit();
+					return ret;
+				}
+				vfs_srv.push_back(srv);
+			}
 		}
 	}
 	return 0;
@@ -135,6 +170,11 @@ void FssContainer::Exit()
 	}
 	for(int i=0;i<(int)vfs_mod.size();i++)
 	{
+		for(int j=0;j<(int)vfs_mod[i].storage_drvs.size();j++)
+		{
+			if(vfs_mod[i].storage_drvs[j].inited)
+				vfs_mod[i].storage_drvs[j].drvcall->uninit();
+		}
 		if(VALID(vfs_mod[i].hMod))
 			sys_free_library(vfs_mod[i].hMod);
 	}
@@ -223,9 +263,10 @@ int FsServer::Init()
 		return ERR_GENERIC;
 	if(quitcode==NULL)
 		return ERR_GENERIC;
-	if(if_info==NULL||cifproc==NULL||cstomod==NULL)
+	if(if_info==NULL||cifproc==NULL||cstomod==NULL
+		||cstodrv==NULL||cdrvcall==NULL)
 		return ERR_GENERIC;
-	if(NULL==(cdrvcall=cstomod->STO_GET_INTF_FUNC((char*)if_info->drv_name.c_str())))
+	if(!cstodrv->inited)
 		return ERR_GENERIC;
 	uint cmd_array[]={
 		CMD_FSOPEN,

@@ -11,6 +11,8 @@ named_drvcall g_fsdrvs[] =
 	{
 		"native_fs",
 		{
+			fs_native_init,
+			fs_native_uninit,
 			fs_native_format,
 			fs_native_mount,
 			fs_native_unmount,
