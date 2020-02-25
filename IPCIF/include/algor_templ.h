@@ -422,10 +422,10 @@ public:
 			}
 			else
 			{
+				assert(cur_node!=NULL);
 				if(it_child.back()==cur_node->get_iter_end())
 				{
 					it_child.pop_back();
-					assert(cur_node!=NULL);
 					cur_node=cur_node->GetParent();
 					if(!it_child.empty())
 					{
