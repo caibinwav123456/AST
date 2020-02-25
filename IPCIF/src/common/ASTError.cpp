@@ -31,6 +31,9 @@ static char* err_descs[] =
 	"File system device not found",
 	"File system device mount failed",
 	"File system device format failed",
+	"File system device mount failed due to device not existing",
+	"File system device format failed due to device already mounted",
+	"File system device format failed due to device already in-use",
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {

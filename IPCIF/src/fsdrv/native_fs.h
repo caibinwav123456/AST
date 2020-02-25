@@ -8,7 +8,7 @@ using namespace std;
 int fs_native_init();
 void fs_native_uninit();
 int fs_native_format(char* cmd);
-void* fs_native_mount(char* cmd);
+int fs_native_mount(char* cmd,void** hdev);
 void fs_native_unmount(void* hdev);
 void* fs_native_open(void* hdev,char* pathname,dword flags);
 void fs_native_close(void* hdev,void* hfile);

@@ -436,24 +436,31 @@ int FsServer::CreateInterface()
 int FsServer::MountDev()
 {
 	int ret=0;
-	chdev=cdrvcall->mount((char*)if_info->mount_cmd.c_str());
-	if(!VALID(chdev))
+	if(0!=(ret=cdrvcall->mount((char*)if_info->mount_cmd.c_str(),&chdev)))
 	{
-		LOGFILE(0,log_ftype_error,"Mount fs on interface %s failed, %s",(char*)cifproc->id.c_str(),
-			fsserver_try_format_on_mount_fail?"try formatting...":"quitting...");
-		if(!fsserver_try_format_on_mount_fail)
-			return ERR_FS_DEV_MOUNT_FAILED;
+		bool retry=fsserver_try_format_on_mount_fail
+			&&ret==ERR_FS_DEV_MOUNT_FAILED_NOT_EXIST;
+		LOGFILE(0,log_ftype_error,"Error message:%s",get_error_desc(ret));
+		LOGFILE(0,log_ftype_error,"Mount fs on interface %s failed, %s",
+			(char*)cifproc->id.c_str(),
+			retry?"try formatting...":"quitting...");
+		if(!retry)
+			return ret;
 		if(0!=(ret=cdrvcall->format((char*)if_info->format_cmd.c_str())))
 		{
-			LOGFILE(0,log_ftype_error,"Format fs on interface %s failed, quitting...",(char*)cifproc->id.c_str());
+			LOGFILE(0,log_ftype_error,"Error message:%s",get_error_desc(ret));
+			LOGFILE(0,log_ftype_error,"Format fs on interface %s failed, quitting...",
+				(char*)cifproc->id.c_str());
 			return ret;
 		}
-		LOGFILE(0,log_ftype_error,"Format fs on interface %s successful.",(char*)cifproc->id.c_str());
-		chdev=cdrvcall->mount((char*)if_info->mount_cmd.c_str());
-		if(!VALID(chdev))
+		LOGFILE(0,log_ftype_error,"Format fs on interface %s successful.",
+			(char*)cifproc->id.c_str());
+		if(0!=(ret=cdrvcall->mount((char*)if_info->mount_cmd.c_str(),&chdev)))
 		{
-			LOGFILE(0,log_ftype_error,"Mount fs on interface %s still failed, quitting...",(char*)cifproc->id.c_str());
-			return ERR_FS_DEV_MOUNT_FAILED;
+			LOGFILE(0,log_ftype_error,"Error message:%s",get_error_desc(ret));
+			LOGFILE(0,log_ftype_error,"Mount fs on interface %s still failed, quitting...",
+				(char*)cifproc->id.c_str());
+			return ret;
 		}
 	}
 	return 0;

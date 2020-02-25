@@ -12,9 +12,9 @@ int fs_native_format(char* cmd)
 {
 	return 0;
 }
-void* fs_native_mount(char* cmd)
+int fs_native_mount(char* cmd,void** hdev)
 {
-	return NULL;
+	return 0;
 }
 void fs_native_unmount(void* hdev)
 {

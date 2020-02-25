@@ -14,7 +14,7 @@ typedef struct _intf_fsdrv
 	int(*init)();
 	void(*uninit)();
 	int(*format)(char* cmd);
-	void*(*mount)(char* cmd);
+	int(*mount)(char* cmd,void** hdev);
 	void(*unmount)(void* hdev);
 	void*(*open)(void* hdev,char* pathname,dword flags);
 	void(*close)(void* hdev,void* hfile);
