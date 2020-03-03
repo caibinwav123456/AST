@@ -301,9 +301,8 @@ public:
 		map<Key,TreeNode*,Pr> child;
 	public:
 		T t;
-		TreeNode(Key _key)
+		TreeNode(Key _key):key(_key)
 		{
-			key=_key;
 			parent=NULL;
 			bHead=false;
 		}
@@ -327,6 +326,14 @@ public:
 				return NULL;
 			else
 				return it->second;
+		}
+		bool NoChild()
+		{
+			return child.empty();
+		}
+		uint NumChild()
+		{
+			return child.size();
 		}
 		bool AddTo(TreeNode* node)
 		{
@@ -463,7 +470,7 @@ public:
 	{
 		return head->t;
 	}
-	TreeNode* GetNode(vector<Key>& vKey,bool(*bset)(vector<Key>&,int)=NULL)
+	TreeNode* GetNode(vector<Key>& vKey,TreeNode*(*bset)(vector<Key>&,int,void*)=NULL,void* param=NULL)
 	{
 		TreeNode* tn=head;
 		for(int i=0;i<(int)vKey.size();i++)
@@ -472,9 +479,9 @@ public:
 				tn=tn->child[vKey[i]];
 			else if(bset!=NULL)
 			{
-				if(bset(vKey,i))
+				TreeNode* node;
+				if(NULL!=(node=bset(vKey,i,param)))
 				{
-					TreeNode* node=new TreeNode;
 					node->AddTo(tn);
 					tn=node;
 				}

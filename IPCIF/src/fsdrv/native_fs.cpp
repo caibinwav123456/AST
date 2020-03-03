@@ -1,5 +1,53 @@
+#define DLL_IMPORT
 #include "native_fs.h"
-#include "algor_templ.h"
+#include "inode.h"
+#include "path.h"
+#include "utility.h"
+class NativeFsTree : public INodeTree
+{
+public:
+	int Init(string base);
+protected:
+	virtual pINode CteateNode(vector<string>& path);
+private:
+	vector<string> base_path;
+};
+int NativeFsTree::Init(string base)
+{
+	vector<string> merge,relative;
+	if(sys_is_absolute_path((char*)base.c_str(),'/'))
+	{
+		split_path(base,merge,'/');
+	}
+	else
+	{
+		string exepath=get_current_executable_path();
+		split_path(exepath,merge);
+		split_path(base,relative,'/');
+		merge.insert(merge.end(),relative.begin(),relative.end());
+	}
+	int ret=0;
+	if(0!=(ret=get_direct_path(base_path,merge)))
+		return ret;
+	return 0;
+}
+pINode NativeFsTree::CteateNode(vector<string>& path)
+{
+	vector<string> merge=base_path;
+	merge.insert(merge.end(),path.begin(),path.end());
+	string strmerge;
+	merge_path(strmerge,merge);
+	dword type=0;
+	int ret=sys_fstat((char*)strmerge.c_str(),&type);
+	if(ret!=0)
+		return NULL;
+	pINode node=new INode(path.back());
+	assert(!path.empty());
+	if(path.empty())
+		return NULL;
+	node->t.attr=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0);
+	return node;
+}
 int fs_native_init()
 {
 	return 0;

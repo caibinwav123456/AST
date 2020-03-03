@@ -21,6 +21,9 @@
     <ClCompile Include="..\..\..\fsdrv\native_fs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\fsdrv\inode.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\fsdrv_interface.h">
@@ -30,6 +33,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\fsdrv\native_fs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\fsdrv\inode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
