@@ -54,12 +54,14 @@ private:
 };
 struct NativeFsRec
 {
-	NativeFsRec(NativeFsDev* pDev):host(pDev),node(NULL),fd(NULL),refcnt(0){}
+	NativeFsRec(NativeFsDev* pDev):host(pDev),node(NULL),
+		fd(NULL),refcnt(0),flags(0){}
 	void AddRef(){refcnt++;}
 	void Release();
 	NativeFsDev* host;
 	pINode node;
 	void* fd;
+	dword flags;
 	int refcnt;
 };
 void NativeFsRec::Release()
@@ -229,6 +231,12 @@ void* fs_native_open(void* hdev,char* pathname,dword flags)
 	pINode node;
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 	{
+		if((flags&FILE_WRITE))
+			return NULL;
+		dword openmode=flags&FILE_MASK;
+		if(openmode==FILE_CREATE_NEW||openmode==FILE_CREATE_ALWAYS
+			||openmode==FILE_TRUNCATE_EXISTING)
+			return NULL;
 		NativeFsRec* pRec=nt_rec(node);
 		pRec->AddRef();
 		return pRec;
@@ -244,6 +252,7 @@ void* fs_native_open(void* hdev,char* pathname,dword flags)
 	pRec->fd=h;
 	pRec->host=dev;
 	pRec->node=node;
+	pRec->flags=flags;
 	pRec->AddRef();
 	node->t.priv=pRec;
 	return pRec;
@@ -255,34 +264,91 @@ void fs_native_close(void* hdev,void* hfile)
 }
 int fs_native_read(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen)
 {
+	decl_rec(pRec,hfile);
+	void* fd=pRec->fd;
+	int ret=0;
+	if(0!=(ret=sys_fseek(fd,offset,&offhigh,SEEK_BEGIN)))
+		return ret;
+	if(0!=(ret=sys_fread(fd,buf,len,rdlen)))
+		return ret;
 	return 0;
 }
-int fs_native_write(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen)
+int fs_native_write(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* wrlen)
 {
+	decl_rec(pRec,hfile);
+	void* fd=pRec->fd;
+	int ret=0;
+	if(0!=(ret=sys_fseek(fd,offset,&offhigh,SEEK_BEGIN)))
+		return ret;
+	if(0!=(ret=sys_fwrite(fd,buf,len,wrlen)))
+		return ret;
+	if(0!=(ret=sys_fflush(fd)))
+		return ret;
 	return 0;
 }
 int fs_native_getsize(void* hdev,void* hfile,uint* size,uint* sizehigh)
 {
-	return 0;
+	decl_rec(pRec,hfile);
+	return sys_get_file_size(pRec->fd,(dword*)size,(dword*)sizehigh);
 }
 int fs_native_setsize(void* hdev,void* hfile,uint size,uint sizehigh)
 {
-	return 0;
+	decl_rec(pRec,hfile);
+	return sys_set_file_size(pRec->fd,size,(dword*)&sizehigh);
 }
 int fs_native_move(void* hdev,char* src,char* dst)
 {
-	return 0;
+	decl_dev(dev,hdev);
+	nt_path(fullsrc,dev,src);
+	nt_path(fulldst,dev,dst);
+	pINode node;
+	vector<string> vpath;
+	dword type=0;
+	int ret=sys_fstat((char*)fulldst.c_str(),&type);
+	if(ret==0)
+	{
+		if(type==FILE_TYPE_DIR)
+			return ERR_FILE_IO;
+		else
+		{
+			if(0!=(ret=fs_native_del(hdev,dst)))
+				return ret;
+		}
+	}
+	ret=sys_fstat((char*)fullsrc.c_str(),&type);
+	if(ret!=0)
+		return ERR_FILE_IO;
+	split_path(src,vpath,'/');
+	if(NULL!=(node=dev->GetINodeInTree(vpath)))
+		return ERR_FILE_IO;
+	return sys_fmove((char*)fullsrc.c_str(),(char*)fulldst.c_str());
 }
 int fs_native_del(void* hdev,char* path)
 {
-	return 0;
+	decl_dev(dev,hdev);
+	nt_path(fullpath,dev,path);
+	pINode node;
+	vector<string> vpath;
+	split_path(path,vpath);
+	if(NULL!=(node=dev->GetINodeInTree(vpath)))
+		return ERR_FILE_IO;
+	return sys_fdelete((char*)fullpath.c_str());
 }
 int fs_native_mkdir(void* hdev,char* path)
 {
-	return 0;
+	decl_dev(dev,hdev);
+	nt_path(fullpath,dev,path);
+	return sys_mkdir((char*)fullpath.c_str());
 }
 int fs_native_getattr(void* hdev,char* path,dword* attrflags)
 {
+	decl_dev(dev,hdev);
+	nt_path(fullpath,dev,path);
+	dword type=0;
+	int ret=sys_fstat((char*)fullpath.c_str(),&type);
+	if(ret!=0)
+		return ERR_FS_FILE_NOT_EXIST;
+	*attrflags=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0);
 	return 0;
 }
 int fs_native_setattr(void* hdev,char* path,dword attrflags)
@@ -291,13 +357,35 @@ int fs_native_setattr(void* hdev,char* path,dword attrflags)
 }
 int fs_native_getfiletime(void* hdev,char* path,dword mask,DateTime* date)
 {
-	return 0;
+	decl_dev(dev,hdev);
+	nt_path(fullpath,dev,path);
+	return sys_get_file_time((char*)fullpath.c_str(),
+		(mask&FS_ATTR_CREATION_DATE)?date+fs_attr_creation_date:NULL,
+		(mask&FS_ATTR_MODIFY_DATE)?date+fs_attr_modify_date:NULL,
+		(mask&FS_ATTR_ACCESS_DATE)?date+fs_attr_access_date:NULL);
 }
 int fs_native_setfiletime(void* hdev,char* path,dword mask,DateTime* date)
 {
+	decl_dev(dev,hdev);
+	nt_path(fullpath,dev,path);
+	return sys_set_file_time((char*)fullpath.c_str(),
+		(mask&FS_ATTR_CREATION_DATE)?date+fs_attr_creation_date:NULL,
+		(mask&FS_ATTR_MODIFY_DATE)?date+fs_attr_modify_date:NULL,
+		(mask&FS_ATTR_ACCESS_DATE)?date+fs_attr_access_date:NULL);
+}
+static int cb_lsfiles(char* name,dword type,void* param,char dsym)
+{
+	vector<fsls_element>* files=(vector<fsls_element>*)param;
+	fsls_element lsele;
+	lsele.filename=name;
+	lsele.flags=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0);
+	files->push_back(lsele);
 	return 0;
 }
 int fs_native_listfiles(void* hdev,char* path,vector<fsls_element>* files)
 {
-	return 0;
+	decl_dev(dev,hdev);
+	nt_path(fullpath,dev,path);
+	files->clear();
+	return sys_ftraverse((char*)fullpath.c_str(),cb_lsfiles,files);
 }

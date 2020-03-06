@@ -82,5 +82,7 @@ struct DateTime
 	ushort millisecond;
 };
 void sys_get_date_time(DateTime* time);
+int sys_get_file_time(char* path,DateTime* creation_time,DateTime* modify_time,DateTime* access_time);
+int sys_set_file_time(char* path,DateTime* creation_time,DateTime* modify_time,DateTime* access_time);
 
 #endif

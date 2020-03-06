@@ -13,7 +13,7 @@ void fs_native_unmount(void* hdev);
 void* fs_native_open(void* hdev,char* pathname,dword flags);
 void fs_native_close(void* hdev,void* hfile);
 int fs_native_read(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen);
-int fs_native_write(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen);
+int fs_native_write(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* wrlen);
 int fs_native_getsize(void* hdev,void* hfile,uint* size,uint* sizehigh);
 int fs_native_setsize(void* hdev,void* hfile,uint size,uint sizehigh);
 int fs_native_move(void* hdev,char* src,char* dst);

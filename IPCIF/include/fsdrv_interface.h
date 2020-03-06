@@ -19,7 +19,7 @@ typedef struct _intf_fsdrv
 	void*(*open)(void* hdev,char* pathname,dword flags);
 	void(*close)(void* hdev,void* hfile);
 	int(*read)(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen);
-	int(*write)(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* rdlen);
+	int(*write)(void* hdev,void* hfile,uint offset,uint offhigh,uint len,void* buf,uint* wrlen);
 	int(*getsize)(void* hdev,void* hfile,uint* size,uint* sizehigh);
 	int(*setsize)(void* hdev,void* hfile,uint size,uint sizehigh);
 	int(*move)(void* hdev,char* src,char* dst);
