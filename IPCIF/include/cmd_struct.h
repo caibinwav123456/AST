@@ -229,7 +229,7 @@ struct dg_manager
 #define SIZE_IF_MANAGER ALIGN_4BYTES(sizeof(dg_manager))
 
 //Storage interface
-struct dg_storage
+struct dg_sysfs
 {
 	datagram_base header;
 	union
@@ -243,6 +243,17 @@ struct dg_storage
 		dgc_fsattr fsattr;
 		dgc_fsmkdir fsmkdir;
 		dgc_fslsfiles fslsfiles;
+	};
+};
+#define SIZE_IF_SYSFS ALIGN_4BYTES(sizeof(dg_sysfs))
+
+struct dg_storage
+{
+	datagram_base header;
+	union
+	{
+		dgc_clear clear;
+		dgc_suspend susp;
 	};
 };
 #define SIZE_IF_STORAGE ALIGN_4BYTES(sizeof(dg_storage))

@@ -252,7 +252,7 @@ int fs_server(void* param)
 			sys_signal_sem(*fssrvr->psem);
 			break;
 		}
-		listen_if(fssrvr->cifproc->hif,cb_fs_server,param,100);
+		listen_if(fssrvr->cifproc->hif,cb_fs_server,param,10);
 		sys_signal_sem(*fssrvr->psem);
 	}
 	return 0;
@@ -425,7 +425,7 @@ int FsServer::CreateInterface()
 	init.user=get_if_user();
 	init.id=(char*)cifproc->id.c_str();
 	init.nthread=cifproc->cnt;
-	init.smem_size=SIZE_IF_STORAGE;
+	init.smem_size=SIZE_IF_SYSFS;
 	if(0!=(ret=setup_if(&init,&cifproc->hif)))
 	{
 		LOGFILE(0,log_ftype_error,"Create interfafe %s failed, quitting...",init.id);

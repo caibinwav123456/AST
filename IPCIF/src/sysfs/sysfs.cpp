@@ -362,7 +362,7 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 			flags&=~cause;
 		sys_signal_sem(flag_protect);
 		if((bsusp&&(flag&FC_MASK)!=0)
-			||(!bsusp&&(flag&~cause)!=0))
+			||(!bsusp&&((flag&FC_MASK)==0||(flag&~cause)!=0)))
 			return 0;
 	}
 	if(bsusp)

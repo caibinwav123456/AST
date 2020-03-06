@@ -45,7 +45,7 @@ int loader_shelter(void* param)
 	}
 	return 0;
 }
-int cb_server(void* addr, void* param, int op)
+int cb_server(void* addr,void* param,int op)
 {
 	astmgr_data* data=(astmgr_data*)param;
 	dg_manager* buf=(dg_manager*)addr;
@@ -75,7 +75,7 @@ int if_server(void* param)
 	while(true)
 	{
 		int ret=listen_if(*(data->if_mgr),cb_server,param);
-		if (ret!=0)
+		if(ret!=0)
 			data->ready_quit=false;
 		if(data->quit||data->ready_quit)
 		{
@@ -90,9 +90,7 @@ int main_entry(main_args)
 {
 	int ret=0;
 	if(0!=(ret=mainly_initial()))
-	{
 		return ret;
-	}
 	if_initial init;
 	init.user=get_if_user();
 	init.id=get_main_info()->manager_if0;
@@ -104,10 +102,9 @@ int main_entry(main_args)
 	data.if_mgr=&if_mgr;
 	void *hthread_loader=NULL,
 		*hserver=NULL;
-	if(0!=setup_if(&init, &if_mgr))
+	if(0!=(ret=setup_if(&init, &if_mgr)))
 	{
 		LOGFILE(0,log_ftype_error,"Create interfafe %s failed, quitting...",init.id);
-		ret=ERR_GENERIC;
 		goto end2;
 	}
 	data.hloader=sys_get_process(get_main_info()->loader_exe_file);
@@ -127,7 +124,7 @@ int main_entry(main_args)
 		ret=ERR_GENERIC;
 		goto end;
 	}
-	hserver = sys_create_thread(if_server, &data);
+	hserver=sys_create_thread(if_server,&data);
 	if(!VALID(hserver))
 	{
 		LOGFILE(0,log_ftype_error,"Create server thread failed, quitting...");
@@ -145,7 +142,7 @@ int main_entry(main_args)
 	}
 	while(!data.quit)
 	{
-		sys_sleep(100);
+		sys_sleep(10);
 	}
 	LOGFILE(0,log_ftype_info,"Ending %s.",get_current_executable_name());
 	sys_sleep(100);

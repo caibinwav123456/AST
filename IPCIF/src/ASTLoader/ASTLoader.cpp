@@ -80,9 +80,7 @@ int main_entry(main_args)
 {
 	int ret=0;
 	if(0!=(ret=mainly_initial()))
-	{
 		return ret;
-	}
 	mutex=sys_create_sem(1,1,NULL);
 	if(!VALID(mutex))
 	{
@@ -101,14 +99,13 @@ int main_entry(main_args)
 	data.if_loader=&if_loader;
 	data.if_mgr=&if_mgr;
 	data.ready_quit=data.quit=false;
-	if(0!=setup_if(&init, &if_loader))
+	if(0!=(ret=setup_if(&init, &if_loader)))
 	{
 		LOGFILE(0,log_ftype_error,"Create interfafe %s failed, quitting...",init.id);
 		sys_show_message("Create interface astloader failed!");
-		ret=ERR_GENERIC;
 		goto end2;
 	}
-	void* hserver = sys_create_thread(if_server, &data);
+	void* hserver=sys_create_thread(if_server, &data);
 	if(!VALID(hserver))
 	{
 		LOGFILE(0,log_ftype_error,"Create server thread failed, quitting...");

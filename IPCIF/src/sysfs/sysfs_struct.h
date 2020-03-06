@@ -300,7 +300,7 @@ public:
 		backup_data.header.cmd=(uint)-1;
 		hFileReserve=(byte*)1;
 	}
-	dg_storage* GetBackupData()
+	dg_sysfs* GetBackupData()
 	{
 		return &backup_data;
 	}
@@ -308,7 +308,7 @@ public:
 private:
 	byte* hFileReserve;
 	FsServer* pfssrv;
-	dg_storage backup_data;
+	dg_sysfs backup_data;
 };
 typedef map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> fs_key_map;
 class FsServer
