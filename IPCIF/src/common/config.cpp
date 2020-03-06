@@ -1,6 +1,7 @@
 #include "config.h"
 #include <string.h>
 #include <assert.h>
+#define token_buf_size 1024
 const byte seps[]={' ','\t','\r','\n'};
 bool trim_space(byte c)
 {
@@ -40,7 +41,7 @@ static inline bool trim_text(const byte* &buf,int& size,bool (*trim_func)(byte))
 	return true;
 }
 #define make_token(pbuf,buf,token_buf,token) \
-	if(buf-pbuf>256)return ERR_BUFFER_OVERFLOW; \
+	if(buf-pbuf>token_buf_size)return ERR_BUFFER_OVERFLOW; \
 	memcpy(token_buf,pbuf,buf-pbuf); \
 	token_buf[buf-pbuf]=0; \
 	token=string((const char*)token_buf)
@@ -49,7 +50,7 @@ static int parse_config_text(const byte* buf,int size,
 {
 	string section(DEFAULT_CONFIG_SECTION);
 	configs[section];
-	byte token_buf[257];
+	byte token_buf[token_buf_size+1];
 	string item,val;
 	const byte* pbuf;
 	int psize;
@@ -101,7 +102,7 @@ static int parse_config_text(const byte* buf,int size,
 				{
 					if(*buf=='\"')
 					{
-						if((ptoken-token_buf)+(buf-pbuf)>256)
+						if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
 							return ERR_BUFFER_OVERFLOW;
 						memcpy(ptoken,pbuf,buf-pbuf);
 						ptoken+=buf-pbuf;
@@ -110,7 +111,7 @@ static int parse_config_text(const byte* buf,int size,
 					}
 					else if(*buf=='\\')
 					{
-						if((ptoken-token_buf)+(buf-pbuf)>256)
+						if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
 							return ERR_BUFFER_OVERFLOW;
 						memcpy(ptoken,pbuf,buf-pbuf);
 						ptoken+=buf-pbuf;

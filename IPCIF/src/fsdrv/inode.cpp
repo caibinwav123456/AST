@@ -1,6 +1,6 @@
 #include "inode.h"
 #include <assert.h>
-pINode INodeTree::GetNodeCallBack(vector<string>& path, int index, void* param)
+pINode INodeTree::GetNodeCallBack(const vector<string>& path, int index, void* param)
 {
 	INodeTree* tree=(INodeTree*)param;
 	vector<string> sub;
@@ -8,28 +8,31 @@ pINode INodeTree::GetNodeCallBack(vector<string>& path, int index, void* param)
 		sub.push_back(path[i]);
 	return tree->CteateNode(sub);
 }
+pINode INodeTree::GetNodeCallBackNull(const vector<string>& path,int index,void* param)
+{
+	return NULL;
+}
 pINode INodeTree::GetINode(vector<string>& vKey)
 {
 	return GetNode(vKey,GetNodeCallBack,this);
 }
+pINode INodeTree::GetINodeInTree(vector<string>& vKey)
+{
+	return GetNode(vKey,GetNodeCallBackNull,NULL);
+}
 void INodeTree::ReleaseNode(pINode node)
 {
-	if(node->t.refcnt>0)
-		node->t.refcnt--;
-	if(node->t.refcnt==0)
+	if(!node->NoChild()||IsLocked(node))
+		return;
+	pINode parent=node->GetParent();
+	while(parent!=NULL)
 	{
-		if(!node->NoChild()||IsLocked(node))
-			return;
-		pINode parent=node->GetParent();
-		while(parent!=NULL)
-		{
-			verify(node->Detach());
-			delete node;
-			if((!parent->NoChild())||IsLocked(parent))
-				break;
-			node=parent;
-			parent=node->GetParent();
-		}
+		verify(node->Detach());
+		delete node;
+		if((!parent->NoChild())||IsLocked(parent))
+			break;
+		node=parent;
+		parent=node->GetParent();
 	}
 }
 bool INodeTree::IsDir(pINode node)

@@ -7,8 +7,8 @@ using namespace std;
 struct INodeData
 {
 	bool lock;
-	int refcnt;
 	dword attr;
+	void* priv;
 	INodeData()
 	{
 		memset(this,0,sizeof(INodeData));
@@ -18,16 +18,18 @@ typedef KeyTree<string,INodeData>::TreeNode INode,*pINode;
 class INodeTree : public KeyTree<string,INodeData>
 {
 public:
-	INodeTree():KeyTree<string, INodeData>("/"){}
+	INodeTree():KeyTree<string,INodeData>("/")
+	{get_t_ref().attr=FS_ATTR_FLAGS_DIR;}
 	pINode GetINode(vector<string>& vKey);
-	static void AddRef(pINode node){node->t.refcnt++;}
+	pINode GetINodeInTree(vector<string>& vKey);
 	static void ReleaseNode(pINode node);
 	static bool IsDir(pINode node);
 	static bool IsLocked(pINode node);
 	static bool LockDir(pINode node,bool lck);
 protected:
-	virtual pINode CteateNode(vector<string>& path)=0;
+	virtual pINode CteateNode(const vector<string>& path)=0;
 private:
-	static pINode GetNodeCallBack(vector<string>& path,int index,void* param);
+	static pINode GetNodeCallBack(const vector<string>& path,int index,void* param);
+	static pINode GetNodeCallBackNull(const vector<string>& path,int index,void* param);
 };
 #endif

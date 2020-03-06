@@ -470,7 +470,7 @@ public:
 	{
 		return head->t;
 	}
-	TreeNode* GetNode(vector<Key>& vKey,TreeNode*(*bset)(vector<Key>&,int,void*)=NULL,void* param=NULL)
+	TreeNode* GetNode(vector<Key>& vKey,TreeNode*(*bset)(const vector<Key>&,int,void*)=NULL,void* param=NULL)
 	{
 		TreeNode* tn=head;
 		for(int i=0;i<(int)vKey.size();i++)
@@ -485,6 +485,8 @@ public:
 					node->AddTo(tn);
 					tn=node;
 				}
+				else
+					return NULL;
 			}
 			else
 				return NULL;

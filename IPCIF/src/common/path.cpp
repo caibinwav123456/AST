@@ -2,6 +2,7 @@
 #include "path.h"
 DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym)
 {
+	split.clear();
 	int pos=0;
 	int nextpos=0;
 	while((nextpos=path.find(dsym,pos))!=-1)
