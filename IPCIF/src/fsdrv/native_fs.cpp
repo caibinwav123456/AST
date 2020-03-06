@@ -320,7 +320,7 @@ int fs_native_move(void* hdev,char* src,char* dst)
 		return ERR_FILE_IO;
 	split_path(src,vpath,'/');
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
-		return ERR_FILE_IO;
+		return ERR_FS_FILE_DIR_LOCKED;
 	return sys_fmove((char*)fullsrc.c_str(),(char*)fulldst.c_str());
 }
 int fs_native_del(void* hdev,char* path)
@@ -331,7 +331,7 @@ int fs_native_del(void* hdev,char* path)
 	vector<string> vpath;
 	split_path(path,vpath);
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
-		return ERR_FILE_IO;
+		return ERR_FS_FILE_DIR_LOCKED;
 	return sys_fdelete((char*)fullpath.c_str());
 }
 int fs_native_mkdir(void* hdev,char* path)

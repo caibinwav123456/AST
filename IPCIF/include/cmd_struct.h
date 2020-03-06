@@ -3,7 +3,7 @@
 #include "common.h"
 #define MAX_FILE_PATH 1024
 #define MAX_FILE_NAME 256
-#define LSBUFFER_ELEMENTS 12
+#define LSBUFFER_ELEMENTS 8
 #define _1K 1024
 #define _1M (1024*1024)
 #define ALIGN_4BYTES(M) (((M)+3)&~3)
@@ -207,8 +207,8 @@ struct dgc_fslsfiles
 {
 	uint nfiles;
 	void* handle;
-	char path[MAX_FILE_PATH];
 	fslsfile_wrap file[LSBUFFER_ELEMENTS];
+	char path[MAX_FILE_PATH];
 };
 
 struct dg_fslsfiles

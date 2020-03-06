@@ -290,7 +290,7 @@ int FsServer::Init()
 		sizeof(dg_fssize),
 		sizeof(dg_fssize),
 		sizeof(datagram_base),//fsmkdir
-		sizeof(dg_fslsfiles),
+		sizeof(dg_fslsfiles)-sizeof(((dgc_fslsfiles*)NULL)->path),
 		sizeof(datagram_base),//fsmove
 		sizeof(datagram_base),//fsdel
 		sizeof(dg_fsattr)-sizeof(((dgc_fsattr*)NULL)->path),
