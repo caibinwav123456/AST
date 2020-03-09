@@ -30,6 +30,9 @@ int config_val_container::config_value(ConfigProfile* config)
 				case CONFIG_VAL_TYPE_DOUBLE:
 					*(double*)(info.ptr_val)=ConfigProfile::TranslateDouble(it->second);
 					break;
+				case CONFIG_VAL_TYPE_SIZE:
+					*(uint*)(info.ptr_val)=ConfigProfile::TranslateSize(it->second);
+					break;
 				case CONFIG_VAL_TYPE_STRING:
 					*(string*)(info.ptr_val)=it->second;
 					break;

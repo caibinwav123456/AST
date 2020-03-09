@@ -79,6 +79,8 @@ DLLAPI(char*) get_current_executable_path();
 DLLAPI(int) is_launcher();
 DLLAPI(int) is_manager();
 DLLAPI(char*) get_if_user();
+DLLAPI(uint) get_num_sysfs_buffer_blocks();
+DLLAPI(uint) get_sysfs_buffer_size();
 DLLAPI(main_process_info*) get_main_info();
 DLLAPI(if_ids*) get_if_ids();
 DLLAPI(int) get_if_storage_info(char* name,if_id_info_storage* pifinfo);

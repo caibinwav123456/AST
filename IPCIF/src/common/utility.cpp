@@ -9,6 +9,8 @@
 #define IF_INFO_TAG_SIZE 41
 DEFINE_UINT_VAL(sys_log_level,0);
 DEFINE_STRING_VAL(if_user,"");
+DEFINE_UINT_VAL(num_sysfs_buffer_blocks,4);
+DEFINE_SIZE_VAL(sysfs_buffer_size,1024);
 const char* g_info[]={"info",NULL};
 const char* g_error[]={"info","error",NULL};
 const char* const * sys_log_names[]=
@@ -74,6 +76,14 @@ DLLAPI(int) is_manager()
 DLLAPI(char*) get_if_user()
 {
 	return (char*)if_user.c_str();
+}
+DLLAPI(uint) get_num_sysfs_buffer_blocks()
+{
+	return num_sysfs_buffer_blocks;
+}
+DLLAPI(uint) get_sysfs_buffer_size()
+{
+	return sysfs_buffer_size;
 }
 DLL int __LOGFILE(uint level,uint ftype,char* file,int line,char* format,...)
 {

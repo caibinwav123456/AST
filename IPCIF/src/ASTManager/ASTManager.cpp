@@ -4,12 +4,14 @@
 #include "syswin.h"
 #include "common_request.h"
 #include "ProcessTracker.h"
+#include "sysfs.h"
 
 process_tracker g_ptracker;
 struct astmgr_data
 {
 	void** if_mgr;
 	void* hloader;
+	bool sysfs_inited;
 	bool ready_quit;
 	bool quit;
 };
@@ -52,14 +54,20 @@ int cb_server(void* addr,void* param,int op)
 	switch(buf->header.cmd)
 	{
 	case CMD_EXIT:
-		if(0==(buf->header.ret=g_ptracker.suspend_all(true)))
+		if(!data->sysfs_inited)
 		{
-			data->ready_quit=true;
+			buf->header.ret=ERR_MODULE_NOT_INITED;
+			break;
 		}
-		else
+		if(0!=(buf->header.ret=fsc_suspend(1)))
+			break;
+		if(0!=(buf->header.ret=g_ptracker.suspend_all(true)))
 		{
 			data->ready_quit=false;
+			fsc_suspend(0);
+			break;
 		}
+		data->ready_quit=true;
 		break;
 	case CMD_CLEAR:
 		buf->header.ret=0;
@@ -99,6 +107,7 @@ int main_entry(main_args)
 	void* if_mgr=NULL;
 	astmgr_data data;
 	data.ready_quit=data.quit=false;
+	data.sysfs_inited=false;
 	data.if_mgr=&if_mgr;
 	void *hthread_loader=NULL,
 		*hserver=NULL;
@@ -140,12 +149,20 @@ int main_entry(main_args)
 		data.quit=true;
 		goto end;
 	}
+	if(0!=(ret=fsc_init(get_num_sysfs_buffer_blocks(),get_sysfs_buffer_size(),g_ptracker.get_ctrl_blk())))
+	{
+		LOGFILE(0,log_ftype_error,"Init file system failed (%s), quitting...",get_error_desc(ret));
+		goto end3;
+	}
+	data.sysfs_inited=true;
 	while(!data.quit)
 	{
 		sys_sleep(10);
 	}
 	LOGFILE(0,log_ftype_info,"Ending %s.",get_current_executable_name());
 	sys_sleep(100);
+	fsc_exit();
+end3:
 	g_ptracker.exit();
 end:
 	if(hserver)

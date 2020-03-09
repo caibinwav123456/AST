@@ -351,20 +351,17 @@ void SysFs::Exit()
 }
 int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 {
-	if(mode==fsmode_semipermanent_if)
-	{
-		dword flag;
-		sys_wait_sem(flag_protect);
-		flag=flags;
-		if(bsusp)
-			flags|=cause;
-		else
-			flags&=~cause;
-		sys_signal_sem(flag_protect);
-		if((bsusp&&(flag&FC_MASK)!=0)
-			||(!bsusp&&((flag&FC_MASK)==0||(flag&~cause)!=0)))
-			return 0;
-	}
+	dword flag;
+	sys_wait_sem(flag_protect);
+	flag=flags;
+	if(bsusp)
+		flags|=cause;
+	else
+		flags&=~cause;
+	sys_signal_sem(flag_protect);
+	if((bsusp&&(flag&FC_MASK)!=0)
+		||((!bsusp)&&((flag&FC_MASK)==0||(flag&~cause)!=0)))
+		return 0;
 	if(bsusp)
 	{
 		for(int i=0;i<(int)sysfs_query_pass;i++)

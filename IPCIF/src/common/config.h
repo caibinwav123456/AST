@@ -52,6 +52,7 @@ public:
 	static uint TranslateUint(const string& str);
 	static float TranslateFloat(const string& str);
 	static double TranslateDouble(const string& str);
+	static uint TranslateSize(const string& str);
 	iterator BeginIterate(const string& primary);
 private:
 	map<string,map<string,string>> configs;

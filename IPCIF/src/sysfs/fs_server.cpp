@@ -331,20 +331,17 @@ failed:
 void FsServer::Exit()
 {
 	assert(VALID(hthrd_server));
+	assert(VALID(chdev));
+	assert(VALID(cifproc->hif));
+	stop_if(cifproc->hif);
 	sys_wait_thread(hthrd_server);
 	sys_close_thread(hthrd_server);
 	hthrd_server=NULL;
 	Clear(NULL,true);
-	if(VALID(chdev))
-	{
-		cdrvcall->unmount(chdev);
-		chdev=NULL;
-	}
-	if(VALID(cifproc->hif))
-	{
-		close_if(cifproc->hif);
-		cifproc->hif=NULL;
-	}
+	cdrvcall->unmount(chdev);
+	chdev=NULL;
+	close_if(cifproc->hif);
+	cifproc->hif=NULL;
 	cmd_data_size_map.clear();
 }
 inline void clear_node(BiRingNode<FileServerRec>* node,pintf_fsdrv if_drv,void* hdev)

@@ -259,6 +259,54 @@ double ConfigProfile::TranslateDouble(const string& str)
 	sscanf(str.c_str(),"%lf",&db);
 	return db;
 }
+uint ConfigProfile::TranslateSize(const string& str)
+{
+	char* s=(char*)str.c_str();
+	char buf[40],unit[8];
+	char *p,*pbuf,*punit;
+	for(p=s,pbuf=buf;*p!=0&&pbuf-buf<39;p++,pbuf++)
+	{
+		if(*p>='0'&&*p<='9')
+		{
+			*pbuf=*p;
+		}
+		else
+			break;
+	}
+	if(pbuf-buf==39)
+		return 0;
+	*pbuf=0;
+	for(punit=unit;*p!=0&&punit-unit<7;p++,punit++)
+	{
+		if((*p>='a'&&*p<='z')||(*p>='A'&&*p<='Z'))
+		{
+			*punit=*p;
+		}
+		else
+			break;
+	}
+	*punit=0;
+	if(punit-unit==7)
+		return 0;
+	if(*p!=0)
+	{
+		if(*p!=' '&&*p!='\r'&&*p!='\n'&&*p!='\t')
+			return 0;
+	}
+	int n=0;
+	sscanf(buf,"%d",&n);
+	string sunit(unit);
+	uint nunit=1;
+	if(sunit=="k"||sunit=="K"||sunit=="kib"||sunit=="KiB")
+		nunit=1024;
+	else if(sunit=="m"||sunit=="M"||sunit=="mib"||sunit=="MiB")
+		nunit=1024*1024;
+	else if(sunit=="")
+		nunit=1;
+	else
+		return 0;
+	return n*nunit;
+}
 ConfigProfile::iterator ConfigProfile::BeginIterate(const string& primary)
 {
 	iterator it;
