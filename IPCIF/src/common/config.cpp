@@ -305,7 +305,7 @@ uint ConfigProfile::TranslateSize(const string& str)
 		nunit=1;
 	else
 		return 0;
-	return n*nunit;
+	return ((uint)n)*nunit;
 }
 ConfigProfile::iterator ConfigProfile::BeginIterate(const string& primary)
 {
