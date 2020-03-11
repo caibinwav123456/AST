@@ -1,7 +1,10 @@
 #include "cmd_parse.h"
+#include "utility.h"
 #include <string.h>
 #include <assert.h>
 #define token_buf_size 256
+#define LOCKFILE_SUFFIX ".lck"
+#define TAG_USER_ID "user_id"
 const byte seps[]={' ','\t','\r','\n'};
 bool trim_space(byte c)
 {
@@ -125,4 +128,108 @@ int parse_cmd(const byte* buf,int size,
 		configs[item]=val;
 	}
 	return 0;
+}
+inline bool __check_dev_exist__(const string& devname)
+{
+	string lockfile=devname+LOCKFILE_SUFFIX;
+	dword type=0;
+	if(0!=sys_fstat((char*)devname.c_str(),&type))
+	{
+		sys_fdelete((char*)lockfile.c_str());
+		return false;
+	}
+	return true;
+}
+bool dev_is_locked(const string& devname)
+{
+	string lockfile=devname+LOCKFILE_SUFFIX;
+	dword type=0;
+	if(!__check_dev_exist__(devname))
+		return false;
+	if(0!=sys_fstat((char*)lockfile.c_str(),&type))
+		return false;
+	void* h=sys_fopen((char*)lockfile.c_str(),FILE_OPEN_EXISTING|FILE_READ);
+	if(!VALID(h))
+		return true;
+	dword size=0;
+	if(0!=sys_get_file_size(h,&size))
+	{
+		sys_fclose(h);
+		return true;
+	}
+	byte* buf=new byte[size];
+	if(0!=sys_fread(h,buf,size))
+	{
+		sys_fclose(h);
+		return true;
+	}
+	map<string,string> lock_param;
+	verify(0==parse_cmd(buf,size,lock_param));
+	if(lock_param.find(TAG_USER_ID)==lock_param.end())
+	{
+		sys_fclose(h);
+		return false;
+	}
+	string strid=lock_param[TAG_USER_ID];
+	uint id=0;
+	sscanf(strid.c_str(),"%d",&id);
+	bool b=(uint_to_ptr(id)==get_current_executable_id());
+	sys_fclose(h);
+	return !b;
+}
+inline bool __write_id__(void* h)
+{
+	char buf[50];
+	sprintf(buf,TAG_USER_ID"=%d",ptr_to_uint(get_current_executable_id()));
+	if(0!=sys_set_file_size(h,0))
+		return false;
+	if(0!=sys_fwrite(h,buf,strlen(buf)))
+		return false;
+	return true;
+}
+bool lock_dev(const string& devname,bool lock)
+{
+	string lockfile=devname+LOCKFILE_SUFFIX;
+	if(!lock)
+	{
+		return 0==sys_fdelete((char*)lockfile.c_str());
+	}
+	dword type=0;
+	if(!__check_dev_exist__(devname))
+		return false;
+	void* h=sys_fopen((char*)lockfile.c_str(),FILE_OPEN_ALWAYS|FILE_READ|FILE_WRITE);
+	if(!VALID(h))
+		return false;
+	dword size=0;
+	if(0!=sys_get_file_size(h,&size))
+	{
+		sys_fclose(h);
+		return false;
+	}
+	if(size==0)
+	{
+		bool ret=__write_id__(h);
+		sys_fclose(h);
+		return ret;
+	}
+	byte* buf=new byte[size];
+	if(0!=sys_fread(h,buf,size))
+	{
+		sys_fclose(h);
+		return false;
+	}
+	map<string,string> lock_param;
+	verify(0==parse_cmd(buf,size,lock_param));
+	if(lock_param.find(TAG_USER_ID)==lock_param.end())
+	{
+		bool ret=__write_id__(h);
+		sys_fclose(h);
+		return ret;
+	}
+	string strid=lock_param[TAG_USER_ID];
+	uint id=0;
+	sscanf(strid.c_str(),"%d",&id);
+	bool b=(uint_to_ptr(id)==get_current_executable_id());
+	sys_fclose(h);
+	return b;
 }

@@ -6,4 +6,6 @@
 using namespace std;
 int parse_cmd(const byte* buf,int size,
 	map<string,string>& configs);
+bool dev_is_locked(const string& devname);
+bool lock_dev(const string& devname,bool lock);
 #endif

@@ -9,6 +9,13 @@ typedef unsigned char uchar;
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
+#ifdef CONFIG_X64
+#define ptr_to_uint(ptr) ((uint)(unsigned long long)(ptr))
+#define uint_to_ptr(n) ((void*)(unsigned long long)(n))
+#else
+#define ptr_to_uint(ptr) ((uint)(ptr))
+#define uint_to_ptr(n) ((void*)(n))
+#endif
 #if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
 #define verify(m) assert(m)
 #else

@@ -7,7 +7,6 @@
 #define NATIVEFS_MOUNT_CMD "mount native_fs"
 #define NATIVEFS_FORMAT_CMD "format native_fs"
 #define NATIVEFS_BASE_PATH "base"
-#define LOCKFILE_SUFFIX ".lck"
 #define fsrec(ptr) ((NativeFsRec*)(ptr))
 #define decl_rec(rec,ptr) NativeFsRec* rec=fsrec(ptr)
 #define decl_dev(dev,ptr) NativeFsDev* dev=(NativeFsDev*)ptr
@@ -155,17 +154,13 @@ int NativeFsDev::PrepareBase(const string& base)
 	int ret=sys_fstat((char*)base.c_str(),&type);
 	if(ret!=0||type!=FILE_TYPE_DIR)
 		return ERR_FS_DEV_MOUNT_FAILED_NOT_EXIST;
-	string lockfile=base+LOCKFILE_SUFFIX;
-	void* h=sys_fopen((char*)lockfile.c_str(),FILE_CREATE_NEW);
-	if(!VALID(h))
+	if(!lock_dev(base,true))
 		return ERR_FS_DEV_MOUNT_FAILED_ALREADY_MOUNTED;
-	sys_fclose(h);
 	return 0;
 }
 void NativeFsDev::Exit()
 {
-	string lockfile=fs_tree.GetBase()+LOCKFILE_SUFFIX;
-	sys_fdelete((char*)lockfile.c_str());
+	lock_dev(fs_tree.GetBase(),false);
 }
 int NativeFsDev::Format(string cmd)
 {
@@ -182,9 +177,7 @@ int NativeFsDev::Format(string cmd)
 	string fullpath;
 	__get_full_path(cmd_options[NATIVEFS_BASE_PATH],vbase);
 	merge_path(fullpath,vbase);
-	string lockfile=fullpath+LOCKFILE_SUFFIX;
-	dword type=0;
-	if(0==sys_fstat((char*)lockfile.c_str(),&type))
+	if(dev_is_locked(fullpath))
 		return ERR_FS_DEV_FORMAT_FAILED_ALREADY_INUSE;
 	if(0!=(ret=sys_recurse_fdelete((char*)fullpath.c_str())))
 		return ret;
@@ -238,6 +231,8 @@ void* fs_native_open(void* hdev,char* pathname,dword flags)
 			||openmode==FILE_TRUNCATE_EXISTING)
 			return NULL;
 		NativeFsRec* pRec=nt_rec(node);
+		if(pRec->flags&FILE_EXCLUSIVE_WRITE)
+			return NULL;
 		pRec->AddRef();
 		return pRec;
 	}

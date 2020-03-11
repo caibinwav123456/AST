@@ -168,7 +168,7 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	string cmdline;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_ID,id))
 		return ERR_EXEC_INFO_NOT_FOUND;
-	pstat->id=(void*)id;
+	pstat->id=uint_to_ptr(id);
 	if(!VALID(pstat->id))
 		return ERR_EXEC_INFO_NOT_VALID;
 	bool uniq,ld,launcher=false,manager=false,managed=false,ambiguous=false;

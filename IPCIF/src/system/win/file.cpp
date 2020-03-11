@@ -6,7 +6,7 @@ using namespace std;
 
 void* sys_fopen(char* pathname, dword flags)
 {
-	dword rdwr=0,dispose=0,attr=0;
+	dword rdwr=0,dispose=0,attr=0,share=FILE_SHARE_READ;
 	if(flags&FILE_READ)
 	{
 		rdwr|=GENERIC_READ;
@@ -14,6 +14,8 @@ void* sys_fopen(char* pathname, dword flags)
 	if(flags&FILE_WRITE)
 	{
 		rdwr|=GENERIC_WRITE;
+		if(flags&FILE_EXCLUSIVE_WRITE)
+			share=0;
 	}
 	if(flags&FILE_NOCACHE)
 	{
@@ -37,7 +39,7 @@ void* sys_fopen(char* pathname, dword flags)
 		dispose=TRUNCATE_EXISTING;
 		break;
 	}
-	return (void*)CreateFileA(pathname,rdwr,FILE_SHARE_READ,NULL,dispose,attr,NULL);
+	return (void*)CreateFileA(pathname,rdwr,share,NULL,dispose,attr,NULL);
 }
 int sys_fread(void* fd, void* buf, uint len, uint* rdlen)
 {

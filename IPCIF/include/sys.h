@@ -42,6 +42,7 @@ void* sys_get_lib_proc(void* handle, char* procname);
 #define FILE_READ 16
 #define FILE_WRITE 32
 #define FILE_NOCACHE 64
+#define FILE_EXCLUSIVE_WRITE 128
 
 #define SEEK_BEGIN 0
 #define SEEK_CUR 1
