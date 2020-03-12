@@ -24,7 +24,7 @@
     <ClCompile Include="..\..\..\fsdrv\inode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\fsdrv\cmd_parse.cpp">
+    <ClCompile Include="..\..\..\fsdrv\fsutils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -41,7 +41,7 @@
     <ClInclude Include="..\..\..\fsdrv\inode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\fsdrv\cmd_parse.h">
+    <ClInclude Include="..\..\..\fsdrv\fsutils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

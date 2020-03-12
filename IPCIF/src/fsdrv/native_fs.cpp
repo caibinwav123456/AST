@@ -3,7 +3,7 @@
 #include "inode.h"
 #include "path.h"
 #include "utility.h"
-#include "cmd_parse.h"
+#include "fsutils.h"
 #define NATIVEFS_MOUNT_CMD "mount native_fs"
 #define NATIVEFS_FORMAT_CMD "format native_fs"
 #define NATIVEFS_BASE_PATH "base"
