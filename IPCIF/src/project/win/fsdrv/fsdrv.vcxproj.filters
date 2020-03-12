@@ -18,13 +18,13 @@
     <ClCompile Include="..\..\..\fsdrv\fsdrv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\fsdrv\native_fs.cpp">
+    <ClCompile Include="..\..\..\fsdrv\fsutils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\fsdrv\inode.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\fsdrv\fsutils.cpp">
+    <ClCompile Include="..\..\..\fsdrv\native_fs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,13 +35,13 @@
     <ClInclude Include="..\..\..\fsdrv\fsdrv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\fsdrv\native_fs.h">
+    <ClInclude Include="..\..\..\fsdrv\fsutils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\fsdrv\inode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\fsdrv\fsutils.h">
+    <ClInclude Include="..\..\..\fsdrv\native_fs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
