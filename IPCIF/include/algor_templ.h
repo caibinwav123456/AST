@@ -482,7 +482,7 @@ public:
 				TreeNode* node;
 				if(NULL!=(node=bset(vKey,i,param)))
 				{
-					node->AddTo(tn);
+					verify(node->AddTo(tn));
 					tn=node;
 				}
 				else

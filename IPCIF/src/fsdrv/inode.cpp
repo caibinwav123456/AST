@@ -22,7 +22,7 @@ pINode INodeTree::GetINodeInTree(vector<string>& vKey)
 }
 void INodeTree::ReleaseNode(pINode node)
 {
-	if(!node->NoChild()||IsLocked(node))
+	if((!node->NoChild())||IsLocked(node))
 		return;
 	pINode parent=node->GetParent();
 	while(parent!=NULL)

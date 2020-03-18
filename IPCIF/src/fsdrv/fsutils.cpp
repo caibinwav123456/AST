@@ -160,22 +160,20 @@ bool dev_is_locked(const string& devname)
 	byte* buf=new byte[size];
 	if(0!=sys_fread(h,buf,size))
 	{
+		delete[] buf;
 		sys_fclose(h);
 		return true;
 	}
+	sys_fclose(h);
 	map<string,string> lock_param;
 	verify(0==parse_cmd(buf,size,lock_param));
+	delete[] buf;
 	if(lock_param.find(TAG_USER_ID)==lock_param.end())
-	{
-		sys_fclose(h);
 		return false;
-	}
 	string strid=lock_param[TAG_USER_ID];
 	uint id=0;
 	sscanf(strid.c_str(),"%d",&id);
-	bool b=(uint_to_ptr(id)==get_current_executable_id());
-	sys_fclose(h);
-	return !b;
+	return uint_to_ptr(id)!=get_current_executable_id();
 }
 inline bool __write_id__(void* h)
 {
@@ -215,21 +213,22 @@ bool lock_dev(const string& devname,bool lock)
 	byte* buf=new byte[size];
 	if(0!=sys_fread(h,buf,size))
 	{
+		delete[] buf;
 		sys_fclose(h);
 		return false;
 	}
 	map<string,string> lock_param;
 	verify(0==parse_cmd(buf,size,lock_param));
+	delete[] buf;
 	if(lock_param.find(TAG_USER_ID)==lock_param.end())
 	{
 		bool ret=__write_id__(h);
 		sys_fclose(h);
 		return ret;
 	}
+	sys_fclose(h);
 	string strid=lock_param[TAG_USER_ID];
 	uint id=0;
 	sscanf(strid.c_str(),"%d",&id);
-	bool b=(uint_to_ptr(id)==get_current_executable_id());
-	sys_fclose(h);
-	return b;
+	return uint_to_ptr(id)==get_current_executable_id();
 }
