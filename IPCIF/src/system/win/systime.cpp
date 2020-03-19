@@ -1,5 +1,6 @@
 #include "common.h"
 #include "syswin.h"
+#include <shlwapi.h>
 
 void SystemTimeToDateTime(SYSTEMTIME* t,DateTime* time)
 {
@@ -29,8 +30,26 @@ void sys_get_date_time(DateTime* time)
 	GetLocalTime(&t);
 	SystemTimeToDateTime(&t,time);
 }
+inline void init_default_date(DateTime* date)
+{
+	memset(date,0,sizeof(DateTime));
+	date->year=2000;
+	date->weekday=5;
+}
 int sys_get_file_time(char* path,DateTime* creation_time,DateTime* modify_time,DateTime* access_time)
 {
+	if((!PathFileExistsA(path)))
+		return ERR_FILE_IO;
+	if(PathIsDirectoryA(path))
+	{
+		if(creation_time!=NULL)
+			init_default_date(creation_time);
+		if(modify_time!=NULL)
+			init_default_date(modify_time);
+		if(access_time!=NULL)
+			init_default_date(access_time);
+		return 0;
+	}
 	HANDLE hFile=CreateFileA(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,0);
 	if(!VALID(hFile))
 		return ERR_FILE_IO;
@@ -61,6 +80,10 @@ int sys_get_file_time(char* path,DateTime* creation_time,DateTime* modify_time,D
 }
 int sys_set_file_time(char* path,DateTime* creation_time,DateTime* modify_time,DateTime* access_time)
 {
+	if(!PathFileExistsA(path))
+		return ERR_FILE_IO;
+	if(PathIsDirectoryA(path))
+		return 0;
 	HANDLE hFile=CreateFileA(path,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,0);
 	if(!VALID(hFile))
 		return ERR_FILE_IO;

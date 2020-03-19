@@ -472,7 +472,7 @@ public:
 	}
 	TreeNode* GetNode(vector<Key>& vKey,TreeNode*(*bset)(const vector<Key>&,int,void*)=NULL,void* param=NULL)
 	{
-		TreeNode* tn=head;
+		TreeNode *tn=head,*last=NULL;
 		for(int i=0;i<(int)vKey.size();i++)
 		{
 			if(tn->child.find(vKey[i])!=tn->child.end())
@@ -482,11 +482,20 @@ public:
 				TreeNode* node;
 				if(NULL!=(node=bset(vKey,i,param)))
 				{
+					if(last==NULL)
+						last=node;
 					verify(node->AddTo(tn));
 					tn=node;
 				}
 				else
+				{
+					if(last!=NULL)
+					{
+						verify(last->Detach());
+						delete last;
+					}
 					return NULL;
+				}
 			}
 			else
 				return NULL;

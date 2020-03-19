@@ -242,7 +242,10 @@ void* fs_native_open(void* hdev,char* pathname,dword flags)
 	node=dev->GetINode(vpath);
 	assert(node!=NULL);
 	if(node==NULL)
+	{
+		sys_fclose(h);
 		return NULL;
+	}
 	NativeFsRec* pRec=new NativeFsRec(dev);
 	pRec->fd=h;
 	pRec->host=dev;
@@ -301,15 +304,7 @@ int fs_native_move(void* hdev,char* src,char* dst)
 	dword type=0;
 	int ret=sys_fstat((char*)fulldst.c_str(),&type);
 	if(ret==0)
-	{
-		if(type==FILE_TYPE_DIR)
-			return ERR_FILE_IO;
-		else
-		{
-			if(0!=(ret=fs_native_del(hdev,dst)))
-				return ret;
-		}
-	}
+		return ERR_FILE_IO;
 	ret=sys_fstat((char*)fullsrc.c_str(),&type);
 	if(ret!=0)
 		return ERR_FILE_IO;
@@ -324,7 +319,7 @@ int fs_native_del(void* hdev,char* path)
 	nt_path(fullpath,dev,path);
 	pINode node;
 	vector<string> vpath;
-	split_path(path,vpath);
+	split_path(path,vpath,'/');
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 		return ERR_FS_FILE_DIR_LOCKED;
 	return sys_fdelete((char*)fullpath.c_str());
