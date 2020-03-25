@@ -152,6 +152,7 @@ int main_entry(main_args)
 	if(0!=(ret=fsc_init(get_num_sysfs_buffer_blocks(),get_sysfs_buffer_size(),g_ptracker.get_ctrl_blk())))
 	{
 		LOGFILE(0,log_ftype_error,"Init file system failed (%s), quitting...",get_error_desc(ret));
+		data.quit=true;
 		goto end3;
 	}
 	data.sysfs_inited=true;

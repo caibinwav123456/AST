@@ -6,6 +6,24 @@
 #define LOCKFILE_SUFFIX ".lck"
 #define TAG_USER_ID "user_id"
 const byte seps[]={' ','\t','\r','\n'};
+struct token_set
+{
+	bool alphabet[256];
+	token_set()
+	{
+		memset(alphabet,0,256*sizeof(bool));
+		for(int i=(int)'a';i<=(int)'z';i++)
+			alphabet[i]=true;
+		for(int i=(int)'A';i<=(int)'Z';i++)
+			alphabet[i]=true;
+		for(int i=(int)'0';i<=(int)'9';i++)
+			alphabet[i]=true;
+		alphabet['_']=true;
+		alphabet['-']=true;
+		alphabet['.']=true;
+		alphabet['/']=true;		
+	}
+};
 bool trim_space(byte c)
 {
 	for(int i=0;i<sizeof(seps)/sizeof(byte);i++)
@@ -19,11 +37,8 @@ bool trim_space(byte c)
 }
 bool trim_token(byte c)
 {
-	return ('a'<=c&&c<='z')
-		||('A'<=c&&c<='Z')
-		||('0'<=c&&c<='9')
-		||c=='_'
-		||c=='.';
+	static token_set ts;
+	return ts.alphabet[(int)c];
 }
 bool trim_string(byte c)
 {

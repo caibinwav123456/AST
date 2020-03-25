@@ -37,8 +37,7 @@
 #else
 #define DEF_STO_MOD_NAME "libfsdrv.so"
 #endif
-#define GET_NAME(M) #M
 #define STO_GET_INTF_FUNC get_storage_drv_interface
-#define STO_GET_INTF_FUNC_NAME GET_NAME(STO_GET_INTF_FUNC)
+#define STO_GET_INTF_FUNC_NAME "get_storage_drv_interface"
 
 #endif

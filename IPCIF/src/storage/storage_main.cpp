@@ -30,7 +30,7 @@ inline void __insert_proc_data__(proc_data& data)
 		ifproc.usage=pstat.ifs->if_id[i].usage;
 		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
 		ifproc.prior=pstat.ifs->if_id[i].prior;
-		ifproc.pdata=NULL;
+		ifproc.pdata=&data;
 		data.ifproc.push_back(ifproc);
 	}
 }
@@ -39,11 +39,11 @@ int cb_server(void* addr,void* param,int op)
 	storage_data* data=(storage_data*)param;
 	dg_storage* storage=(dg_storage*)addr;
 	uint cmd=storage->header.cmd;
+	data->req_resolv->HandleRequest(cmd,addr,NULL,op);
 	switch(cmd)
 	{
 	case CMD_CLEAR:
 	case CMD_CLEAR_ALL:
-		data->req_resolv->HandleRequest(cmd,addr,NULL,op);
 		data->reset=true;
 		storage->header.ret=0;
 		break;

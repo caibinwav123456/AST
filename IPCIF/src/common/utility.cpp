@@ -25,7 +25,7 @@ public:
 	int GetProcStat(process_stat* pstat);
 	int Init();
 	void Exit();
-	int GetStoageInfo(char* name,if_id_info_storage* pifinfo);
+	int GetStorageInfo(char* name,if_id_info_storage* pifinfo);
 	void* FindFirstExecutable(process_stat* pstat);
 	int FindNextExecutable(void* handle,process_stat* pstat);
 	void FindExecutableClose(void* handle);
@@ -174,11 +174,13 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	bool uniq,ld,launcher=false,manager=false,managed=false,ambiguous=false;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_UNIQUE,uniq))
 		return ERR_EXEC_INFO_NOT_FOUND;
-	pstat->unique_instance=(uniq?1:0);
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_LDIR,ld))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	if(config.GetCongfigItem(exec,CFG_TAG_EXEC_CMDLINE,cmdline))
 		strcpy(pstat->cmdline,cmdline.c_str());
+	else
+		*pstat->cmdline=0;
+	pstat->unique_instance=(uniq?1:0);
 	pstat->local_cur_dir=ld?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_LAUNCHER,launcher);
 	pstat->is_launcher=launcher?1:0;
@@ -284,7 +286,7 @@ DLLAPI(if_ids*) get_if_ids()
 }
 DLLAPI(int) get_if_storage_info(char* name,if_id_info_storage* pifinfo)
 {
-	return _hCurrentProc.GetStoageInfo(name,pifinfo);
+	return _hCurrentProc.GetStorageInfo(name,pifinfo);
 }
 DLLAPI(void*) find_first_exe(process_stat* pstat)
 {
@@ -312,7 +314,7 @@ void process_identifier::Exit()
 {
 	log_sys.Exit();
 }
-int process_identifier::GetStoageInfo(char* name,if_id_info_storage* pifinfo)
+int process_identifier::GetStorageInfo(char* name,if_id_info_storage* pifinfo)
 {
 	memset(pifinfo,0,sizeof(if_id_info_storage));
 	char buf[IF_INFO_TAG_SIZE];
