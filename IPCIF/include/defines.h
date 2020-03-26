@@ -15,6 +15,7 @@
 #define CFG_TAG_EXEC_LAUNCHER "is_launcher"
 #define CFG_TAG_EXEC_MANAGER "is_manager"
 #define CFG_TAG_EXEC_MANAGED "is_managed"
+#define CFG_TAG_EXEC_LOG "log"
 #define CFG_TAG_EXEC_AMBIG "ambiguous"
 #define CFG_TAG_EXEC_IF "if%d"
 #define CFG_TAG_EXEC_IF_CNT "if%d_cnt"

@@ -51,6 +51,7 @@ struct process_stat
 	void* id;
 	int unique_instance;
 	int local_cur_dir;
+	int log;
 	int is_launcher;
 	int is_manager;
 	int is_managed;

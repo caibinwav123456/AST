@@ -171,7 +171,7 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->id=uint_to_ptr(id);
 	if(!VALID(pstat->id))
 		return ERR_EXEC_INFO_NOT_VALID;
-	bool uniq,ld,launcher=false,manager=false,managed=false,ambiguous=false;
+	bool uniq,ld,launcher=false,manager=false,managed=false,log=true,ambiguous=false;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_UNIQUE,uniq))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_LDIR,ld))
@@ -188,6 +188,8 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->is_manager=manager?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_MANAGED,managed);
 	pstat->is_managed=managed?1:0;
+	config.GetCongfigItem(exec,CFG_TAG_EXEC_LOG,log);
+	pstat->log=log?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_AMBIG,ambiguous);
 	pstat->ambiguous=ambiguous?1:0;
 	if(pstat->ifs!=NULL)
@@ -306,6 +308,7 @@ int process_identifier::Init()
 		return init_error;
 	if(0!=(init_error=config_val_container::get_val_container()->config_value(&config)))
 		return init_error;
+	if(_hCurrentProc.proc_stat.log)
 	if(0!=(init_error=log_sys.Init()))
 		return init_error;
 	return 0;

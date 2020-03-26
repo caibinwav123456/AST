@@ -11,6 +11,7 @@ public:
 	void Exit();
 	int Log(const char*const* lognames,const char* file,int line,const string& logmsg);
 private:
+	bool inited;
 	void* sem;
 	string full_sys_log_path;
 };
