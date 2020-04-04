@@ -107,7 +107,7 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 	resolver->AddHandler(ServerClearHandler);
 	sem=sys_create_sem(fsserver_handle_pass,fsserver_handle_pass,NULL);
 	if(!VALID(sem))
-		return ERR_GENERIC;
+		return ERR_SEM_CREATE_FAILED;
 	quitcode=0;
 	for(int i=0;i<(int)vfs_mod.size();i++)
 	{
@@ -310,7 +310,7 @@ int FsServer::Init()
 	hthrd_server=sys_create_thread(fs_server,this);
 	if(!VALID(hthrd_server))
 	{
-		ret=ERR_GENERIC;
+		ret=ERR_THREAD_CREATE_FAILED;
 		goto failed;
 	}
 	return 0;

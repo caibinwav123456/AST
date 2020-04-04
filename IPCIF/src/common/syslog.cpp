@@ -17,7 +17,7 @@ int LogSys::Init()
 		return ret;
 	sem=(is_launcher()?sys_create_sem(1,1,(char*)sys_log_sem.c_str()):sys_get_sem((char*)sys_log_sem.c_str()));
 	if(!VALID(sem))
-		return ERR_GENERIC;
+		return ERR_SEM_CREATE_FAILED;
 	inited=true;
 	return ret;
 }
@@ -38,7 +38,7 @@ int LogSys::Log(const char*const* lognames,const char* file,int line,const strin
 		return 0;
 	sys_mkdir((char*)full_sys_log_path.c_str());
 	if(!VALID(sem))
-		return ERR_GENERIC;
+		return ERR_SEM_CREATE_FAILED;
 	int ret=0;
 	CDateTime ctime;
 	ctime.InitWithCurrentDateTime();

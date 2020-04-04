@@ -84,7 +84,7 @@ int main_entry(main_args)
 	mutex=sys_create_sem(1,1,NULL);
 	if(!VALID(mutex))
 	{
-		ret=ERR_GENERIC;
+		ret=ERR_SEM_CREATE_FAILED;
 		goto end;
 	}
 	if_initial init;
@@ -110,7 +110,7 @@ int main_entry(main_args)
 	{
 		LOGFILE(0,log_ftype_error,"Create server thread failed, quitting...");
 		sys_show_message("Create server thread failed!");
-		ret=ERR_GENERIC;
+		ret=ERR_THREAD_CREATE_FAILED;
 		goto end3;
 	}
 	LOGFILE(0,log_ftype_info,"Start %s OK!",get_current_executable_name());

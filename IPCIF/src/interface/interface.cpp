@@ -370,7 +370,7 @@ DLLAPI(void) stop_if(void* handle)
 /*
  *This function can only be called by the server.
  *Before calling this function, one must ensure
- *that all the listen_if function is returned.
+ *that all the listen_if function calls are returned.
  */
 DLLAPI(void) reset_if(void* handle)
 {

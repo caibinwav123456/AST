@@ -208,8 +208,10 @@ enum E_FS_MODE
 	fsmode_semipermanent_if,
 	fsmode_instant_if,
 };
-#define FC_EXIT  1
-#define FC_CLEAR 2
+#define FC_EXIT_OFF 0
+#define FC_CLEAR_OFF 1
+#define FC_EXIT  (1<<FC_EXIT_OFF)
+#define FC_CLEAR (3<<FC_CLEAR_OFF)
 #define FC_MASK  (FC_EXIT|FC_CLEAR)
 int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen=NULL);
 class SysFs

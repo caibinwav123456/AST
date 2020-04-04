@@ -122,7 +122,7 @@ int main_entry(main_args)
 		LOGFILE(0,log_ftype_error,"Detected %s not started, quitting...",get_main_info()->loader_exe_file);
 		sys_show_message("Start loader first!");
 		data.quit=true;
-		ret=ERR_GENERIC;
+		ret=ERR_PROCESS_FAILED;
 		goto end;
 	}
 	hthread_loader=sys_create_thread(loader_shelter,&data);
@@ -130,7 +130,7 @@ int main_entry(main_args)
 	{
 		LOGFILE(0,log_ftype_error,"Create shelter thread failed, quitting...");
 		data.quit=true;
-		ret=ERR_GENERIC;
+		ret=ERR_THREAD_CREATE_FAILED;
 		goto end;
 	}
 	hserver=sys_create_thread(if_server,&data);
@@ -138,7 +138,7 @@ int main_entry(main_args)
 	{
 		LOGFILE(0,log_ftype_error,"Create server thread failed, quitting...");
 		data.quit=true;
-		ret=ERR_GENERIC;
+		ret=ERR_THREAD_CREATE_FAILED;
 		goto end;
 	}
 	LOGFILE(0,log_ftype_info,"Start %s OK!",get_current_executable_name());

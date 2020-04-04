@@ -100,10 +100,9 @@ int main_entry(main_args)
 	init.id=(char*)pdata.ifproc[0].id.c_str();
 	init.nthread=pdata.ifproc[0].cnt;
 	init.smem_size=SIZE_IF_STORAGE;
-	if(0!=setup_if(&init,&hif_storage))
+	if(0!=(ret=setup_if(&init,&hif_storage)))
 	{
 		LOGFILE(0,log_ftype_error,"Create interfafe %s failed, quitting...",init.id);
-		ret=ERR_GENERIC;
 		goto end;
 	}
 	if(0!=(ret=fss_init(&pdata.ifproc,&req_rslvr)))
@@ -115,7 +114,7 @@ int main_entry(main_args)
 	if(!VALID(hthrd_server))
 	{
 		LOGFILE(0,log_ftype_error,"Create server thread failed, quitting...");
-		ret=ERR_GENERIC;
+		ret=ERR_THREAD_CREATE_FAILED;
 		goto end3;
 	}
 	LOGFILE(0,log_ftype_info,"Start %s OK!",get_current_executable_name());

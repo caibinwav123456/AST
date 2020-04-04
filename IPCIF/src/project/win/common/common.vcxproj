@@ -103,6 +103,7 @@
     <ClInclude Include="..\..\..\..\include\config_val_extern.h" />
     <ClInclude Include="..\..\..\..\include\datetime.h" />
     <ClInclude Include="..\..\..\..\include\dir_symbol.h" />
+    <ClInclude Include="..\..\..\..\include\error.h" />
     <ClInclude Include="..\..\..\..\include\export.h" />
     <ClInclude Include="..\..\..\..\include\impexp.h" />
     <ClInclude Include="..\..\..\..\include\import.h" />

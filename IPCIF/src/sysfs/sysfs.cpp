@@ -177,14 +177,14 @@ bool ClearHandler(uint cmd,void* addr,void* param,int op);
 int SysFs::cb_reconn(void* param)
 {
 	SysFs* sysfs=(SysFs*)param;
-	while(sysfs->quitcode==0)
+	do
 	{
 		sys_wait_sem(sysfs->sem_reconn);
-		if(sysfs->quitcode!=0)
-			break;
 		bool pass;
 		do
 		{
+			if(sysfs->quitcode!=0)
+				break;
 			pass=true;
 			for(int i=0;i<(int)sysfs->ifvproc.size();i++)
 			{
@@ -199,7 +199,9 @@ int SysFs::cb_reconn(void* param)
 				break;
 		}while(!pass);
 		sysfs->SuspendIO(false,0,FC_CLEAR);
-	}
+	}while(sysfs->quitcode==0);
+	//here we want to re-unblock io to ensure that deep-level(2) lockcnt is released.
+	sysfs->SuspendIO(false,0,FC_CLEAR);
 	return 0;
 }
 int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* resolver)
@@ -266,7 +268,7 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 	}
 	if((!VALID(sem))||(!VALID(fmap_protect))||(b&&(!VALID(sem_reconn)||!VALID(flag_protect)))||(b2&&(!VALID(mutex_protect))))
 	{
-		ret=ERR_GENERIC;
+		ret=ERR_SEM_CREATE_FAILED;
 		goto failed;
 	}
 	flags=0;
@@ -277,7 +279,7 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 		hthrd_reconn=sys_create_thread(cb_reconn,this);
 		if(!VALID(hthrd_reconn))
 		{
-			ret=ERR_GENERIC;
+			ret=ERR_THREAD_CREATE_FAILED;
 			goto failed;
 		}
 	}
@@ -316,7 +318,6 @@ void SysFs::Exit()
 {
 	quitcode=ERR_MODULE_NOT_INITED;
 	SuspendIO(false);
-	sys_sleep(10);
 	if(VALID(hthrd_reconn))
 	{
 		sys_signal_sem(sem_reconn);
@@ -324,6 +325,7 @@ void SysFs::Exit()
 		sys_close_thread(hthrd_reconn);
 		hthrd_reconn=NULL;
 	}
+	sys_sleep(10);
 	if(mode==fsmode_semipermanent_if)
 	{
 		for(int i=0;i<(int)ifvproc.size();i++)
@@ -354,13 +356,24 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 	dword flag;
 	sys_wait_sem(flag_protect);
 	flag=flags;
-	if(bsusp)
-		flags|=cause;
-	else
-		flags&=~cause;
+	if(cause==FC_EXIT)
+	{
+		if(bsusp)
+			flags|=cause;
+		else
+			flags&=~cause;
+	}
+	else if(cause==FC_CLEAR)
+	{
+		int oldcnt=((flags&FC_CLEAR)>>FC_CLEAR_OFF);
+		int cnt=oldcnt+(bsusp?1:-1);
+		cnt=(cnt<0?0:(cnt>2?2:cnt));
+		flags=((flags&~FC_CLEAR)|(((dword)cnt))<<FC_CLEAR_OFF);
+	}
 	sys_signal_sem(flag_protect);
 	if((bsusp&&(flag&FC_MASK)!=0)
-		||((!bsusp)&&((flag&FC_MASK)==0||(flag&~cause)!=0)))
+		||((!bsusp)&&((flag&FC_MASK)==0
+		||(cause==FC_EXIT?(flag&~cause)!=0:flag!=(1<<FC_CLEAR_OFF)))))
 		return 0;
 	if(bsusp)
 	{

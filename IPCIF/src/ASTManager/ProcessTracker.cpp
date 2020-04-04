@@ -64,6 +64,7 @@ bool less_id(const proc_data& d1,const proc_data& d2)
 }
 int process_tracker::init()
 {
+	int ret=0;
 	pdata.clear();
 	process_stat pstat;
 	init_process_stat(&pstat,"");
@@ -95,7 +96,10 @@ int process_tracker::init()
 		vs[i].semin=sys_create_sem(0,1,NULL);
 		vs[i].semout=sys_create_sem(0,1,NULL);
 		if((!VALID(vs[i].semin))||(!VALID(vs[i].semout)))
+		{
+			ret=ERR_SEM_CREATE_FAILED;
 			goto fail;
+		}
 		if(pdata[i].ambiguous)
 		{
 			//Need not lock since we blocked shelter threads here.
@@ -108,6 +112,7 @@ int process_tracker::init()
 		if(!VALID(pdata[i].hthrd_shelter))
 		{
 			delete param;
+			ret=ERR_THREAD_CREATE_FAILED;
 			LOGFILE(0,log_ftype_error,"Create shelter thread for %s failed. quitting...",pdata[i].name.c_str());
 			goto fail;
 		}
@@ -147,7 +152,7 @@ fail:
 				sys_close_sem(vs[i].semout);
 		}
 	}
-	return ERR_GENERIC;
+	return ret;
 }
 int connect_proc(char* id, void** h)
 {
@@ -294,9 +299,10 @@ int process_tracker::suspend_all(bool bsusp)
 				ret=ERR_GENERIC;
 				continue;
 			}
-			if(0!=send_cmd_suspend(0,pdata[i].ifproc[0].hif))
+			int retc;
+			if(0!=(retc=send_cmd_suspend(0,pdata[i].ifproc[0].hif)))
 			{
-				ret=ERR_GENERIC;
+				ret=retc;
 			}
 		}
 	}

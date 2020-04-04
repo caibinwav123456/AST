@@ -7,9 +7,9 @@ class cmutex
 public:
 	cmutex()
 	{
-		mutex = sys_create_sem(1, 1, NULL);
-		if (!VALID(mutex))
-			EXCEPTION(ERR_GENERIC);
+		mutex=sys_create_sem(1,1,NULL);
+		if(!VALID(mutex))
+			EXCEPTION(ERR_SEM_CREATE_FAILED);
 	}
 	~cmutex()
 	{

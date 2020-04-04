@@ -4,6 +4,7 @@
 #include "config_val.h"
 #include "syslog.h"
 #include "dir_symbol.h"
+#include "mutex.h"
 #include <stdarg.h>
 #define IF_INFO_SIZE IF_USAGE_SIZE
 #define IF_INFO_TAG_SIZE 41
@@ -11,6 +12,7 @@ DEFINE_UINT_VAL(sys_log_level,0);
 DEFINE_STRING_VAL(if_user,"");
 DEFINE_UINT_VAL(num_sysfs_buffer_blocks,4);
 DEFINE_SIZE_VAL(sysfs_buffer_size,1024);
+static cmutex mt_get_sid;
 const char* g_info[]={"info",NULL};
 const char* g_error[]={"info","error",NULL};
 const char* const * sys_log_names[]=
@@ -43,7 +45,10 @@ process_identifier _hCurrentProc;
 DLLAPI(dword) get_session_id()
 {
 	static dword id=0;
-	return id++;
+	sys_wait_sem(mt_get_sid.get_mutex());
+	dword i=(id++);
+	sys_signal_sem(mt_get_sid.get_mutex());
+	return i;
 }
 DLLAPI(process_stat*) get_current_executable_stat()
 {
@@ -402,8 +407,9 @@ static int cb_copy(char* name, dword type, void* param, char dsym)
 	newcpy.tstart+=strlen(name);
 	if(type==FILE_TYPE_DIR)
 	{
-		if(0!=callback->_mkdir_(newcpy.to))
-			return ERR_GENERIC;
+		int ret;
+		if(0!=(ret=callback->_mkdir_(newcpy.to)))
+			return ret;
 		return callback->_ftraverse_(newcpy.from,cb_copy,&newcpy);
 	}
 	else
@@ -413,12 +419,12 @@ static int cb_copy(char* name, dword type, void* param, char dsym)
 }
 DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback, char dsym)
 {
+	int ret=0;
 	dword type=0;
-	if(0!=callback->_fstat_(from,&type))
-		return ERR_GENERIC;
+	if(0!=(ret=callback->_fstat_(from,&type)))
+		return ret;
 	if(type!=FILE_TYPE_DIR)
 		return callback->_fcopy_(from,to);
-	int ret=0;
 	rcopy_param rparam;
 	rparam.from=new char[1024];
 	rparam.to=new char[1024];
@@ -441,8 +447,7 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 		ret=ERR_GENERIC;
 		goto end;
 	}
-	ret=callback->_mkdir_(rparam.to);
-	if(ret!=0)
+	if(0!=(ret=callback->_mkdir_(rparam.to)))
 		goto end;
 	ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam);
 end:
@@ -466,8 +471,9 @@ static int cb_delete(char* name, dword type, void* param, char dsym)
 	newdel.start+=strlen(name);
 	if(type==FILE_TYPE_DIR)
 	{
-		if(0!=callback->_ftraverse_(newdel.path,cb_delete,&newdel))
-			return ERR_GENERIC;
+		int ret;
+		if(0!=(ret=callback->_ftraverse_(newdel.path,cb_delete,&newdel)))
+			return ret;
 		*(newdel.start)=0;
 		return callback->_fdelete_(newdel.path);
 	}
