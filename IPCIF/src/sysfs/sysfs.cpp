@@ -663,18 +663,18 @@ void SysFs::mutex_p()
 	int cnt;
 	sys_wait_sem(mutex_protect);
 	cnt=(lock_cnt--);
-	sys_signal_sem(mutex_protect);
 	if(cnt==0)
 		sys_wait_sem(mutex->get_mutex());
+	sys_signal_sem(mutex_protect);
 }
 void SysFs::mutex_v()
 {
 	int cnt;
 	sys_wait_sem(mutex_protect);
 	cnt=(++lock_cnt);
-	sys_signal_sem(mutex_protect);
 	if(cnt==0)
 		sys_signal_sem(mutex->get_mutex());
+	sys_signal_sem(mutex_protect);
 }
 int SysFs::BeginTransfer(if_proc* pif,void** phif)
 {

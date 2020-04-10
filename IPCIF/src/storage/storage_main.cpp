@@ -67,7 +67,7 @@ int if_server(void* param)
 			data->ready_quit=false;
 		if(data->reset)
 		{
-			reset_if(data->hif_sto);
+			reset_if(*(data->hif_sto));
 			data->reset=false;
 		}
 		if(data->quit||data->ready_quit)

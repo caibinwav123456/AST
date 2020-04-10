@@ -8,7 +8,7 @@ class DLL RequestResolver
 {
 public:
 	void AddHandler(RequestHandler handler);
-	bool HandleRequest(uint cmd, void* addr, void* param, int op);
+	bool HandleRequest(uint cmd, void* addr, void* param, int op, bool process_all=true);
 private:
 	vector<RequestHandler> vhandler;
 };
