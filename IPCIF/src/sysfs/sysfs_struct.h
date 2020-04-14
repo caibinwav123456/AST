@@ -131,11 +131,7 @@ struct FileServerRec
 	union
 	{
 		void* fd;
-		struct
-		{
-			vector<fsls_element>* pvfiles;
-			int index;
-		};
+		vector<fsls_element>* pvfiles;
 	};
 	SrvProcRing* proc_ring;
 };

@@ -839,7 +839,7 @@ int cb_fsc(void* addr,void* param,int op)
 			if(op&OP_PARAM)
 			{
 				fslsfiles->files.handle=*dgp->fslsfiles.handle;
-				fslsfiles->files.nfiles=0;
+				fslsfiles->files.nfiles=*dgp->fslsfiles.nfiles;
 				strcpy(fslsfiles->files.path,!VALID(*dgp->fslsfiles.handle)?
 					dgp->fslsfiles.path->c_str():"");
 			}

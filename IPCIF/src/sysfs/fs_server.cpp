@@ -599,7 +599,6 @@ void* FsServer::AddNode(void* proc_id,FileServerRec* pRec)
 		break;
 	case FSSERVER_REC_TYPE_FILE_LIST:
 		node->t.pvfiles=pRec->pvfiles;
-		node->t.index=pRec->index;
 		break;
 	default:
 		assert(false);
@@ -739,12 +738,14 @@ int FsServer::HandleGetSetAttr(dg_fsattr* fsattr)
 	{
 	case CMD_FSGETATTR:
 		if(fsattr->attr.mask&FS_ATTR_FLAGS)
-			ret=cdrvcall->getattr(chdev,fsattr->attr.path,&fsattr->attr.flags);
+			if(0!=(ret=cdrvcall->getattr(chdev,fsattr->attr.path,&fsattr->attr.flags)))
+				break;
 		if(fsattr->attr.mask&FS_ATTR_DATE)
 		{
 			DateTime date[3];
-			cdrvcall->getfiletime(chdev,fsattr->attr.path,fsattr->attr.mask
-				&FS_ATTR_DATE,date);
+			if(0!=(ret=cdrvcall->getfiletime(chdev,fsattr->attr.path,fsattr->attr.mask
+				&FS_ATTR_DATE,date)))
+				break;
 			if(fsattr->attr.mask&FS_ATTR_CREATION_DATE)
 				fsattr->attr.date[fs_attr_creation_date].date=date[fs_attr_creation_date];
 			if(fsattr->attr.mask&FS_ATTR_MODIFY_DATE)
@@ -795,6 +796,7 @@ int FsServer::HandleListFiles(dg_fslsfiles* fslsfiles)
 			delete files;
 			goto end;
 		}
+		nfile=files->size();
 	}
 	else
 	{
@@ -804,21 +806,28 @@ int FsServer::HandleListFiles(dg_fslsfiles* fslsfiles)
 		{
 			assert(node->t.type==FSSERVER_REC_TYPE_FILE_LIST);
 			files=node->t.pvfiles;
-			index=node->t.index;
 		}
 		else
 		{
 			ret=ERR_FS_INVALID_HANDLE;
 			goto end;
 		}
+		nfile=fslsfiles->files.nfiles;
 	}
-	nfile=files->size()-(uint)index;
+	index=(int)(files->size()-nfile);
+	if(index<0||index>(int)files->size())
+	{
+		ret=ERR_GENERIC;
+		index=(int)files->size();
+		goto end2;
+	}
 	for(int i=0;i<LSBUFFER_ELEMENTS&&index<(int)files->size();i++,index++)
 	{
-		strcpy(fslsfiles->files.file[i].name,(*files)[i].filename.c_str());
-		fslsfiles->files.file[i].flags=(*files)[i].flags;
+		strcpy(fslsfiles->files.file[i].name,(*files)[index].filename.c_str());
+		fslsfiles->files.file[i].flags=(*files)[index].flags;
 	}
 	fslsfiles->files.nfiles=nfile;
+end2:
 	if(index==(int)files->size())
 	{
 		if(newlist)
@@ -834,11 +843,8 @@ int FsServer::HandleListFiles(dg_fslsfiles* fslsfiles)
 			FileServerRec rec;
 			rec.type=FSSERVER_REC_TYPE_FILE_LIST;
 			rec.pvfiles=files;
-			rec.index=index;
 			hls=AddNode(fslsfiles->header.caller,&rec);
 		}
-		else
-			node->t.index=index;
 		fslsfiles->files.handle=hls;
 	}
 end:
