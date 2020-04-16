@@ -285,6 +285,68 @@ private:
 	int quitcode;
 };
 extern SysFs g_sysfs;
+struct BackupData
+{
+	datagram_base dbase;
+	byte* rdwr;
+	vector<fsls_element> lsfiles;
+	union
+	{
+		void* handle;
+		struct
+		{
+			uint len;
+			uint lenhigh;
+		};
+		struct
+		{
+			uint rdwrlen;
+		};
+		struct
+		{
+			void* hls;
+			uint nfile;
+		};
+		struct
+		{
+			dword mask;
+			dword flags;
+			DateTime date[3];
+		};
+	};
+};
+class BackupRing
+{
+public:
+	BackupRing()
+	{
+		backup_items=NULL;
+		mem_backup=NULL;
+		Init();
+	}
+	~BackupRing()
+	{
+		if(backup_items!=NULL)
+			delete[] backup_items;
+		if(mem_backup)
+			delete[] mem_backup;
+	}
+	void Init();
+	static bool DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup);
+	static bool DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup);
+	static bool DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup);
+	static bool DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup);
+	static bool DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup);
+	static bool DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup);
+private:
+	BiRingNode<BackupData>* GetNode(datagram_base* data,bool backup);
+	map<dword,BiRingNode<BackupData>*> bmap;
+	BiRing<BackupData> backup_free;
+	BiRing<BackupData> backup_data;
+	BiRingNode<BackupData>* backup_items;
+	byte* mem_backup;
+};
+typedef bool (*DataBackupRestoreCallback)(datagram_base* dbase,BackupRing* ring,bool backup);
 class FsServer;
 class SrvProcRing : public BiRing<FileServerRec>
 {
@@ -292,34 +354,34 @@ public:
 	SrvProcRing(FsServer* srv,void* proc_id):pfssrv(srv)
 	{
 		memset(&t,0,sizeof(t));
-		memset(&backup_data,0,sizeof(backup_data));
 		t.key.caller=proc_id;
 		t.proc_ring=this;
-		backup_data.header.cmd=(uint)-1;
 		hFileReserve=(byte*)1;
 	}
-	dg_sysfs* GetBackupData()
+	BackupRing* get_backup_ring()
 	{
-		return &backup_data;
+		return &backup;
 	}
 	void* get_handle();
 private:
 	byte* hFileReserve;
 	FsServer* pfssrv;
-	dg_sysfs backup_data;
+	BackupRing backup;
 };
 typedef map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> fs_key_map;
+class FssContainer;
 class FsServer
 {
 	friend int fs_server(void* param);
 	friend int cb_fs_server(void* addr,void* param,int op);
 public:
-	FsServer(if_info_storage* pinfo,void** _psem,int* pquit)
+	FsServer(if_info_storage* pinfo,void** _psem,int* pquit,FssContainer* sc)
 	{
 		if_info=pinfo;
 		psem=_psem;
 		hthrd_server=NULL;
 		quitcode=pquit;
+		host=sc;
 	}
 	int Init();
 	void Exit();
@@ -352,11 +414,11 @@ private:
 	BiRingNode<FileServerRec>* get_fs_node(void* proc_id,void* h,fs_key_map::iterator* it=NULL);
 	fs_key_map smap;
 	map<void*,SrvProcRing*> proc_id_map;
-	map<uint,int> cmd_data_size_map;
 	void* hthrd_server;
 	if_info_storage* if_info;
 	void** psem;
 	int* quitcode;
+	FssContainer* host;
 };
 class FssContainer
 {
@@ -371,9 +433,12 @@ public:
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
+	DataBackupRestoreCallback GetDBRCallback(uint cmd);
 private:
+	void SetupBackupRestoreMap();
 	vector<FsServer*> vfs_srv;
 	vector<storage_mod_info> vfs_mod;
+	map<uint,DataBackupRestoreCallback> cmd_data_backup_restore_map;
 	void* sem;
 	bool locked;
 	int quitcode;

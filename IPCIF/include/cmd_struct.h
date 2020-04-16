@@ -6,6 +6,7 @@
 #define LSBUFFER_ELEMENTS 8
 #define _1K 1024
 #define _1M (1024*1024)
+#define FSRDWR_BUF_LEN (_1K*4)
 #define ALIGN_4BYTES(M) (((M)+3)&~3)
 
 #define FS_ATTR_FLAGS_DIR     1
@@ -121,7 +122,7 @@ struct dgc_fsrdwr
 	uint offset;
 	uint offhigh;
 	uint len;
-	byte buf[_1K*4];
+	byte buf[FSRDWR_BUF_LEN];
 };
 
 struct dg_fsrdwr

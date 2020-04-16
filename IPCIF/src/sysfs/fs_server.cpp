@@ -11,6 +11,8 @@
 #define cdrvcall if_info->sto_drv->drvcall
 DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
+DEFINE_UINT_VAL(fsserver_backup_buf_num,4);
+DEFINE_UINT_VAL(fsserver_backup_sid_reserve,16);
 FssContainer g_fssrv;
 bool less_servrec_ptr::operator()(const FileServerKey& a, const FileServerKey& b) const
 {
@@ -37,6 +39,170 @@ T* find_in_vector(vector<T>& v,T& element,bool(*equal_func)(T&,T&))
 	}
 	return NULL;
 }
+void BackupRing::Init()
+{
+	backup_items=new BiRingNode<BackupData>[fsserver_backup_buf_num];
+	mem_backup=new byte[FSRDWR_BUF_LEN*fsserver_backup_buf_num];
+	for(int i=0;i<(int)fsserver_backup_buf_num;i++)
+	{
+		backup_items[i].t.rdwr=mem_backup+i*FSRDWR_BUF_LEN;
+		backup_free.AddNodeToBegin(backup_items+i);
+	}
+}
+inline void clear_backup_ring_node(BiRingNode<BackupData>* node)
+{
+	node->t.lsfiles.clear();
+}
+BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
+{
+	BiRingNode<BackupData>* node=NULL;
+	map<dword,BiRingNode<BackupData>*>::iterator it;
+	if(backup)
+	{
+		while((node=backup_data.GetPrev())!=&backup_data)
+		{
+			if(data->sid-node->t.dbase.sid
+				>fsserver_backup_sid_reserve)
+			{
+				if((it=bmap.find(node->t.dbase.sid))!=bmap.end())
+					bmap.erase(it);
+				clear_backup_ring_node(node);
+				node->Detach();
+				backup_free.AddNodeToBegin(node);
+			}
+			else
+				break;
+		}
+		if(NULL==(node=backup_free.GetNodeFromTail()))
+		{
+			node=backup_data.GetNodeFromTail();
+			assert(node!=NULL);
+			if(node==NULL)
+				return NULL;
+			if((it=bmap.find(node->t.dbase.sid))!=bmap.end())
+				bmap.erase(it);
+		}
+		memcpy(&node->t.dbase,data,sizeof(datagram_base));
+		clear_backup_ring_node(node);
+		backup_data.AddNodeToBegin(node);
+		bmap[data->sid]=node;
+	}
+	else
+	{
+		if((it=bmap.find(data->sid))==bmap.end())
+			return NULL;
+		node=it->second;
+		if(node->t.dbase.cmd!=data->cmd
+			||node->t.dbase.caller!=data->caller)
+			return NULL;
+		data->ret=node->t.dbase.ret;
+	}
+	return node;
+}
+#define common_backup_restore_code \
+	BiRingNode<BackupData>* node=ring->GetNode(dbase,backup); \
+	if(node==NULL) \
+		return false; \
+	if(dbase->ret!=0) \
+		return true
+bool BackupRing::DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	return true;
+}
+bool BackupRing::DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	dg_fsopen* dg=(dg_fsopen*)dbase;
+	if(backup)
+		node->t.handle=dg->open.hFile;
+	else
+		dg->open.hFile=node->t.handle;
+	return true;
+}
+bool BackupRing::DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	dg_fsrdwr* dg=(dg_fsrdwr*)dbase;
+	if(backup)
+	{
+		node->t.rdwrlen=dg->rdwr.len;
+		if(dg->header.cmd==CMD_FSREAD)
+			memcpy(node->t.rdwr,dg->rdwr.buf,dg->rdwr.len);
+	}
+	else
+	{
+		dg->rdwr.len=node->t.rdwrlen;
+		if(node->t.dbase.cmd==CMD_FSREAD)
+			memcpy(dg->rdwr.buf,node->t.rdwr,node->t.rdwrlen);
+	}
+	return true;
+}
+bool BackupRing::DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	dg_fssize* dg=(dg_fssize*)dbase;
+	if(backup)
+	{
+		node->t.len=dg->size.len;
+		node->t.lenhigh=dg->size.lenhigh;
+	}
+	else
+	{
+		dg->size.len=node->t.len;
+		dg->size.lenhigh=node->t.lenhigh;
+	}
+	return true;
+}
+bool BackupRing::DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	dg_fslsfiles* dg=(dg_fslsfiles*)dbase;
+	if(backup)
+	{
+		clear_backup_ring_node(node);
+		node->t.nfile=dg->files.nfiles;
+		node->t.hls=dg->files.handle;
+		for(int i=0;i<LSBUFFER_ELEMENTS&&i<(int)dg->files.nfiles;i++)
+		{
+			fsls_element elem;
+			elem.filename=dg->files.file[i].name;
+			elem.flags=dg->files.file[i].flags;
+			node->t.lsfiles.push_back(elem);
+		}
+	}
+	else
+	{
+		dg->files.nfiles=node->t.nfile;
+		dg->files.handle=node->t.hls;
+		for(int i=0;i<LSBUFFER_ELEMENTS&&i<(int)node->t.nfile;i++)
+		{
+			strcpy(dg->files.file[i].name,node->t.lsfiles[i].filename.c_str());
+			dg->files.file[i].flags=node->t.lsfiles[i].flags;
+		}
+	}
+	return true;
+}
+bool BackupRing::DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	dg_fsattr* dg=(dg_fsattr*)dbase;
+	if(backup)
+	{
+		node->t.mask=dg->attr.mask;
+		node->t.flags=dg->attr.flags;
+		for(int i=0;i<3;i++)
+			node->t.date[i]=dg->attr.date[i].date;
+	}
+	else
+	{
+		dg->attr.mask=node->t.mask;
+		dg->attr.flags=node->t.flags;
+		for(int i=0;i<3;i++)
+			dg->attr.date[i].date=node->t.date[i];
+	}
+	return true;
+}
 void* SrvProcRing::get_handle()
 {
 	void* h;
@@ -56,6 +222,8 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 	int ret=0;
 	if(pif==NULL||resolver==NULL)
 		return ERR_INVALID_PARAM;
+	if(fsserver_backup_buf_num==0)
+		fsserver_backup_buf_num=1;
 	vector<if_proc>& ifs=*pif;
 	if_id_info_storage ifstorage;
 	for(int i=0;i<(int)ifs.size();i++)
@@ -104,6 +272,7 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 			}
 		}
 	}
+	SetupBackupRestoreMap();
 	resolver->AddHandler(ServerClearHandler);
 	sem=sys_create_sem(fsserver_handle_pass,fsserver_handle_pass,NULL);
 	if(!VALID(sem))
@@ -140,7 +309,7 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 			vfs_mod[i].storage_drvs[j].inited=true;
 			for(int k=0;k<(int)vfs_mod[i].storage_drvs[j].storage_devs.size();k++)
 			{
-				FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j].storage_devs[k],&sem,&quitcode);
+				FsServer* srv=new FsServer(&vfs_mod[i].storage_drvs[j].storage_devs[k],&sem,&quitcode,this);
 				if(0!=(ret=srv->Init()))
 				{
 					delete srv;
@@ -179,6 +348,55 @@ void FssContainer::Exit()
 			sys_free_library(vfs_mod[i].hMod);
 	}
 	vfs_mod.clear();
+	cmd_data_backup_restore_map.clear();
+}
+DataBackupRestoreCallback FssContainer::GetDBRCallback(uint cmd)
+{
+	map<uint, DataBackupRestoreCallback>::iterator it;
+	if((it=cmd_data_backup_restore_map.find(cmd))
+		==cmd_data_backup_restore_map.end())
+	{
+		assert(false);
+		return NULL;
+	}
+	return it->second;
+}
+void FssContainer::SetupBackupRestoreMap()
+{
+	uint cmd_array[]={
+		CMD_FSOPEN,
+		CMD_FSCLOSE,
+		CMD_FSREAD,
+		CMD_FSWRITE,
+		CMD_FSGETSIZE,
+		CMD_FSSETSIZE,
+		CMD_MAKEDIR,
+		CMD_LSFILES,
+		CMD_FSMOVE,
+		CMD_FSDELETE,
+		CMD_FSGETATTR,
+		CMD_FSSETATTR,
+	};
+	DataBackupRestoreCallback cmd_data_cb_array[]={
+		BackupRing::DBRCallHandle,//fsopen
+		BackupRing::DBRCallRet,//fsclose
+		BackupRing::DBRCallRdWr,
+		BackupRing::DBRCallRdWr,
+		BackupRing::DBRCallSize,
+		BackupRing::DBRCallRet,//fssetsize
+		BackupRing::DBRCallRet,//fsmkdir
+		BackupRing::DBRCallFiles,
+		BackupRing::DBRCallRet,//fsmove
+		BackupRing::DBRCallRet,//fsdel
+		BackupRing::DBRCallAttr,
+		BackupRing::DBRCallRet,//fsattr
+	};
+	assert(sizeof(cmd_array)/sizeof(uint)
+		==sizeof(cmd_data_cb_array)/sizeof(DataBackupRestoreCallback));
+	for(int i=0;i<(int)(sizeof(cmd_array)/sizeof(uint));i++)
+	{
+		cmd_data_backup_restore_map[cmd_array[i]]=cmd_data_cb_array[i];
+	}
 }
 int FssContainer::SuspendIO(bool bsusp,uint time)
 {
@@ -263,45 +481,13 @@ int FsServer::Init()
 		return ERR_GENERIC;
 	if(quitcode==NULL)
 		return ERR_GENERIC;
+	if(host==NULL)
+		return ERR_GENERIC;
 	if(if_info==NULL||cifproc==NULL||cstomod==NULL
 		||cstodrv==NULL||cdrvcall==NULL)
 		return ERR_GENERIC;
 	if(!cstodrv->inited)
 		return ERR_GENERIC;
-	uint cmd_array[]={
-		CMD_FSOPEN,
-		CMD_FSCLOSE,
-		CMD_FSREAD,
-		CMD_FSWRITE,
-		CMD_FSGETSIZE,
-		CMD_FSSETSIZE,
-		CMD_MAKEDIR,
-		CMD_LSFILES,
-		CMD_FSMOVE,
-		CMD_FSDELETE,
-		CMD_FSGETATTR,
-		CMD_FSSETATTR,
-	};
-	uint cmd_data_size_array[]={
-		sizeof(dg_fsopen)-sizeof(((dgc_fsopen*)NULL)->path),
-		sizeof(dg_fsclose),
-		sizeof(dg_fsrdwr),
-		sizeof(dg_fsrdwr)-sizeof(((dgc_fsrdwr*)NULL)->buf),
-		sizeof(dg_fssize),
-		sizeof(dg_fssize),
-		sizeof(datagram_base),//fsmkdir
-		sizeof(dg_fslsfiles)-sizeof(((dgc_fslsfiles*)NULL)->path),
-		sizeof(datagram_base),//fsmove
-		sizeof(datagram_base),//fsdel
-		sizeof(dg_fsattr)-sizeof(((dgc_fsattr*)NULL)->path),
-		sizeof(datagram_base),//fsattr
-	};
-	assert(sizeof(cmd_array)/sizeof(uint)
-		==sizeof(cmd_data_size_array)/sizeof(uint));
-	for(int i=0;i<(int)(sizeof(cmd_array)/sizeof(uint));i++)
-	{
-		cmd_data_size_map[cmd_array[i]]=cmd_data_size_array[i];
-	}
 	int ret=0;
 	if(0!=(ret=CreateInterface()))
 		goto failed;
@@ -325,7 +511,6 @@ failed:
 		close_if(cifproc->hif);
 		cifproc->hif=NULL;
 	}
-	cmd_data_size_map.clear();
 	return ret;
 }
 void FsServer::Exit()
@@ -342,7 +527,6 @@ void FsServer::Exit()
 	chdev=NULL;
 	close_if(cifproc->hif);
 	cifproc->hif=NULL;
-	cmd_data_size_map.clear();
 }
 inline void clear_node(BiRingNode<FileServerRec>* node,pintf_fsdrv if_drv,void* hdev)
 {
@@ -350,10 +534,17 @@ inline void clear_node(BiRingNode<FileServerRec>* node,pintf_fsdrv if_drv,void* 
 	{
 	case FSSERVER_REC_TYPE_FILE_DESCRIPTOR:
 		if(VALID(node->t.fd))
+		{
 			if_drv->close(hdev,node->t.fd);
+			node->t.fd=NULL;
+		}
 		break;
 	case FSSERVER_REC_TYPE_FILE_LIST:
-		delete node->t.pvfiles;
+		if(node->t.pvfiles!=NULL)
+		{
+			delete node->t.pvfiles;
+			node->t.pvfiles=NULL;
+		}
 		break;
 	}
 }
@@ -470,14 +661,11 @@ bool FsServer::RestoreData(datagram_base* data)
 	if((it=proc_id_map.find(data->caller))==proc_id_map.end())
 		return false;
 	SrvProcRing* ring=it->second;
-	if(data->cmd==ring->GetBackupData()->header.cmd
-		&&data->sid==ring->GetBackupData()->header.sid)
-	{
-		assert(cmd_data_size_map.find(data->cmd)!=cmd_data_size_map.end());
-		memcpy(data,ring->GetBackupData(),cmd_data_size_map[data->cmd]);
-		return true;
-	}
-	return false;
+	BackupRing* backring=ring->get_backup_ring();
+	DataBackupRestoreCallback cb=host->GetDBRCallback(data->cmd);
+	if(cb==NULL)
+		return false;
+	return cb(data,backring,false);
 }
 void FsServer::BackupData(datagram_base* data)
 {
@@ -487,8 +675,11 @@ void FsServer::BackupData(datagram_base* data)
 	if((it=proc_id_map.find(data->caller))==proc_id_map.end())
 		return;
 	SrvProcRing* ring=it->second;
-	assert(cmd_data_size_map.find(data->cmd)!=cmd_data_size_map.end());
-	memcpy(ring->GetBackupData(),data,cmd_data_size_map[data->cmd]);
+	BackupRing* backring=ring->get_backup_ring();
+	DataBackupRestoreCallback cb=host->GetDBRCallback(data->cmd);
+	if(cb==NULL)
+		return;
+	cb(data,backring,true);
 }
 bool FsServer::AddProcRing(void* proc_id)
 {
