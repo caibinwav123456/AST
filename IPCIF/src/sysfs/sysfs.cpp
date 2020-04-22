@@ -1672,3 +1672,84 @@ int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen)
 	}
 	return ret;
 }
+#define RETRY_TIMES 20
+#define DELAY_MILLISEC 100
+int cb_fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
+{
+	vector<fsls_element> vfile;
+	int ret=0;
+	for(int i=0;i<RETRY_TIMES;i++)
+	{
+		if(0==(ret=g_sysfs.ListFile(pathname,vfile)))
+			break;
+		sys_sleep(DELAY_MILLISEC);
+	}
+	if(ret!=0)
+		return ret;
+	for(int i=0;i<(int)vfile.size();i++)
+	{
+		if(0!=cb((char*)vfile[i].filename.c_str(),FS_IS_DIR(vfile[i].flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'/'))
+			ret=ERR_FILE_IO;
+	}
+	return ret;
+}
+int cb_fs_stat(char* pathname,dword* type)
+{
+	int ret=0;
+	dword flags=0;
+	for(int i=0;i<RETRY_TIMES;i++)
+	{
+		ret=g_sysfs.GetSetFileAttr(CMD_FSGETATTR,pathname,FS_ATTR_FLAGS,&flags);
+		if(ret==0||ret==ERR_FS_FILE_NOT_EXIST)
+			break;
+		sys_sleep(DELAY_MILLISEC);
+	}
+	if(ret!=0)
+		return ret;
+	if(type!=NULL)
+		*type=(FS_IS_DIR(flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL);
+	return 0;
+}
+int cb_fs_mkdir(char* path)
+{
+	int ret=0;
+	for(int i=0;i<RETRY_TIMES;i++)
+	{
+		if(0==(ret=g_sysfs.MakeDir(path)))
+			break;
+		sys_sleep(DELAY_MILLISEC);
+	}
+	return ret;
+}
+int cb_fs_copy(char* from,char* to)
+{
+	int ret=0;
+	for(int i=0;i<RETRY_TIMES;i++)
+	{
+		if(0==(ret=g_sysfs.CopyFile(from,to)))
+			break;
+		sys_sleep(DELAY_MILLISEC);
+	}
+	return ret;
+}
+int cb_fs_delete(char* pathname)
+{
+	int ret=0;
+	for(int i=0;i<RETRY_TIMES;i++)
+	{
+		if(0==(ret=g_sysfs.DeleteFile(pathname)))
+			break;
+		sys_sleep(DELAY_MILLISEC);
+	}
+	return ret;
+}
+int __fs_recurse_copy(char* from,char* to)
+{
+	file_recurse_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
+	return recurse_fcopy(from,to,&cb,'/');
+}
+int __fs_recurse_delete(char* pathname)
+{
+	file_recurse_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
+	return recurse_fdelete(pathname,&cb,'/');
+}

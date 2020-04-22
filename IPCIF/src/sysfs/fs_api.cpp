@@ -73,7 +73,7 @@ DLLAPI(int) fs_mkdir(char* path)
 {
 	return g_sysfs.MakeDir(path);
 }
-DLL int fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
+DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
 {
 	vector<fsls_element> vfile;
 	int ret=0;
@@ -86,37 +86,13 @@ DLL int fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
 	}
 	return ret;
 }
-int cb_fs_stat(char* pathname,dword* type)
-{
-	int ret=0;
-	dword flags=0;
-	if(0!=(ret=g_sysfs.GetSetFileAttr(CMD_FSGETATTR,pathname,FS_ATTR_FLAGS,&flags)))
-		return ret;
-	if(type!=NULL)
-		*type=(FS_IS_DIR(flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL);
-	return 0;
-}
-int cb_fs_mkdir(char* path)
-{
-	return g_sysfs.MakeDir(path);
-}
-int cb_fs_copy(char* from,char* to)
-{
-	return g_sysfs.CopyFile(from,to);
-}
-int cb_fs_delete(char* pathname)
-{
-	return g_sysfs.DeleteFile(pathname);
-}
 DLLAPI(int) fs_recurse_copy(char* from,char* to)
 {
-	file_recurse_callback cb={cb_fs_stat,fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
-	return recurse_fcopy(from,to,&cb,'/');
+	return __fs_recurse_copy(from,to);
 }
 DLLAPI(int) fs_recurse_delete(char* pathname)
 {
-	file_recurse_callback cb={cb_fs_stat,fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
-	return recurse_fdelete(pathname,&cb,'/');
+	return __fs_recurse_delete(pathname);
 }
 
 DLLAPI(int) fss_init(vector<if_proc>* pif,RequestResolver* resolver)

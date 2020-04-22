@@ -172,7 +172,7 @@ int sys_is_absolute_path(char* path, char dsym)
 int sys_fstat(char* pathname, dword* type)
 {
 	if(!PathFileExistsA(pathname))
-		return ERR_FILE_IO;
+		return ERR_FS_FILE_NOT_EXIST;
 	if(type!=NULL)
 		*type=(PathIsDirectoryA(pathname)?FILE_TYPE_DIR:FILE_TYPE_NORMAL);
 	return 0;

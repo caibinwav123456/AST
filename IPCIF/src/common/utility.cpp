@@ -485,8 +485,11 @@ static int cb_delete(char* name, dword type, void* param, char dsym)
 DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, char dsym)
 {
 	dword type=0;
-	if(0!=callback->_fstat_(pathname,&type))
+	int ret=callback->_fstat_(pathname,&type);
+	if(ret==ERR_FS_FILE_NOT_EXIST)
 		return 0;
+	if(ret!=0)
+		return ret;
 	if(type!=FILE_TYPE_DIR)
 		return callback->_fdelete_(pathname);
 	rdel_param rparam;
@@ -498,8 +501,7 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, cha
 	{
 		*(--rparam.start)=0;
 	}
-	int ret=callback->_ftraverse_(rparam.path, cb_delete, &rparam);
-	if(ret==0)
+	if(0==(ret=callback->_ftraverse_(rparam.path, cb_delete, &rparam)))
 	{
 		*rparam.start=0;
 		ret=callback->_fdelete_(rparam.path);
