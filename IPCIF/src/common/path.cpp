@@ -14,7 +14,7 @@ DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym)
 	if(pos<(int)path.length())
 		split.push_back(path.substr(pos,path.length()-pos));
 }
-inline bool add_path_compenent(vector<string>& path, const string& comp)
+inline bool add_path_component(vector<string>& path, const string& comp)
 {
 	if(comp==".")
 		return true;
@@ -48,7 +48,7 @@ DLLAPI(int)get_direct_path(vector<string>& direct, vector<string>& indirect)
 	direct.clear();
 	for(int i=0;i<(int)indirect.size();i++)
 	{
-		if(!add_path_compenent(direct, indirect[i]))
+		if(!add_path_component(direct, indirect[i]))
 		{
 			direct.clear();
 			return ERR_INVALID_PATH;

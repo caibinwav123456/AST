@@ -3,7 +3,6 @@
 #include "dir_symbol.h"
 #include <string>
 #include <vector>
-#include <string.h>
 using namespace std;
 DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym=_dir_symbol);
 DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym=_dir_symbol);
