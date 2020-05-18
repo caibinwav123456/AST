@@ -61,17 +61,21 @@ DLLAPI(int) fs_delete(char* path)
 {
 	return g_sysfs.DeleteFile(path);
 }
-DLLAPI(int) fs_get_attr(char* path,dword mask,dword flags,DateTime* date)
+DLLAPI(int) fs_get_attr(char* path,dword mask,dword* flags,DateTime* date)
 {
-	return g_sysfs.GetSetFileAttr(CMD_FSGETATTR,path,mask,&flags,date);
+	return g_sysfs.GetSetFileAttr(CMD_FSGETATTR,path,mask,flags,date);
 }
-DLLAPI(int) fs_set_attr(char* path,dword mask,dword* flags,DateTime* date)
+DLLAPI(int) fs_set_attr(char* path,dword mask,dword flags,DateTime* date)
 {
-	return g_sysfs.GetSetFileAttr(CMD_FSSETATTR,path,mask,flags,date);
+	return g_sysfs.GetSetFileAttr(CMD_FSSETATTR,path,mask,&flags,date);
 }
 DLLAPI(int) fs_mkdir(char* path)
 {
 	return g_sysfs.MakeDir(path);
+}
+DLLAPI(int) fs_list_file(char* pathname,vector<fsls_element>& files)
+{
+	return g_sysfs.ListFile(pathname,files);
 }
 DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
 {
@@ -85,6 +89,10 @@ DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* pa
 			ret=ERR_FILE_IO;
 	}
 	return ret;
+}
+DLLAPI(int) fs_list_dev(vector<string>& devlist,uint* defdev)
+{
+	return g_sysfs.ListDev(devlist,defdev);
 }
 DLLAPI(int) fs_recurse_copy(char* from,char* to)
 {

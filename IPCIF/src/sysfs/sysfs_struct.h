@@ -247,6 +247,7 @@ public:
 	int DeleteFile(const char* pathname);
 	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags=NULL,DateTime* datetime=NULL);
 	int ListFile(const char* path,vector<fsls_element>& files);
+	int ListDev(vector<string>& devlist,uint* defdev=NULL);
 	int MakeDir(const char* path);
 private:
 	int ConnectServer(if_proc* pif,void** phif,bool once=false);

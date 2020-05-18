@@ -633,24 +633,23 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 {
 	vector<string> split_in_path,split_out_path;
 	split_path(in_path,split_in_path,'/');
-	if(split_in_path.size()==0)
-		return ERR_INVALID_PATH;
 	int ret=0;
 	if_proc* ifproc;
-	if(split_in_path[0][split_in_path[0].size()-1]==':')
+	if((!split_in_path[0].empty())
+		&&*(split_in_path[0].end()-1)==':')
 	{
 		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);
 		if(if_id.empty())
 			return ERR_INVALID_PATH;
 		if(NULL==(ifproc=GetIfProcFromID(if_id)))
 			return ERR_INVALID_PATH;
+		split_in_path.erase(split_in_path.begin());
 	}
 	else
 	{
 		if(NULL==(ifproc=GetIfProcFromID("")))
 			return ERR_INVALID_PATH;
 	}
-	split_in_path.erase(split_in_path.begin());
 	if(0!=(ret=get_direct_path(split_out_path,split_in_path)))
 		return ret;
 	merge_path(path,split_out_path,'/');
@@ -1622,6 +1621,17 @@ end:
 		}
 	}
 	return ret;
+}
+int SysFs::ListDev(vector<string>& devlist,uint* defdev)
+{
+	devlist.clear();
+	for(int i=0;i<(int)ifvproc.size();i++)
+	{
+		devlist.push_back(ifvproc[i]->id);
+	}
+	if(defdev!=NULL)
+		*defdev=use_storage_level;
+	return 0;
 }
 int SysFs::MakeDir(const char* path)
 {

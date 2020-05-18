@@ -127,7 +127,7 @@ int NativeFsDev::parse_cmd_head(const char* head,const string& cmd,string& optio
 	string cmd_head(head);
 	if(cmd.size()<cmd_head.size()||
 		cmd.substr(0,cmd_head.size())!=cmd_head)
-		return ERR_FS_DEV_FAILED_INVALID_CMD;
+		return ERR_INVALID_CMD;
 	options=cmd.substr(cmd_head.size(),cmd.size()-cmd_head.size());
 	return 0;
 }
@@ -141,7 +141,7 @@ int NativeFsDev::Init(string cmd)
 	if(0!=(ret=parse_cmd((const byte*)options.c_str(),options.size(),cmd_options)))
 		return ret;
 	if(cmd_options.find(NATIVEFS_BASE_PATH)==cmd_options.end())
-		return ERR_FS_DEV_FAILED_INVALID_CMD;
+		return ERR_INVALID_CMD;
 	if(0!=(ret=fs_tree.Init(cmd_options[NATIVEFS_BASE_PATH])))
 		return ret;
 	if(0!=(ret=PrepareBase(fs_tree.GetBase())))
@@ -172,7 +172,7 @@ int NativeFsDev::Format(string cmd)
 	if(0!=(ret=parse_cmd((const byte*)options.c_str(),options.size(),cmd_options)))
 		return ret;
 	if(cmd_options.find(NATIVEFS_BASE_PATH)==cmd_options.end())
-		return ERR_FS_DEV_FAILED_INVALID_CMD;
+		return ERR_INVALID_CMD;
 	vector<string> vbase;
 	string fullpath;
 	__get_full_path(cmd_options[NATIVEFS_BASE_PATH],vbase);

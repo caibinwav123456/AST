@@ -77,7 +77,7 @@ int parse_cmd(const byte* buf,int size,
 			break;
 		pbuf=buf,psize=size;
 		if(!trim_text(buf,size,trim_token))
-			return ERR_FS_DEV_FAILED_INVALID_CMD;
+			return ERR_INVALID_CMD;
 		make_token(pbuf,buf,token_buf,item);
 		trim_text(buf,size,trim_space);
 		if(size==0||*buf!='=')
@@ -130,7 +130,7 @@ int parse_cmd(const byte* buf,int size,
 				}
 			}
 			if(size==0)
-				return ERR_FS_DEV_FAILED_INVALID_CMD;
+				return ERR_INVALID_CMD;
 			//make_token(pbuf,buf,token_buf,val);
 			val=(char*)token_buf;
 			configs[item]=val;
@@ -138,7 +138,7 @@ int parse_cmd(const byte* buf,int size,
 			continue;
 		}
 		else if(!trim_text(buf,size,trim_token))
-			return ERR_FS_DEV_FAILED_INVALID_CMD;
+			return ERR_INVALID_CMD;
 		make_token(pbuf,buf,token_buf,val);
 		configs[item]=val;
 	}
