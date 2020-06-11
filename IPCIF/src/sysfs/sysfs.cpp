@@ -857,6 +857,20 @@ int cb_fsc(void* addr,void* param,int op)
 			}
 		}
 		break;
+		case CMD_FSGETDEVINFO:
+		{
+			dg_fsdevinfo* fsdevinfo=(dg_fsdevinfo*)addr;
+			if(op&OP_PARAM)
+			{
+				strcpy(fsdevinfo->info.devname,dgp->fsdevinfo.devname->c_str());
+				*fsdevinfo->info.devtype=0;
+			}
+			if((op&OP_RETURN)&&dgp->dbase->ret==0)
+			{
+				dgp->fsdevinfo.devinfo->devtype=fsdevinfo->info.devtype;
+			}
+		}
+		break;
 	}
 	return 0;
 }
@@ -1450,25 +1464,13 @@ end2:
 end:
 	if(VALID(hsrc))
 	{
-		int retc;
-		for(int t=10;t>0&&0!=(retc=Close(hsrc));t--)
-		{
-			if(retc==ERR_FS_INVALID_HANDLE)
-				break;
-			sys_sleep(100);
-		}
+		int retc=__fs_perm_close(hsrc);
 		if(ret==0)
 			ret=retc;
 	}
 	if(VALID(hdst))
 	{
-		int retc;
-		for(int t=10;t>0&&0!=(retc=Close(hdst));t--)
-		{
-			if(retc==ERR_FS_INVALID_HANDLE)
-				break;
-			sys_sleep(100);
-		}
+		int retc=__fs_perm_close(hdst);
 		if(ret==0)
 			ret=retc;
 		if(ret!=0)
@@ -1624,6 +1626,7 @@ end:
 }
 int SysFs::ListDev(vector<string>& devlist,uint* defdev)
 {
+	uninited_return;
 	devlist.clear();
 	for(int i=0;i<(int)ifvproc.size();i++)
 	{
@@ -1632,6 +1635,32 @@ int SysFs::ListDev(vector<string>& devlist,uint* defdev)
 	if(defdev!=NULL)
 		*defdev=use_storage_level;
 	return 0;
+}
+int SysFs::GetDevInfo(const string& devname,fs_dev_info& devinfo)
+{
+	uninited_return;
+	int ret=0;
+	fs_dev_info dinfo;
+	if_proc* ifpath=GetIfProcFromID(devname);
+	if(ifpath==NULL)
+		return ERR_INVALID_PATH;
+	void* hif;
+	if(0!=(ret=BeginTransfer(ifpath,&hif)))
+		return ret;
+	datagram_base dg;
+	init_current_datagram_base(&dg,CMD_FSGETDEVINFO);
+	fs_datagram_param param;
+	param.dbase=&dg;
+	param.fsdevinfo.devname=&devname;
+	param.fsdevinfo.devinfo=&dinfo;
+	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		goto end;
+	ret=dg.ret;
+end:
+	EndTransfer(&hif);
+	if(ret==0)
+		devinfo=dinfo;
+	return ret;
 }
 int SysFs::MakeDir(const char* path)
 {
@@ -1679,6 +1708,21 @@ int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen)
 	else if(left>0&&ret==0)
 	{
 		return ERR_INVALID_PARAM;
+	}
+	return ret;
+}
+int __fs_perm_close(void* handle)
+{
+	if(!VALID(handle))
+	{
+		return ERR_FS_INVALID_HANDLE;
+	}
+	int ret;
+	for(int t=20;t>0&&0!=(ret=g_sysfs.Close(handle));t--)
+	{
+		if(ret==ERR_FS_INVALID_HANDLE)
+			break;
+		sys_sleep(100);
 	}
 	return ret;
 }

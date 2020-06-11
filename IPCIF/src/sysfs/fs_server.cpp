@@ -203,6 +203,20 @@ bool BackupRing::DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup)
 	}
 	return true;
 }
+bool BackupRing::DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backup)
+{
+	common_backup_restore_code;
+	dg_fsdevinfo* dg=(dg_fsdevinfo*)dbase;
+	if(backup)
+	{
+		node->t.devtype=dg->info.devtype;
+	}
+	else
+	{
+		strcpy(dg->info.devtype,node->t.devtype.c_str());
+	}
+	return true;
+}
 void* SrvProcRing::get_handle()
 {
 	void* h;
@@ -376,6 +390,7 @@ void FssContainer::SetupBackupRestoreMap()
 		CMD_FSDELETE,
 		CMD_FSGETATTR,
 		CMD_FSSETATTR,
+		CMD_FSGETDEVINFO,
 	};
 	DataBackupRestoreCallback cmd_data_cb_array[]={
 		BackupRing::DBRCallHandle,//fsopen
@@ -390,6 +405,7 @@ void FssContainer::SetupBackupRestoreMap()
 		BackupRing::DBRCallRet,//fsdel
 		BackupRing::DBRCallAttr,
 		BackupRing::DBRCallRet,//fsattr
+		BackupRing::DBRCallDevInfo,
 	};
 	assert(sizeof(cmd_array)/sizeof(uint)
 		==sizeof(cmd_data_cb_array)/sizeof(DataBackupRestoreCallback));
@@ -756,6 +772,12 @@ int cb_fs_server(void* addr,void* param,int op)
 			srv->HandleListFiles(fslsfiles);
 		}
 		break;
+	case CMD_FSGETDEVINFO:
+		{
+			dg_fsdevinfo* fsdevinfo=(dg_fsdevinfo*)addr;
+			srv->HandleGetDevInfo(fsdevinfo);
+		}
+		break;
 	}
 	srv->BackupData(dbase);
 	return 0;
@@ -1041,4 +1063,9 @@ end2:
 end:
 	fslsfiles->header.ret=ret;
 	return ret;
+}
+int FsServer::HandleGetDevInfo(dg_fsdevinfo* fsdevinfo)
+{
+	strcpy(fsdevinfo->info.devtype,if_info->sto_drv->drv_name.c_str());
+	return 0;
 }

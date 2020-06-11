@@ -47,6 +47,7 @@ enum if_cmd_code
 	CMD_FSDELETE,
 	CMD_FSGETATTR,
 	CMD_FSSETATTR,
+	CMD_FSGETDEVINFO,
 };
 
 #pragma pack(push,1)
@@ -218,6 +219,18 @@ struct dg_fslsfiles
 	dgc_fslsfiles files;
 };
 
+struct dgc_fsdevinfo
+{
+	char devname[MAX_FILE_NAME];
+	char devtype[MAX_FILE_NAME];
+};
+
+struct dg_fsdevinfo
+{
+	datagram_base header;
+	dgc_fsdevinfo info;
+};
+
 //ASTManager interface
 struct dg_manager
 {
@@ -244,6 +257,7 @@ struct dg_sysfs
 		dgc_fsattr fsattr;
 		dgc_fsmkdir fsmkdir;
 		dgc_fslsfiles fslsfiles;
+		dgc_fsdevinfo fsdev;
 	};
 };
 #define SIZE_IF_SYSFS ALIGN_4BYTES(sizeof(dg_sysfs))

@@ -46,6 +46,10 @@ struct storage_mod_info
 	pintf_fsdrv(*STO_GET_INTF_FUNC)(char*);
 	vector<storage_drv_info> storage_drvs;
 };
+struct fs_dev_info
+{
+	string devtype;
+};
 struct proc_data
 {
 	void* hproc;

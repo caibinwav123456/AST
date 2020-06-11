@@ -77,6 +77,10 @@ DLLAPI(int) fs_list_file(char* pathname,vector<fsls_element>& files)
 {
 	return g_sysfs.ListFile(pathname,files);
 }
+DLLAPI(int) fs_perm_close(void* handle)
+{
+	return __fs_perm_close(handle);
+}
 DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
 {
 	vector<fsls_element> vfile;
@@ -93,6 +97,10 @@ DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* pa
 DLLAPI(int) fs_list_dev(vector<string>& devlist,uint* defdev)
 {
 	return g_sysfs.ListDev(devlist,defdev);
+}
+DLLAPI(int) fs_get_dev_info(const string& devname,fs_dev_info& dev)
+{
+	return g_sysfs.GetDevInfo(devname,dev);
 }
 DLLAPI(int) fs_recurse_copy(char* from,char* to)
 {

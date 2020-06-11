@@ -58,6 +58,70 @@ DLL bool operator>(const _Integer64<T>& a,const _Integer64<T>& b)
 	else
 		return a.low>b.low;
 }
+template<class T>
+DLL string FormatI64(_Integer64<T> i)
+{
+	return "";
+}
+template<>
+DLL string FormatI64<uint>(_Integer64<uint> i)
+{
+	if(i.high==0)
+	{
+		char num[64];
+		sprintf(num,"%u",i.low);
+		return num;
+	}
+	else
+	{
+		UInteger64 zero(0);
+		const uint base=1000;
+		string strout;
+		char buf[10];
+		while(i!=zero)
+		{
+			uint rem,t;
+			UInteger64 tmp;
+			tmp.high=i.high/base;
+			rem=i.high-tmp.high*base;
+			rem=((rem<<16)&(i.low>>16));
+			tmp.low=rem/base;
+			rem=rem-tmp.low*base;
+			rem=((rem<<16)&(i.low&((1<<16)-1)));
+			t=rem/base;
+			tmp.low=((tmp.low<<16)&t);
+			rem=rem-t*base;
+			sprintf(buf,"%u",rem);
+			strout=buf+strout;
+			i=tmp;
+		}
+		return strout;
+	}
+}
+template<>
+DLL string FormatI64<int>(_Integer64<int> i)
+{
+	if((i.high==0&&!(i.low&0x80000000))
+		||(i.high==-1&&(i.low&0x80000000)))
+	{
+		char num[64];
+		sprintf(num,"%d",(int)i.low);
+		return num;
+	}
+	else
+	{
+		UInteger64 absv(i.low,(uint*)&i.high);
+		string symbol;
+		if(absv.high&0x80000000)
+		{
+			symbol="-";
+			absv.low=~absv.low;
+			absv.high=~absv.high;
+			absv=absv+UInteger64(1);
+		}
+		return symbol+FormatI64<uint>(absv);
+	}
+}
 DLL void __unused_int64_func__()
 {
 	Integer64 int64_1,int64_2;
@@ -76,4 +140,6 @@ DLL void __unused_int64_func__()
 	{
 		printf("unuesd\n");
 	}
+	FormatI64(int64_1);
+	FormatI64(uint64_1);
 }

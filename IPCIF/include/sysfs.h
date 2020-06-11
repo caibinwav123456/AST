@@ -23,8 +23,10 @@ DLLAPI(int) fs_get_attr(char* path,dword mask,dword* flags=NULL,DateTime* date=N
 DLLAPI(int) fs_set_attr(char* path,dword mask,dword flags=0,DateTime* date=NULL);
 DLLAPI(int) fs_mkdir(char* path);
 DLLAPI(int) fs_list_file(char* pathname,vector<fsls_element>& files);
+DLLAPI(int) fs_perm_close(void* handle);
 DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param);
 DLLAPI(int) fs_list_dev(vector<string>& devlist,uint* defdev=NULL);
+DLLAPI(int) fs_get_dev_info(const string& devname,fs_dev_info& dev);
 DLLAPI(int) fs_recurse_copy(char* from,char* to);
 DLLAPI(int) fs_recurse_delete(char* pathname);
 DLLAPI(int) fss_init(vector<if_proc>* pif,RequestResolver* resolver);

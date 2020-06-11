@@ -56,6 +56,11 @@ struct fs_datagram_param
 			string* path;
 			vector<fsls_element>* files;
 		}fslsfiles;
+		struct
+		{
+			const string* devname;
+			fs_dev_info* devinfo;
+		}fsdevinfo;
 	};
 };
 struct LinearBuffer
@@ -210,6 +215,7 @@ enum E_FS_MODE
 #define FC_CLEAR (3<<FC_CLEAR_OFF)
 #define FC_MASK  (FC_EXIT|FC_CLEAR)
 int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen=NULL);
+int __fs_perm_close(void* handle);
 int __fs_recurse_copy(char* from,char* to);
 int __fs_recurse_delete(char* pathname);
 class SysFs
@@ -248,6 +254,7 @@ public:
 	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags=NULL,DateTime* datetime=NULL);
 	int ListFile(const char* path,vector<fsls_element>& files);
 	int ListDev(vector<string>& devlist,uint* defdev=NULL);
+	int GetDevInfo(const string& devname,fs_dev_info& devinfo);
 	int MakeDir(const char* path);
 private:
 	int ConnectServer(if_proc* pif,void** phif,bool once=false);
@@ -293,6 +300,7 @@ struct BackupData
 	datagram_base dbase;
 	byte* rdwr;
 	vector<fsls_element> lsfiles;
+	string devtype;
 	union
 	{
 		void* handle;
@@ -341,6 +349,7 @@ public:
 	static bool DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup);
 	static bool DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup);
 	static bool DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup);
+	static bool DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backup);
 private:
 	BiRingNode<BackupData>* GetNode(datagram_base* data,bool backup);
 	map<dword,BiRingNode<BackupData>*> bmap;
@@ -414,6 +423,7 @@ private:
 	int HandleMakeDir(dg_fsmkdir* fsmkdir);
 	int HandleGetSetAttr(dg_fsattr* fsattr);
 	int HandleListFiles(dg_fslsfiles* fslsfiles);
+	int HandleGetDevInfo(dg_fsdevinfo* fsdevinfo);
 	BiRingNode<FileServerRec>* get_fs_node(void* proc_id,void* h,fs_key_map::iterator* it=NULL);
 	fs_key_map smap;
 	map<void*,SrvProcRing*> proc_id_map;
