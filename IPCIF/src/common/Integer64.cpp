@@ -74,27 +74,28 @@ DLL string FormatI64<uint>(_Integer64<uint> i)
 	}
 	else
 	{
-		UInteger64 zero(0);
 		const uint base=1000;
 		string strout;
-		char buf[10];
-		while(i!=zero)
+		char buf[20];
+		while(i.high!=0)
 		{
 			uint rem,t;
 			UInteger64 tmp;
 			tmp.high=i.high/base;
 			rem=i.high-tmp.high*base;
-			rem=((rem<<16)&(i.low>>16));
+			rem=((rem<<16)|(i.low>>16));
 			tmp.low=rem/base;
 			rem=rem-tmp.low*base;
-			rem=((rem<<16)&(i.low&((1<<16)-1)));
+			rem=((rem<<16)|(i.low&((1<<16)-1)));
 			t=rem/base;
-			tmp.low=((tmp.low<<16)&t);
+			tmp.low=((tmp.low<<16)|t);
 			rem=rem-t*base;
-			sprintf(buf,"%u",rem);
+			sprintf(buf,"%03u",rem);
 			strout=buf+strout;
 			i=tmp;
 		}
+		sprintf(buf,"%u",i.low);
+		strout=buf+strout;
 		return strout;
 	}
 }
