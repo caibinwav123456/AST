@@ -9,7 +9,7 @@ class process_tracker
 {
 public:
 	process_tracker();
-	static cmutex* get_mutex()
+	static gate* get_mutex()
 	{
 		return &if_mutex;
 	}
@@ -32,7 +32,7 @@ private:
 	bool quit;
 	vector<proc_data> pdata;
 	if_control_block cblk;
-	static cmutex if_mutex;
+	static gate if_mutex;
 	static int threadfunc(void* param);
 };
 

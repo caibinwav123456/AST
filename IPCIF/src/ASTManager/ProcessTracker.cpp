@@ -7,7 +7,7 @@
 
 #define MAX_CONNECT_TIMES 10
 
-cmutex process_tracker::if_mutex;
+gate process_tracker::if_mutex;
 
 struct sem_pair
 {

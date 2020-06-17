@@ -226,12 +226,6 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 	buf_len=buflen;
 	if(pblk!=NULL)
 	{
-		void* m=pblk->m.get_mutex();
-		if(!VALID(m))
-		{
-			ret=ERR_GENERIC;
-			goto failed;
-		}
 		mutex=&pblk->m;
 		if(0!=(ret=EnumStorageModule(&pblk->pdata)))
 			goto failed;
@@ -258,15 +252,12 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 	sem=sys_create_sem(sysfs_query_pass,sysfs_query_pass,NULL);
 	fmap_protect=sys_create_sem(1,1,NULL);
 	bool b=(mode==fsmode_semipermanent_if);
-	bool b2=(mode==fsmode_permanent_if);
-	if(b2)
-		mutex_protect=sys_create_sem(1,1,NULL);
 	if(b)
 	{
 		sem_reconn=sys_create_sem(0,1,NULL);
 		flag_protect=sys_create_sem(1,1,NULL);
 	}
-	if((!VALID(sem))||(!VALID(fmap_protect))||(b&&(!VALID(sem_reconn)||!VALID(flag_protect)))||(b2&&(!VALID(mutex_protect))))
+	if((!VALID(sem))||(!VALID(fmap_protect))||(b&&(!VALID(sem_reconn)||!VALID(flag_protect))))
 	{
 		ret=ERR_SEM_CREATE_FAILED;
 		goto failed;
@@ -309,7 +300,6 @@ failed:
 	sem_safe_release(sem);
 	sem_safe_release(sem_reconn);
 	sem_safe_release(flag_protect);
-	sem_safe_release(mutex_protect);
 	sem_safe_release(fmap_protect);
 	mutex=NULL;
 	return ret;
@@ -347,14 +337,14 @@ void SysFs::Exit()
 	sem_safe_release(sem);
 	sem_safe_release(sem_reconn);
 	sem_safe_release(flag_protect);
-	sem_safe_release(mutex_protect);
 	sem_safe_release(fmap_protect);
 	mutex=NULL;
 }
 int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 {
 	dword flag;
-	sys_wait_sem(flag_protect);
+	if(VALID(flag_protect))
+		sys_wait_sem(flag_protect);
 	flag=flags;
 	if(cause==FC_EXIT)
 	{
@@ -370,7 +360,8 @@ int SysFs::SuspendIO(bool bsusp,uint time,dword cause)
 		cnt=(cnt<0?0:(cnt>2?2:cnt));
 		flags=((flags&~FC_CLEAR)|(((dword)cnt))<<FC_CLEAR_OFF);
 	}
-	sys_signal_sem(flag_protect);
+	if(VALID(flag_protect))
+		sys_signal_sem(flag_protect);
 	if((bsusp&&(flag&FC_MASK)!=0)
 		||((!bsusp)&&((flag&FC_MASK)==0
 		||(cause==FC_EXIT?(flag&~cause)!=0:flag!=(1<<FC_CLEAR_OFF)))))
@@ -406,32 +397,23 @@ int SysFs::ConnectServer(if_proc* pif,void** phif,bool once)
 	init.id=(char*)pif->id.c_str();
 	init.smem_size=0;
 	init.nthread=0;
-	int ret=0;
 	if(once)
 	{
-		if(0==(ret=connect_if(&init,phif)))
-			return 0;
+		return connect_if(&init,phif);
 	}
-	else
+	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
-		for(int i=0;i<MAX_CONNECT_TIMES;i++)
+		sys_sleep(200);
+		if(0==connect_if(&init,phif))
 		{
-			sys_sleep(200);
-			if(0==connect_if(&init,phif))
-			{
-				return 0;
-			}
+			return 0;
 		}
-		ret=ERR_IF_CONN_FAILED;
 	}
 	LOGFILE(0,log_ftype_error,"Connecting to interface %s failed, try reconnecting...",init.id);
-	if(!once)
-	{
-		char msg[256];
-		sprintf(msg,"Connect to interface %s failed",init.id);
-		sys_show_message(msg);
-	}
-	return ret;
+	char msg[256];
+	sprintf(msg,"Connect to interface %s failed",init.id);
+	sys_show_message(msg);
+	return ERR_IF_CONN_FAILED;
 }
 //The code which calls Reconnect, SuspendIO and Exit must be in the same thread.
 bool SysFs::Reconnect(void* proc_id)
@@ -657,24 +639,6 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 	*ppif=ifproc;
 	return 0;
 }
-void SysFs::mutex_p()
-{
-	int cnt;
-	sys_wait_sem(mutex_protect);
-	cnt=(lock_cnt--);
-	if(cnt==0)
-		sys_wait_sem(mutex->get_mutex());
-	sys_signal_sem(mutex_protect);
-}
-void SysFs::mutex_v()
-{
-	int cnt;
-	sys_wait_sem(mutex_protect);
-	cnt=(++lock_cnt);
-	if(cnt==0)
-		sys_signal_sem(mutex->get_mutex());
-	sys_signal_sem(mutex_protect);
-}
 int SysFs::BeginTransfer(if_proc* pif,void** phif)
 {
 	int ret=0;
@@ -697,10 +661,10 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 	}
 	if(mode==fsmode_permanent_if)
 	{
-		mutex_p();
+		mutex->get_lock(true);
 		if(quitcode!=0||!VALID(pif->hif))
 		{
-			mutex_v();
+			mutex->get_lock(false);
 			sys_signal_sem(sem);
 			return quitcode==0?ERR_GENERIC:quitcode;;
 		}
@@ -712,7 +676,7 @@ int SysFs::BeginTransfer(if_proc* pif,void** phif)
 void SysFs::EndTransfer(void** phif)
 {
 	if(mode==fsmode_permanent_if)
-		mutex_v();
+		mutex->get_lock(false);
 	sys_signal_sem(sem);
 	if(mode==fsmode_instant_if&&VALID(*phif))
 		close_if(*phif);

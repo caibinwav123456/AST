@@ -62,9 +62,9 @@ struct proc_data
 };
 struct if_control_block
 {
-	cmutex& m;
+	gate& m;
 	vector<proc_data>& pdata;
-	if_control_block(cmutex& _m,vector<proc_data>& p):m(_m),pdata(p)
+	if_control_block(gate& _m,vector<proc_data>& p):m(_m),pdata(p)
 	{
 	}
 };

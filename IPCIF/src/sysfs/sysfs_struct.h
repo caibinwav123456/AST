@@ -229,7 +229,6 @@ public:
 		sem=NULL;
 		sem_reconn=NULL;
 		flag_protect=NULL;
-		mutex_protect=NULL;
 		fmap_protect=NULL;
 		hthrd_reconn=NULL;
 		mutex=NULL;
@@ -275,8 +274,6 @@ private:
 	static int cb_reconn(void* param);
 	void* sysfs_get_handle();
 	int fs_parse_path(if_proc** ppif,string& path,const string& in_path);
-	void mutex_p();
-	void mutex_v();
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
 	vector<if_proc*> ifvproc;
@@ -286,10 +283,9 @@ private:
 	void* sem;
 	void* sem_reconn;
 	void* flag_protect;
-	void* mutex_protect;
 	void* fmap_protect;
 	void* hthrd_reconn;
-	cmutex* mutex;
+	gate* mutex;
 	dword flags;
 	int lock_cnt;
 	int quitcode;
