@@ -2,6 +2,7 @@
 #define _MUTEX_H_
 #include "common.h"
 #include "utility.h"
+#include <assert.h>
 #define GATE_VALVE 128
 class cmutex
 {
@@ -29,11 +30,13 @@ public:
 	gate()
 	{
 		cnt=0;
+		cnt_unlock=0;
 		lock=false;
 		main_mutex=sys_create_sem(0,1,NULL);
 		mutex=sys_create_sem(0,GATE_VALVE,NULL);
 		protect=sys_create_sem(1,1,NULL);
-		if(!(VALID(main_mutex)&&VALID(mutex)&&VALID(protect)))
+		cut_protect=sys_create_sem(1,1,NULL);
+		if(!(VALID(main_mutex)&&VALID(mutex)&&VALID(protect)&&VALID(cut_protect)))
 			goto fail;
 		return;
 	fail:
@@ -43,16 +46,21 @@ public:
 			sys_close_sem(mutex);
 		if(VALID(protect))
 			sys_close_sem(protect);
+		if(VALID(cut_protect))
+			sys_close_sem(cut_protect);
 		EXCEPTION(ERR_SEM_CREATE_FAILED);
 	}
 	~gate()
 	{
 		sys_close_sem(mutex);
-		sys_close_sem(protect);
 		sys_close_sem(main_mutex);
+		sys_close_sem(protect);
+		sys_close_sem(cut_protect);
 	}
 	int cut_down(bool cut,uint time=0)
 	{
+		if(cut)
+			sys_wait_sem(cut_protect);
 		if((cut&&lock)||((!cut)&&(!lock)))
 			return 0;
 		int origin_cnt;
@@ -61,14 +69,16 @@ public:
 		if(cut)
 		{
 			lock=true;
+			cnt_unlock=origin_cnt;
 		}
 		else
 		{
 			lock=false;
-			for(int i=0;i<-cnt;i++)
+			for(int i=0;i<cnt_unlock-cnt;i++)
 			{
 				sys_signal_sem(mutex);
 			}
+			cnt_unlock=0;
 		}
 		sys_signal_sem(protect);
 		if(cut&&origin_cnt<0)
@@ -80,6 +90,8 @@ public:
 				return ret;
 			}
 		}
+		if(!cut)
+			sys_signal_sem(cut_protect);
 		return 0;
 	}
 	void get_lock(bool bget)
@@ -103,9 +115,14 @@ public:
 		else
 		{
 			origin_cnt=(++cnt);
-			if(origin_lock&&origin_cnt==0)
+			if(origin_lock)
 			{
-				sys_signal_sem(main_mutex);
+				assert(cnt_unlock<0);
+				int origin_cnt_unlock=(++cnt_unlock);
+				if(origin_cnt_unlock==0)
+				{
+					sys_signal_sem(main_mutex);
+				}
 			}
 		}
 		sys_signal_sem(protect);
@@ -118,7 +135,9 @@ private:
 	void* main_mutex;
 	void* mutex;
 	void* protect;
+	void* cut_protect;
 	int cnt;
+	int cnt_unlock;
 	bool lock;
 };
 class mlock
