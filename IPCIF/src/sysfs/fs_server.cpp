@@ -1067,5 +1067,6 @@ end:
 int FsServer::HandleGetDevInfo(dg_fsdevinfo* fsdevinfo)
 {
 	strcpy(fsdevinfo->info.devtype,if_info->sto_drv->drv_name.c_str());
+	fsdevinfo->header.ret=0;
 	return 0;
 }

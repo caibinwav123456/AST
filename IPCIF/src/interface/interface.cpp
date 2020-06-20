@@ -359,6 +359,7 @@ DLLAPI(void) stop_if(void* handle)
 	if(data->initial->quit)
 		return;
 	data->initial->quit=ERR_IF_REQUEST_FAILED;
+	sys_sleep(10);
 	sys_sem_signal_all(data->sem);
 	sys_sem_signal_all(data->lock);
 	sys_sem_signal_all(data->notifier);
@@ -378,6 +379,7 @@ DLLAPI(void) reset_if(void* handle)
 	if(data->initial->quit)
 		return;
 	data->initial->quit=ERR_IF_RESET;
+	sys_sleep(10);
 	sys_sem_signal_all(data->sem);
 	sys_sem_signal_all(data->lock);
 	sys_sem_signal_all(data->notifier);
@@ -385,7 +387,7 @@ DLLAPI(void) reset_if(void* handle)
 	{
 		sys_sem_signal_all(data->sem_array[i]);
 	}
-	sys_sleep(100);
+	sys_sleep(50);
 	init_ring(data);
 	for(int i=0;i<data->n;i++)
 	{
