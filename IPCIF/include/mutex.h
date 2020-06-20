@@ -32,6 +32,7 @@ public:
 		cnt=0;
 		cnt_unlock=0;
 		lock=false;
+		timeout=false;
 		main_mutex=sys_create_sem(0,1,NULL);
 		mutex=sys_create_sem(0,GATE_VALVE,NULL);
 		protect=sys_create_sem(1,1,NULL);
@@ -78,7 +79,12 @@ public:
 			{
 				sys_signal_sem(mutex);
 			}
+			if(timeout&&cnt_unlock==0)
+			{
+				sys_wait_sem(main_mutex);
+			}
 			cnt_unlock=0;
+			timeout=false;
 		}
 		sys_signal_sem(protect);
 		if(cut&&origin_cnt<0)
@@ -86,6 +92,7 @@ public:
 			int ret=sys_wait_sem(main_mutex,time);
 			if(ret==ERR_TIMEOUT)
 			{
+				timeout=true;
 				cut_down(false);
 				return ret;
 			}
@@ -114,6 +121,7 @@ public:
 		}
 		else
 		{
+			assert(cnt<0);
 			origin_cnt=(++cnt);
 			if(origin_lock)
 			{
@@ -139,6 +147,7 @@ private:
 	int cnt;
 	int cnt_unlock;
 	bool lock;
+	bool timeout;
 };
 class mlock
 {
