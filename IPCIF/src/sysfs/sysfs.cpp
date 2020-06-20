@@ -263,7 +263,6 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 		goto failed;
 	}
 	flags=0;
-	lock_cnt=0;
 	quitcode=0;
 	if(b)
 	{

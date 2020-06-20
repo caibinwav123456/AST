@@ -233,7 +233,6 @@ public:
 		hthrd_reconn=NULL;
 		mutex=NULL;
 		flags=0;
-		lock_cnt=0;
 		quitcode=ERR_MODULE_NOT_INITED;
 	}
 	int Init(uint numbuf,uint buflen,if_control_block* pblk=NULL,RequestResolver* resolver=NULL);
@@ -287,7 +286,6 @@ private:
 	void* hthrd_reconn;
 	gate* mutex;
 	dword flags;
-	int lock_cnt;
 	int quitcode;
 };
 extern SysFs g_sysfs;
