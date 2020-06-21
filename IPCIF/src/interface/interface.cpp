@@ -353,6 +353,11 @@ DLLAPI(void) close_if(void* handle)
 		sys_close_sem(data->sem);
 	delete data;
 }
+/*
+ *This function can only be called by server outside the
+ *listen_if function, or by the client when server crashes or
+ *exits unusually.
+ */
 DLLAPI(void) stop_if(void* handle)
 {
 	if_data* data=(if_data*)handle;
