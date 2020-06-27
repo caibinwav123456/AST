@@ -39,7 +39,7 @@ inline void init_default_date(DateTime* date)
 int sys_get_file_time(char* path,DateTime* creation_time,DateTime* modify_time,DateTime* access_time)
 {
 	if((!PathFileExistsA(path)))
-		return ERR_FILE_IO;
+		return ERR_FS_FILE_NOT_EXIST;
 	if(PathIsDirectoryA(path))
 	{
 		if(creation_time!=NULL)
@@ -81,7 +81,7 @@ int sys_get_file_time(char* path,DateTime* creation_time,DateTime* modify_time,D
 int sys_set_file_time(char* path,DateTime* creation_time,DateTime* modify_time,DateTime* access_time)
 {
 	if(!PathFileExistsA(path))
-		return ERR_FILE_IO;
+		return ERR_FS_FILE_NOT_EXIST;
 	if(PathIsDirectoryA(path))
 		return 0;
 	HANDLE hFile=CreateFileA(path,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,0);

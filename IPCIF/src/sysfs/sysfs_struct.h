@@ -337,6 +337,7 @@ public:
 			delete[] mem_backup;
 	}
 	void Init();
+	void ReleaseAll();
 	static bool DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup);
 	static bool DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup);
 	static bool DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup);

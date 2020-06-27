@@ -101,8 +101,6 @@ int main(int argc, char** argv)
 		{
 			if(0!=(ret=request_cmd(cmdcode[i])))
 				printf("Command failed.\nError code: %d, %s\n",ret,get_error_desc(ret));
-			else
-				printf("Command success.\n");
 			goto end;
 		}
 	}

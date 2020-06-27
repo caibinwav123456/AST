@@ -616,7 +616,8 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 	split_path(in_path,split_in_path,'/');
 	int ret=0;
 	if_proc* ifproc;
-	if((!split_in_path[0].empty())
+	if((!split_in_path.empty())
+		&&(!split_in_path[0].empty())
 		&&*(split_in_path[0].end()-1)==':')
 	{
 		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);

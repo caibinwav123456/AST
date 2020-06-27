@@ -52,6 +52,18 @@ void BackupRing::Init()
 inline void clear_backup_ring_node(BiRingNode<BackupData>* node)
 {
 	node->t.lsfiles.clear();
+	node->t.devtype.clear();
+}
+void BackupRing::ReleaseAll()
+{
+	BiRingNode<BackupData>* node=NULL;
+	while((node=backup_data.GetPrev())!=&backup_data)
+	{
+		clear_backup_ring_node(node);
+		node->Detach();
+		backup_free.AddNodeToBegin(node);
+	}
+	bmap.clear();
 }
 BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
 {
@@ -160,7 +172,6 @@ bool BackupRing::DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup)
 	dg_fslsfiles* dg=(dg_fslsfiles*)dbase;
 	if(backup)
 	{
-		clear_backup_ring_node(node);
 		node->t.nfile=dg->files.nfiles;
 		node->t.hls=dg->files.handle;
 		for(int i=0;i<LSBUFFER_ELEMENTS&&i<(int)dg->files.nfiles;i++)
@@ -576,6 +587,7 @@ inline void clear_ring(fs_key_map& smap,SrvProcRing* proc_ring,pintf_fsdrv if_dr
 		smap.erase(it);
 		delete node;
 	}
+	proc_ring->get_backup_ring()->ReleaseAll();
 }
 void FsServer::Clear(void* proc_id,bool cl_root)
 {
@@ -618,7 +630,7 @@ bool FsServer::Reset(void* proc_id)
 {
 	bool exist=(VALID(proc_id)?(proc_id_map.find(proc_id)!=proc_id_map.end()
 		&&!proc_id_map[proc_id]->Empty()):!smap.empty());
-	Clear(proc_id);
+	Clear(proc_id,true);
 	reset_if(cifproc->hif);
 	return exist;
 }
