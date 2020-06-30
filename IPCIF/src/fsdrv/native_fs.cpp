@@ -98,6 +98,9 @@ int NativeFsTree::Init(const string& base)
 }
 pINode NativeFsTree::CteateNode(const vector<string>& path)
 {
+	assert(!path.empty());
+	if(path.empty())
+		return NULL;
 	vector<string> merge=base_path;
 	merge.insert(merge.end(),path.begin(),path.end());
 	string strmerge;
@@ -105,9 +108,6 @@ pINode NativeFsTree::CteateNode(const vector<string>& path)
 	dword type=0;
 	int ret=sys_fstat((char*)strmerge.c_str(),&type);
 	if(ret!=0)
-		return NULL;
-	assert(!path.empty());
-	if(path.empty())
 		return NULL;
 	pINode node=new INode(path.back());
 	node->t.attr=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0);

@@ -24,15 +24,14 @@ void INodeTree::ReleaseNode(pINode node)
 {
 	if((!node->NoChild())||IsLocked(node))
 		return;
-	pINode parent=node->GetParent();
-	while(parent!=NULL)
+	pINode parent;
+	while((parent=node->GetParent())!=NULL)
 	{
 		verify(node->Detach());
 		delete node;
-		if((!parent->NoChild())||IsLocked(parent))
-			break;
 		node=parent;
-		parent=node->GetParent();
+		if((!node->NoChild())||IsLocked(node))
+			break;
 	}
 }
 bool INodeTree::IsDir(pINode node)

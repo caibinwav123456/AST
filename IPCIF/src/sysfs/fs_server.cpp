@@ -829,7 +829,7 @@ void* FsServer::AddNode(void* proc_id,FileServerRec* pRec)
 		assert(false);
 	}
 	node->t.key=key;
-	node->t.proc_ring=ring;
+	//node->t.proc_ring=ring;
 	ring->AddNodeToBegin(node);
 	smap[key]=node;
 	return h;
@@ -1007,7 +1007,6 @@ int FsServer::HandleListFiles(dg_fslsfiles* fslsfiles)
 	int ret=0;
 	vector<fsls_element>* files;
 	BiRingNode<FileServerRec>* node;
-	fs_key_map::iterator it;
 	int index=0;
 	uint nfile;
 	bool newlist;
@@ -1026,7 +1025,7 @@ int FsServer::HandleListFiles(dg_fslsfiles* fslsfiles)
 	else
 	{
 		newlist=false;
-		node=get_fs_node(fslsfiles->header.caller,hls,&it);
+		node=get_fs_node(fslsfiles->header.caller,hls);
 		if(node!=NULL)
 		{
 			assert(node->t.type==FSSERVER_REC_TYPE_FILE_LIST);

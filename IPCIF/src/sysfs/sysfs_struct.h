@@ -138,7 +138,7 @@ struct FileServerRec
 		void* fd;
 		vector<fsls_element>* pvfiles;
 	};
-	SrvProcRing* proc_ring;
+	//SrvProcRing* proc_ring;
 };
 struct BufferPtr
 {
@@ -362,7 +362,7 @@ public:
 	{
 		memset(&t,0,sizeof(t));
 		t.key.caller=proc_id;
-		t.proc_ring=this;
+		//t.proc_ring=this;
 		hFileReserve=(byte*)1;
 	}
 	BackupRing* get_backup_ring()

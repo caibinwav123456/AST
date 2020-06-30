@@ -618,7 +618,7 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 	if_proc* ifproc;
 	if((!split_in_path.empty())
 		&&(!split_in_path[0].empty())
-		&&*(split_in_path[0].end()-1)==':')
+		&&split_in_path[0].back()==':')
 	{
 		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);
 		if(if_id.empty())
@@ -705,7 +705,7 @@ int cb_fsc(void* addr,void* param,int op)
 				fsopen->open.hFile=NULL;
 				strcpy(fsopen->open.path,dgp->fsopen.path->c_str());
 			}
-			if(op&OP_RETURN)
+			if(op&OP_RETURN&&dgp->dbase->ret==0)
 			{
 				*dgp->fsopen.hFile=fsopen->open.hFile;
 			}
