@@ -620,6 +620,8 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
 		&&(!split_in_path[0].empty())
 		&&split_in_path[0].back()==':')
 	{
+		if((!in_path.empty())&&in_path.front()=='/')
+			return ERR_INVALID_PATH;
 		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);
 		if(if_id.empty())
 			return ERR_INVALID_PATH;

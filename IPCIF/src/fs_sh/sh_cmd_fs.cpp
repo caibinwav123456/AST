@@ -244,24 +244,33 @@ static int init_fs()
 }
 int get_full_path(const string& cur_dir,const string& relative_path,string& full_path)
 {
+	int ret=0;
+	vector<string> cur_dir_split,relative_path_split,direct;
+	string drv_name;
+	split_path(relative_path,relative_path_split,'/');
 	if(!relative_path.empty()&&relative_path[0]=='/')
 	{
-		full_path=relative_path;
+		if(0!=(ret=(get_direct_path(direct,relative_path_split))))
+			return ret;
+		merge_path(full_path,direct,'/');
+		full_path="/"+full_path;
 		return 0;
 	}
-	vector<string> cur_dir_split,relative_path_split,direct;
-	split_path(relative_path,relative_path_split,'/');
 	if((!relative_path_split.empty())&&(!relative_path_split[0].empty())
 		&&relative_path_split[0].back()==':')
 	{
-		full_path=relative_path;
+		drv_name=relative_path_split[0];
+		relative_path_split.erase(relative_path_split.begin());
+		if(0!=(ret=(get_direct_path(direct,relative_path_split))))
+			return ret;
+		direct.insert(direct.begin(),drv_name);
+		merge_path(full_path,direct,'/');
 		return 0;
 	}
 	bool root=(cur_dir[0]=='/');
 	split_path(cur_dir,cur_dir_split,'/');
 	bool drive=((!cur_dir_split.empty())&&(!cur_dir_split[0].empty())
 		&&cur_dir_split[0].back()==':');
-	string drv_name;
 	if((!root)&&(!drive))
 		return ERR_INVALID_PATH;
 	if(drive)
@@ -270,7 +279,6 @@ int get_full_path(const string& cur_dir,const string& relative_path,string& full
 		cur_dir_split.erase(cur_dir_split.begin());
 	}
 	cur_dir_split.insert(cur_dir_split.end(),relative_path_split.begin(),relative_path_split.end());
-	int ret=0;
 	if(0!=(ret=(get_direct_path(direct,cur_dir_split))))
 		return ret;
 	if(drive)
@@ -311,7 +319,7 @@ static int execute(sh_context* ctx)
 		return_msg(ERR_INVALID_CMD,"Command not found.\n");
 	return it->second(ctx,cmd_head,args);
 }
-static bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NULL,UInteger64* size=NULL)
+static bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NULL,UInteger64* size=NULL,bool mute=false)
 {
 	DateTime dt[3];
 	dword tflags=0;
@@ -320,7 +328,7 @@ static bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NU
 		*flags=tflags;
 	if(date!=NULL&&ret==0)
 		*date=dt[fs_attr_modify_date];
-	if(ret!=0&&ret!=ERR_FS_FILE_NOT_EXIST)
+	if((!mute)&&ret!=0&&ret!=ERR_FS_FILE_NOT_EXIST)
 		printf("unexpected exception: %s\n",get_error_desc(ret));
 	if(ret!=0)
 		return false;
@@ -333,11 +341,22 @@ static bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NU
 		}
 		void* hFile=fs_open((char*)path.c_str(),FILE_OPEN_EXISTING|FILE_READ);
 		if(!VALID(hFile))
-			return_msg(false,"File can not be opened.\n");
+		{
+			if(mute)
+				return false;
+			else
+				return_msg(false,"File can not be opened.\n");
+		}
 		if(0!=(ret=fs_get_file_size(hFile,&size->low,&size->high)))
-			printf("unexpected exception: %s\n",get_error_desc(ret));
+		{
+			if(!mute)
+				printf("unexpected exception: %s\n",get_error_desc(ret));
+		}
 		if(0!=(ret=fs_perm_close(hFile)))
-			printf("close file failed: %s\n",get_error_desc(ret));
+		{
+			if(!mute)
+				printf("close file failed: %s\n",get_error_desc(ret));
+		}
 	}
 	return ret==0;
 }
@@ -505,8 +524,6 @@ static int cd_handler(sh_context* ctx,const string& cmd,vector<pair<string,strin
 		return_msg(0,"%s is a file.\n",quote_file(path).c_str());
 	}
 	ctx->pwd=fullpath;
-	if((int)ctx->pwd.size()>1&&ctx->pwd.back()=='/')
-		ctx->pwd.erase(ctx->pwd.end()-1);
 	return 0;
 }
 static int cb_lsfile(char* name,dword type,void* param,char dsym)
@@ -523,12 +540,11 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 	int ret=0;
 	dword flags=0;
 	files.clear();
-	if(!(validate_path(dir,&flags)&&FS_IS_DIR(flags)))
+	if(!(validate_path(dir,&flags,NULL,NULL,true)&&FS_IS_DIR(flags)))
 		return;
 	if(0!=(ret=fs_traverse((char*)dir.c_str(),cb_lsfile,&files)))
 	{
 		files.clear();
-		printf("unexpected failure: %s\n",get_error_desc(ret));
 		return;
 	}
 	files.push_back("./");
