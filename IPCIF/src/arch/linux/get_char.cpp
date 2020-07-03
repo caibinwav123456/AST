@@ -15,7 +15,7 @@ static uint getch()
 	ioctl( STDIN_FILENO, TCGETS, &term_old );
 	struct termios term_new = term_old;
 	term_new.c_lflag &= ~( ECHO | ICANON );
-	ioctl(STDIN_FILENO, TCSETS, &term_new );
+	ioctl(STDIN_FILENO, TCSETS, &term_new);
 	fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
 	uint ch;
 	while((!quit_get_char)&&(ch=(uint)getchar())==EOF)
