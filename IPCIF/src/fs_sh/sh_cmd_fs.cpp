@@ -136,6 +136,7 @@ failed:
 			if_safe_release(data.ifproc[j].hif);
 		}
 	}
+	pdata.clear();
 	return ret;
 }
 static inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
@@ -669,4 +670,5 @@ void exit_sh()
 			if_safe_release(pdata[i].ifproc[j].hif);
 		}
 	}
+	pdata.clear();
 }
