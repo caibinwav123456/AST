@@ -9,7 +9,6 @@
 #include "datetime.h"
 #include "config_val_extern.h"
 #include "interface.h"
-#include <map>
 #include <algorithm>
 #include <stdio.h>
 #include <assert.h>
@@ -31,8 +30,50 @@ enum E_FILE_DISP_MODE
 };
 DEFINE_UINT_VAL(fs_sh_nbuf,4);
 DEFINE_UINT_VAL(fs_sh_buflen,2048);
-typedef int (*per_cmd_handler)(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args);
-static map<string,per_cmd_handler> cmd_handler_map;
+ShCmdTable* ShCmdTable::GetTable()
+{
+	static ShCmdTable table;
+	return &table;
+}
+void ShCmdTable::AddCmd(const char* cmd,per_cmd_handler handler,const char* desc,const char* detail)
+{
+	CmdItem item;
+	item.handler=handler;
+	item.detail=detail;
+	ShCmdTable* ptable=GetTable();
+	ptable->vstrdesc.push_back(string(cmd)+" - "+desc+"\n");
+	ptable->cmd_map[cmd]=item;
+}
+int ShCmdTable::Init()
+{
+	sort(GetTable()->vstrdesc.begin(),GetTable()->vstrdesc.end());
+	return 0;
+}
+int ShCmdTable::ExecCmd(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
+{
+	map<string,CmdItem>& c_map=GetTable()->cmd_map;
+	map<string,CmdItem>::iterator it=c_map.find(cmd);
+	if(it==c_map.end()||it->second.handler==NULL)
+		return_msg(ERR_INVALID_CMD,"Command not found.\n");
+	return it->second.handler(ctx,cmd,args);
+}
+void ShCmdTable::PrintDesc()
+{
+	ShCmdTable* ptable=GetTable();
+	for(int i=0;i<(int)ptable->vstrdesc.size();i++)
+	{
+		printf("%s",ptable->vstrdesc[i].c_str());
+	}
+}
+int ShCmdTable::PrintDetail(const string& cmd)
+{
+	map<string,CmdItem>& c_map=GetTable()->cmd_map;
+	map<string,CmdItem>::iterator it=c_map.find(cmd);
+	if(it==c_map.end()||it->second.handler==NULL)
+		return_msg(ERR_INVALID_CMD,"Command not found.\n");
+	printf("%s",it->second.detail);
+	return 0;
+}
 static vector<proc_data> pdata;
 static if_control_block* get_blk()
 {
@@ -41,19 +82,6 @@ static if_control_block* get_blk()
 	return &blk;
 }
 static RequestResolver reqrslvr;
-static int ls_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args);
-static int cd_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args);
-static int df_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args);
-static const string commands[]={"df","ls","ll","cd"};
-static const per_cmd_handler handlers[]={df_handler,ls_handler,ls_handler,cd_handler};
-static void init_hmap()
-{
-	assert(sizeof(commands)/sizeof(string)==sizeof(handlers)/sizeof(per_cmd_handler));
-	for(int i=0;i<sizeof(commands)/sizeof(string);i++)
-	{
-		cmd_handler_map[commands[i]]=handlers[i];
-	}
-}
 static void print_banner()
 {
 	printf(
@@ -314,10 +342,7 @@ static int execute(sh_context* ctx)
 	if(!args[0].second.empty())
 		return_msg(ERR_INVALID_CMD,"bad command format\n");
 	const string& cmd_head=args[0].first;
-	map<string,per_cmd_handler>::iterator it=cmd_handler_map.find(cmd_head);
-	if(it==cmd_handler_map.end()||it->second==NULL)
-		return_msg(ERR_INVALID_CMD,"Command not found.\n");
-	return it->second(ctx,cmd_head,args);
+	return ShCmdTable::ExecCmd(ctx,cmd_head,args);
 }
 static bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NULL,UInteger64* size=NULL,bool mute=false)
 {
@@ -379,6 +404,12 @@ static int df_handler(sh_context* ctx, const string& cmd, vector<pair<string, st
 	}
 	return 0;
 }
+DEF_SH_CMD(df,df_handler,
+	"list all the devices of the storage system.",
+	"The df command lists the accessible devices of the storage system.\n"
+	"The device names are listed as the interface id's of each device,"
+	"the device type/file system format are listed along with device names.\n"
+	"The default device is labeled with (default).\n");
 static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_DISP_MODE mode)
 {
 	if(mode==file_disp_simple)
@@ -504,6 +535,20 @@ static int ls_handler(sh_context* ctx,const string& cmd,vector<pair<string,strin
 	}
 	return ret;
 }
+DEF_SH_CMD(ls,ls_handler,
+	"list contents of one or more directorys.",
+	"Format:\n\tls [-l] [dir1] [dir2] ...\n"
+	"The ls command lists information of files and directories in one or more directories.\n"
+	"Option -l indicates that the information is shown in detail, "
+	"which includes: file type(normal file or directory),size,date of modifying, and file name, "
+	"and without this option, only file name is shown.\n"
+	"The directory list is optional, if absent, the content of current directory is shown, "
+	"otherwise the contents of specified directories are shown,\n"
+	"The information of each directory will be shown respectively, each with a label.\n"
+	"The label will not be shown if the directory list contains only one directory.\n");
+DEF_SH_CMD(ll,ls_handler,
+	"the alias for command ls -l",
+	"This is an alias for command ls with option -l, see ls.\n");
 static int cd_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
 {
 	if(args.size()!=2||!args[1].second.empty())
@@ -526,6 +571,16 @@ static int cd_handler(sh_context* ctx,const string& cmd,vector<pair<string,strin
 	ctx->pwd=fullpath;
 	return 0;
 }
+DEF_SH_CMD(cd,cd_handler,
+	"enter/change current directory to a new one",
+	"This command changes current directory to the specified new one.\n"
+	"Format:\n\tcd (new path)\n"
+	"path shall be specified without spaces or other special characters, "
+	"if so, quote it with \' or \".\n"
+	"the specified path must be an existing directory, or the command will fail.\n"
+	"path can be an absolute path or a relative path, depending on whether it "
+	"starts with a device name and a colon followed by a slash, a slash alone "
+	"indicates the root directory of the default device.\n");
 static int cb_lsfile(char* name,dword type,void* param,char dsym)
 {
 	vector<string>* files=(vector<string>*)param;
@@ -535,6 +590,27 @@ static int cb_lsfile(char* name,dword type,void* param,char dsym)
 	files->push_back(file);
 	return 0;
 }
+static int help_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
+{
+	int argsize=(int)args.size();
+	if(argsize<1)
+		return_msg(ERR_INVALID_CMD,"bad command format\n");
+	if(argsize==1)
+	{
+		ShCmdTable::PrintDesc();
+		printf("\nType help + command name to get detailed usage of each command.\n");
+		return 0;
+	}
+	if((int)args.size()!=2||!args[1].second.empty())
+		return_msg(ERR_INVALID_CMD,"bad command format\n");
+	return ShCmdTable::PrintDetail(args[0].first);
+}
+DEF_SH_CMD(help,help_handler,
+	"Show available commands and their usages.",
+	"Format:\n\thelp [command name]\n"
+	"without the optional argument, this command lists all the available commands.\n"
+	"with the optional argument command name, this command shows the usage of the specified command.\n"
+	);
 void list_cur_dir_files(const string& dir,vector<string>& files)
 {
 	int ret=0;
@@ -570,10 +646,12 @@ static int _fs_cmd_handler(sh_context* ctx,dword state)
 int init_sh()
 {
 	int ret=0;
-	init_hmap();
+	if(0!=(ret=ShCmdTable::Init()))
+		return ret;
 	if(0!=(ret=init_fs()))
 		return ret;
 	set_cmd_handler(_fs_cmd_handler);
+	printf("Type \"help\" to get a list of available commands.\n");
 	return 0;
 }
 void exit_sh()
