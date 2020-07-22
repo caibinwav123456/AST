@@ -408,7 +408,7 @@ DEF_SH_CMD(df,df_handler,
 	"list all the devices of the storage system.",
 	"The df command lists the accessible devices of the storage system.\n"
 	"The device names are listed as the interface id's of each device,"
-	"the device type/file system format are listed along with device names.\n"
+	"the device type/file system format is listed along with its device name.\n"
 	"The default device is labeled with (default).\n");
 static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_DISP_MODE mode)
 {
@@ -544,10 +544,14 @@ DEF_SH_CMD(ls,ls_handler,
 	"and without this option, only file name is shown.\n"
 	"The directory list is optional, if absent, the content of current directory is shown, "
 	"otherwise the contents of specified directories are shown,\n"
+	"the path of each directory can be an absolute path or a relative path, depending on whether it "
+	"starts with a device name and a colon followed by a slash, a slash alone "
+	"indicates the root directory of the default device.\n"
+	"if this path is relatve, it is based on the current directory path.\n"
 	"The information of each directory will be shown respectively, each with a label.\n"
 	"The label will not be shown if the directory list contains only one directory.\n");
 DEF_SH_CMD(ll,ls_handler,
-	"the alias for command ls -l",
+	"the alias for command \'ls -l\'",
 	"This is an alias for command ls with option -l, see ls.\n");
 static int cd_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
 {
@@ -580,7 +584,8 @@ DEF_SH_CMD(cd,cd_handler,
 	"the specified path must be an existing directory, or the command will fail.\n"
 	"path can be an absolute path or a relative path, depending on whether it "
 	"starts with a device name and a colon followed by a slash, a slash alone "
-	"indicates the root directory of the default device.\n");
+	"indicates the root directory of the default device.\n"
+	"if path is relatve, it is based on the current directory path.\n");
 static int cb_lsfile(char* name,dword type,void* param,char dsym)
 {
 	vector<string>* files=(vector<string>*)param;
@@ -603,10 +608,10 @@ static int help_handler(sh_context* ctx,const string& cmd,vector<pair<string,str
 	}
 	if((int)args.size()!=2||!args[1].second.empty())
 		return_msg(ERR_INVALID_CMD,"bad command format\n");
-	return ShCmdTable::PrintDetail(args[0].first);
+	return ShCmdTable::PrintDetail(args[1].first);
 }
 DEF_SH_CMD(help,help_handler,
-	"Show available commands and their usages.",
+	"show available commands and their usages.",
 	"Format:\n\thelp [command name]\n"
 	"without the optional argument, this command lists all the available commands.\n"
 	"with the optional argument command name, this command shows the usage of the specified command.\n"
