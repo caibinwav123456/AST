@@ -86,7 +86,7 @@ static void print_banner()
 {
 	printf(
 		"################################################\n"
-		"# fs_sh: a builtin shell for AST storage system.\n"
+		"# fs_sh: a built-in shell for AST storage system.\n"
 		"# Version: 1.0.0.0\n"
 		"# Copyright (C) May 2020, CaiBin\n"
 		"# License: GNU GPL 3.0\n"
@@ -232,6 +232,11 @@ static int init_fs()
 	for(;;)
 	{
 		uint c=get_char();
+		if(c==0)
+		{
+			printf("The main processes have exited.\n");
+			return ERR_GENERIC;
+		}
 		switch(c)
 		{
 		case (uint)'1':

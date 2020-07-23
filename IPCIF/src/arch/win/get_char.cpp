@@ -7,7 +7,7 @@ void quit_sh()
 }
 uint get_char()
 {
-	while(kbhit()==0&&!quit_get_char)
+	while((!quit_get_char)&&kbhit()==0)
 	{
 		sys_sleep(10);
 	}
