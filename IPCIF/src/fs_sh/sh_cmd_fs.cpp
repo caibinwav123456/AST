@@ -85,13 +85,13 @@ static RequestResolver reqrslvr;
 static void print_banner()
 {
 	printf(
-		"################################################\n"
+		"#################################################\n"
 		"# fs_sh: a built-in shell for AST storage system.\n"
 		"# Version: 1.0.0.0\n"
 		"# Copyright (C) May 2020, CaiBin\n"
 		"# License: GNU GPL 3.0\n"
 		"# All Rights Reserved.\n"
-		"################################################\n"
+		"#################################################\n"
 	);
 }
 #if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
@@ -447,7 +447,10 @@ static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_D
 			string& file=flist[i];
 			UInteger64 u64;
 			if(0!=get_full_path(cwd,file,fullpath))
+			{
+				printf("invalid path\n");
 				continue;
+			}
 			if(!validate_path(fullpath,NULL,&date,&u64))
 				continue;
 			string sz=FormatI64(u64);
