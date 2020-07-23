@@ -106,11 +106,11 @@ static int connect_proc(if_proc* ifproc)
 	init.nthread=0;
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
-		sys_sleep(200);
 		if(0==(ret=connect_if(&init,&ifproc->hif)))
 		{
 			return 0;
 		}
+		sys_sleep(200);
 	}
 	return_msg(ret,"connect to interface %s failed: %s\n",init.id,get_error_desc(ret));
 }

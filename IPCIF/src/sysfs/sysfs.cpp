@@ -402,11 +402,11 @@ int SysFs::ConnectServer(if_proc* pif,void** phif,bool once)
 	}
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
 	{
-		sys_sleep(200);
 		if(0==connect_if(&init,phif))
 		{
 			return 0;
 		}
+		sys_sleep(200);
 	}
 	LOGFILE(0,log_ftype_error,"Connecting to interface %s failed, try reconnecting...",init.id);
 	char msg[256];
