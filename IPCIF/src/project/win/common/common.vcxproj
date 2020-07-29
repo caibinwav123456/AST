@@ -90,6 +90,7 @@
     <ClCompile Include="..\..\..\common\datetime.cpp" />
     <ClCompile Include="..\..\..\common\Integer64.cpp" />
     <ClCompile Include="..\..\..\common\path.cpp" />
+    <ClCompile Include="..\..\..\common\pipe.cpp" />
     <ClCompile Include="..\..\..\common\request_resolver.cpp" />
     <ClCompile Include="..\..\..\common\syslog.cpp" />
     <ClCompile Include="..\..\..\common\utility.cpp" />
@@ -110,6 +111,7 @@
     <ClInclude Include="..\..\..\..\include\Integer64.h" />
     <ClInclude Include="..\..\..\..\include\mutex.h" />
     <ClInclude Include="..\..\..\..\include\path.h" />
+    <ClInclude Include="..\..\..\..\include\pipe.h" />
     <ClInclude Include="..\..\..\..\include\request_resolver.h" />
     <ClInclude Include="..\..\..\..\include\utility.h" />
     <ClInclude Include="..\..\..\common\config.h" />

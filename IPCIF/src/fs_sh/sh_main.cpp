@@ -4,7 +4,7 @@
 int main(int argc, char** argv)
 {
 	if(0!=mainly_initial())
-		return -1;
+		return ERR_GENERIC;
 	int ret=0;
 	if(0!=(ret=init_sh()))
 	{

@@ -4,6 +4,12 @@
 #include "utility.h"
 #include <assert.h>
 #define GATE_VALVE 128
+#define sem_safe_release(sem) \
+	if(VALID(sem)) \
+	{ \
+		sys_close_sem(sem); \
+		sem=NULL; \
+	}
 class cmutex
 {
 public:
@@ -15,7 +21,7 @@ public:
 	}
 	~cmutex()
 	{
-		sys_close_sem(mutex);
+		sem_safe_release(mutex);
 	}
 	void* get_mutex()
 	{
@@ -41,22 +47,18 @@ public:
 			goto fail;
 		return;
 	fail:
-		if(VALID(main_mutex))
-			sys_close_sem(main_mutex);
-		if(VALID(mutex))
-			sys_close_sem(mutex);
-		if(VALID(protect))
-			sys_close_sem(protect);
-		if(VALID(cut_protect))
-			sys_close_sem(cut_protect);
+		sem_safe_release(main_mutex);
+		sem_safe_release(mutex);
+		sem_safe_release(protect);
+		sem_safe_release(cut_protect);
 		EXCEPTION(ERR_SEM_CREATE_FAILED);
 	}
 	~gate()
 	{
-		sys_close_sem(mutex);
-		sys_close_sem(main_mutex);
-		sys_close_sem(protect);
-		sys_close_sem(cut_protect);
+		sem_safe_release(main_mutex);
+		sem_safe_release(mutex);
+		sem_safe_release(protect);
+		sem_safe_release(cut_protect);
 	}
 	int cut_down(bool cut,uint time=0)
 	{

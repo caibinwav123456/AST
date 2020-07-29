@@ -20,6 +20,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\arch\win\get_char.cpp" />
     <ClCompile Include="..\..\..\fs_sh\complete.cpp" />
+    <ClCompile Include="..\..\..\fs_sh\fscmdex.cpp" />
     <ClCompile Include="..\..\..\fs_sh\fs_shell.cpp" />
     <ClCompile Include="..\..\..\fs_sh\parse_cmd.cpp" />
     <ClCompile Include="..\..\..\fs_sh\sh_cmd_fs.cpp" />

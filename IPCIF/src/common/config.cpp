@@ -274,6 +274,23 @@ double ConfigProfile::TranslateDouble(const string& str)
 	sscanf(str.c_str(),"%lf",&db);
 	return db;
 }
+static inline char lower_case(char c)
+{
+	if(c>='A'&&c<='Z')
+		return c-'A'+'a';
+	return c;
+}
+static inline string to_lower(const string& str)
+{
+	string lows;
+	char s[2]={0,0};
+	for(int i=0;i<(int)str.size();i++)
+	{
+		s[0]=lower_case(str[i]);
+		lows+=s;
+	}
+	return lows;
+}
 uint ConfigProfile::TranslateSize(const string& str)
 {
 	char* s=(char*)str.c_str();
@@ -312,9 +329,10 @@ uint ConfigProfile::TranslateSize(const string& str)
 	sscanf(buf,"%d",&n);
 	string sunit(unit);
 	uint nunit=1;
-	if(sunit=="k"||sunit=="K"||sunit=="kib"||sunit=="KiB")
+	string lunit=to_lower(sunit);
+	if(lunit=="k"||lunit=="kb"||lunit=="kib")
 		nunit=1024;
-	else if(sunit=="m"||sunit=="M"||sunit=="mib"||sunit=="MiB")
+	else if(lunit=="m"||lunit=="mb"||lunit=="mib")
 		nunit=1024*1024;
 	else if(sunit=="")
 		nunit=1;

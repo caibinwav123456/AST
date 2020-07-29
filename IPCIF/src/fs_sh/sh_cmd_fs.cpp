@@ -5,8 +5,6 @@
 #include "complete.h"
 #include "sysfs.h"
 #include "mutex.h"
-#include "Integer64.h"
-#include "datetime.h"
 #include "config_val_extern.h"
 #include "interface.h"
 #include <algorithm>
@@ -18,9 +16,6 @@
 		close_if(hif); \
 		hif=NULL; \
 	}
-#define return_msg(code,msg,...) \
-	{printf(msg,##__VA_ARGS__); \
-	return code;}
 #define MAX_FLIST_CHAR 80
 #define MAX_NUM_FLIST 8
 enum E_FILE_DISP_MODE
@@ -350,7 +345,7 @@ static int execute(sh_context* ctx)
 	const string& cmd_head=args[0].first;
 	return ShCmdTable::ExecCmd(ctx,cmd_head,args);
 }
-static bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NULL,UInteger64* size=NULL,bool mute=false)
+bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* size,bool mute)
 {
 	DateTime dt[3];
 	dword tflags=0;
@@ -595,15 +590,6 @@ DEF_SH_CMD(cd,cd_handler,
 	"starts with a device name and a colon followed by a slash, a slash alone "
 	"indicates the root directory of the default device.\n"
 	"if path is relatve, it is based on the current directory path.\n");
-static int cb_lsfile(char* name,dword type,void* param,char dsym)
-{
-	vector<string>* files=(vector<string>*)param;
-	string file(name);
-	if(type==FILE_TYPE_DIR)
-		file+="/";
-	files->push_back(file);
-	return 0;
-}
 static int help_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
 {
 	int argsize=(int)args.size();
@@ -625,6 +611,15 @@ DEF_SH_CMD(help,help_handler,
 	"without the optional argument, this command lists all the available commands.\n"
 	"with the optional argument command name, this command shows the usage of the specified command.\n"
 	);
+static int cb_lsfile(char* name,dword type,void* param,char dsym)
+{
+	vector<string>* files=(vector<string>*)param;
+	string file(name);
+	if(type==FILE_TYPE_DIR)
+		file+="/";
+	files->push_back(file);
+	return 0;
+}
 void list_cur_dir_files(const string& dir,vector<string>& files)
 {
 	int ret=0;
