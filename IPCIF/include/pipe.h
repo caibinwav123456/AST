@@ -14,6 +14,6 @@ private:
 	byte* pipe_buf;
 	uint p_start;
 	uint p_end;
-	uint feed;
+	bool copyleft;
 };
 #endif
