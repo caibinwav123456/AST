@@ -25,6 +25,7 @@ Pipe::Pipe()
 	p_start=0;
 	p_end=0;
 	copyleft=false;
+	eof=false;
 	return;
 fail:
 	sem_safe_release(semin);
@@ -73,11 +74,18 @@ static inline void pipe_read_buf(byte* bptr,uint len,byte* buf,uint& start,uint&
 	}
 	start=nstart;
 }
+#define eof_quit \
+	if(eof) \
+	{ \
+		sys_signal_sem(semin); \
+		return; \
+	}
 void Pipe::Send(void* ptr,uint len)
 {
 	if(len==0)
 	{
 		sys_wait_sem(semin);
+		eof_quit;
 		sys_signal_sem(semout);
 		return;
 	}
@@ -86,6 +94,7 @@ void Pipe::Send(void* ptr,uint len)
 	for(bptr=(byte*)ptr,left=len,copy=0;left>0;bptr+=copy,left-=copy)
 	{
 		sys_wait_sem(semin);
+		eof_quit;
 		copy=(left>=pipe_buffer_size?pipe_buffer_size:left);
 		pipe_write_buf(bptr,copy,pipe_buf,p_start,p_end);
 		sys_signal_sem(semout);
@@ -95,6 +104,8 @@ uint Pipe::Recv(void* ptr,uint len)
 {
 	uint clen,left,copy,lrecv;
 	byte* bptr;
+	if(eof)
+		return 0;
 	for(bptr=(byte*)ptr,clen=0,left=len,copy=0,lrecv=0;
 		left>0;bptr+=copy,left-=copy,lrecv+=copy)
 	{
@@ -109,6 +120,8 @@ uint Pipe::Recv(void* ptr,uint len)
 			copy=(copyleft?left:clen);
 			pipe_read_buf(bptr,copy,pipe_buf,p_start,p_end);
 		}
+		if(clen==0)
+			eof=true;
 		if(!copyleft)
 			sys_signal_sem(semin);
 		if(clen==0)

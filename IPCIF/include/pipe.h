@@ -15,5 +15,6 @@ private:
 	uint p_start;
 	uint p_end;
 	bool copyleft;
+	bool eof;
 };
 #endif

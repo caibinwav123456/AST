@@ -89,6 +89,7 @@
     <ClCompile Include="..\..\..\common\config_val.cpp" />
     <ClCompile Include="..\..\..\common\datetime.cpp" />
     <ClCompile Include="..\..\..\common\Integer64.cpp" />
+    <ClCompile Include="..\..\..\common\mutex.cpp" />
     <ClCompile Include="..\..\..\common\path.cpp" />
     <ClCompile Include="..\..\..\common\pipe.cpp" />
     <ClCompile Include="..\..\..\common\request_resolver.cpp" />
