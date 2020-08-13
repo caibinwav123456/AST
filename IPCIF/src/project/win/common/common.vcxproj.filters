@@ -48,10 +48,10 @@
     <ClCompile Include="..\..\..\common\Integer64.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\common\pipe.cpp">
+    <ClCompile Include="..\..\..\common\mutex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\common\mutex.cpp">
+    <ClCompile Include="..\..\..\common\pipe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
