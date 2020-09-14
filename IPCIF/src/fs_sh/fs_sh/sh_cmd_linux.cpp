@@ -220,7 +220,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 		string file=vfile[i].first;
 		if(file.empty())
 			continue;
-		byte c=(byte)(*(file.end()-1));
+		byte c=(byte)file.back();
 		for(int j=0;j<sizeof(ls_suffix)/sizeof(byte);j++)
 		{
 			if(c==ls_suffix[j])
@@ -261,7 +261,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 		type=(direntp->d_type==DT_DIR?1:0);
 #else
 		string path=fulldir;
-		if(!path.empty()&&*(path.end()-1)!='/')
+		if(!path.empty()&&path.back()!='/')
 			path+="/";
 		path+=file;
 		type=get_file_type(path.c_str());

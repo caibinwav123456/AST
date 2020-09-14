@@ -88,6 +88,9 @@ bool process_ctrl_key(sh_context* ctx)
 		}
 		break;
 	case VK_BACKSPACE:
+#ifdef VK_BACKSPACE_2
+	case VK_BACKSPACE_2:
+#endif
 		if(icmd>0)
 		{
 			icmd--;

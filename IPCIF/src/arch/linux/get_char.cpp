@@ -20,6 +20,8 @@ static uint getch()
 	uint ch;
 	while((!quit_get_char)&&(ch=(uint)getchar())==EOF)
 		usleep(1000);
+	if(quit_get_char)
+		while((uint)getchar()!=EOF);
 	fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) & ~O_NONBLOCK);
 	ioctl(STDIN_FILENO, TCSETS, &term_old);
 	return quit_get_char?0:ch;

@@ -27,6 +27,7 @@
 #define VK_CTRL_M '\n'
 
 #define VK_BACKSPACE ((uint)'\b')
+#define VK_BACKSPACE_2 ((uint)127)
 #define VK_DELETE (CTRL_KEY|(uint)'3')
 #define VK_UP (CTRL_KEY|(uint)'A')
 #define VK_DOWN (CTRL_KEY|(uint)'B')
@@ -36,5 +37,7 @@
 #define VK_PGDN (CTRL_KEY|(uint)'6')
 #define VK_HOME (CTRL_KEY|(uint)'1')
 #define VK_END (CTRL_KEY|(uint)'4')
+#define VK_HOME_2 (CTRL_KEY|(uint)'H')
+#define VK_END_2 (CTRL_KEY|(uint)'F')
 
 #endif
