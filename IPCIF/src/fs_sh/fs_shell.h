@@ -15,6 +15,7 @@ struct sh_context
 	uint icmd;
 	uint ilog;
 	dword flags;
+	void* priv;
 	string cmd;
 	string pwd;
 	vector<string> logback;
@@ -24,6 +25,7 @@ struct sh_context
 		icmd=0;
 		ilog=0;
 		flags=0;
+		priv=NULL;
 	}
 };
 typedef int (*fs_cmd_handler)(sh_context*,dword);

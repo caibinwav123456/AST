@@ -4,6 +4,7 @@
 #include "fs_shell.h"
 #include "datetime.h"
 #include "Integer64.h"
+#include "pipe.h"
 #include <vector>
 #include <string>
 #include <map>
