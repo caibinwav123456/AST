@@ -35,7 +35,10 @@ int execute_cmd(sh_context* ctx)
 	if(ctx->cmd==EXIT_CMD&&ctx->c!=(uint)'\t')
 		return RET_QUIT;
 	if(cmd_handler!=NULL)
-		return cmd_handler(ctx,FS_CMD_HANDLE_STATE_EXEC);
+	{
+		int ret=cmd_handler(ctx,FS_CMD_HANDLE_STATE_EXEC);
+		return ret==RET_QUIT?ERR_GENERIC:ret;
+	}
 	return 0;
 }
 bool process_ctrl_key(sh_context* ctx)

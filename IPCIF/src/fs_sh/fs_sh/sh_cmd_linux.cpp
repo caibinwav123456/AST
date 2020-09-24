@@ -149,10 +149,11 @@ static int execute(sh_context* ctx)
 		string abspath;
 		if(0!=(ret=get_absolute_path(ctx->pwd,path,abspath)))
 		{
-			printf("invalid path\n");			
+			printf("invalid path\n");
 			return ret;
 		}
-		abspath=string("/")+abspath;
+		if(abspath.empty()||abspath[0]!='/')
+			abspath=string("/")+abspath;
 		if(0!=(ret=chdir(abspath.c_str())))
 		{
 			printf("command failed\n");
