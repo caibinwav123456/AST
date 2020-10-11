@@ -30,10 +30,11 @@ ShCmdTable* ShCmdTable::GetTable()
 	static ShCmdTable table;
 	return &table;
 }
-void ShCmdTable::AddCmd(const char* cmd,per_cmd_handler handler,const char* desc,const char* detail)
+void ShCmdTable::AddCmd(const char* cmd,per_cmd_handler handler,per_cmd_handler pre_handler,const char* desc,const char* detail)
 {
 	CmdItem item;
 	item.handler=handler;
+	item.pre_handler=pre_handler;
 	item.detail=detail;
 	ShCmdTable* ptable=GetTable();
 	ptable->vstrdesc.push_back(string(cmd)+" - "+desc+"\n");
@@ -44,13 +45,25 @@ int ShCmdTable::Init()
 	sort(GetTable()->vstrdesc.begin(),GetTable()->vstrdesc.end());
 	return 0;
 }
-int ShCmdTable::ExecCmd(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
+int ShCmdTable::ExecCmd(sh_context* ctx,vector<pair<string,string>>& args)
 {
+	int ret=0;
+	if(!args[0].second.empty())
+		return_msg(ERR_INVALID_CMD,"bad command format\n");
+	const string& cmd_head=args[0].first;
 	map<string,CmdItem>& c_map=GetTable()->cmd_map;
-	map<string,CmdItem>::iterator it=c_map.find(cmd);
+	map<string,CmdItem>::iterator it=c_map.find(cmd_head);
 	if(it==c_map.end()||it->second.handler==NULL)
 		return_msg(ERR_INVALID_CMD,"Command not found.\n");
-	return it->second.handler(ctx,cmd,args);
+	cmd_param_st cmd_param(ctx);
+	cmd_param.cmd=cmd_head;
+	cmd_param.args=args;
+	if(it->second.pre_handler!=NULL)
+	{
+		if(0!=(ret=it->second.pre_handler(&cmd_param)))
+			return ret;
+	}
+	return it->second.handler(&cmd_param);
 }
 void ShCmdTable::PrintDesc()
 {
@@ -81,7 +94,7 @@ static void print_banner()
 {
 	printf(
 		"#################################################\n"
-		"# fs_sh: a built-in shell for AST storage system.\n"
+		"# fs_sh: a builtin shell for AST storage system.\n"
 		"# Version: 1.0.0.0\n"
 		"# Copyright (C) May 2020, CaiBin\n"
 		"# License: GNU GPL 3.0\n"
@@ -277,7 +290,7 @@ int get_full_path(const string& cur_dir,const string& relative_path,string& full
 	vector<string> cur_dir_split,relative_path_split,direct;
 	string drv_name;
 	split_path(relative_path,relative_path_split,'/');
-	if(!relative_path.empty()&&relative_path[0]=='/')
+	if((!relative_path.empty())&&relative_path[0]=='/')
 	{
 		if(0!=(ret=(get_direct_path(direct,relative_path_split))))
 			return ret;
@@ -340,10 +353,7 @@ static int execute(sh_context* ctx)
 	}
 	if(args.empty())
 		return 0;
-	if(!args[0].second.empty())
-		return_msg(ERR_INVALID_CMD,"bad command format\n");
-	const string& cmd_head=args[0].first;
-	return ShCmdTable::ExecCmd(ctx,cmd_head,args);
+	return ShCmdTable::ExecCmd(ctx,args);
 }
 bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* size,bool mute)
 {
@@ -386,8 +396,9 @@ bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* si
 	}
 	return ret==0;
 }
-static int df_handler(sh_context* ctx, const string& cmd, vector<pair<string, string>>& args)
+static int df_handler(cmd_param_st* param)
 {
+	common_sh_args(param);
 	vector<string> devs;
 	uint def=0;
 	int ret=0;
@@ -497,8 +508,9 @@ static int list_file_path(sh_context* ctx,const string& path,E_FILE_DISP_MODE mo
 	list_one_dir(bfile?ctx->pwd:fullpath,flist,mode);
 	return 0;
 }
-static int ls_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
+static int ls_handler(cmd_param_st* param)
 {
+	common_sh_args(param);
 	int ret=0;
 	string fullpath;
 	E_FILE_DISP_MODE mode=(cmd=="ll"?file_disp_type_time:file_disp_simple);
@@ -557,8 +569,9 @@ DEF_SH_CMD(ls,ls_handler,
 DEF_SH_CMD(ll,ls_handler,
 	"the alias for command \'ls -l\'",
 	"This is an alias for command ls with option -l, see ls.\n");
-static int cd_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
+static int cd_handler(cmd_param_st* param)
 {
+	common_sh_args(param);
 	if(args.size()!=2||!args[1].second.empty())
 		return_msg(ERR_INVALID_CMD,"bad command format\n");
 	string path(args[1].first),fullpath;
@@ -590,8 +603,9 @@ DEF_SH_CMD(cd,cd_handler,
 	"starts with a device name and a colon followed by a slash, a slash alone "
 	"indicates the root directory of the default device.\n"
 	"if path is relatve, it is based on the current directory path.\n");
-static int help_handler(sh_context* ctx,const string& cmd,vector<pair<string,string>>& args)
+static int help_handler(cmd_param_st* param)
 {
+	common_sh_args(param);
 	int argsize=(int)args.size();
 	if(argsize<1)
 		return_msg(ERR_INVALID_CMD,"bad command format\n");

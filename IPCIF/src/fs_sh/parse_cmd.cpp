@@ -4,21 +4,25 @@
 #include <assert.h>
 #define token_buf_size 1024
 static const byte seps[]={' ','\t','\r','\n'};
-static const byte spec_char[]={'_','-','+','.',',','/','{','}','~',':','#','%','*','@','|','>'};
+static const byte spec_char[]={'_','-','+','.',',','/','{','}','~',':','#','%','*','@'};
+static const byte spec_sym[]={'|','<','>'};
 struct token_set
 {
 	bool alphabet[256];
-	token_set()
+	token_set(const byte* ch,uint nch,bool balphanum=false)
 	{
 		memset(alphabet,0,256*sizeof(bool));
-		for(int i=(int)'a';i<=(int)'z';i++)
-			alphabet[i]=true;
-		for(int i=(int)'A';i<=(int)'Z';i++)
-			alphabet[i]=true;
-		for(int i=(int)'0';i<=(int)'9';i++)
-			alphabet[i]=true;
-		for(int i=0;i<(int)(sizeof(spec_char)/sizeof(byte));i++)
-			alphabet[(int)spec_char[i]]=true;
+		if(balphanum)
+		{
+			for(int i=(int)'a';i<=(int)'z';i++)
+				alphabet[i]=true;
+			for(int i=(int)'A';i<=(int)'Z';i++)
+				alphabet[i]=true;
+			for(int i=(int)'0';i<=(int)'9';i++)
+				alphabet[i]=true;
+		}
+		for(int i=0;i<(int)nch;i++)
+			alphabet[(int)ch[i]]=true;
 	}
 	bool is_ch_token(byte c)
 	{
@@ -46,7 +50,13 @@ static bool trim_space(byte c,void* param)
 }
 static bool trim_token(byte c,void* param)
 {
-	static token_set ts;
+	static token_set ts(spec_char,sizeof(spec_char)/sizeof(byte),true);
+	return ts.is_ch_token(c);
+}
+#define is_spec_sym(c) trim_sym(c,NULL)
+static bool trim_sym(byte c,void* param)
+{
+	static token_set ts(spec_sym,sizeof(spec_sym)/sizeof(byte));
 	return ts.is_ch_token(c);
 }
 static bool trim_string(byte c,void* param)
@@ -139,10 +149,17 @@ static int __parse_cmd(const byte* buf,int size,
 		trim_text(buf,size,trim_space);
 		if(size==0)
 			break;
-		if(size>0&&(*buf=='\"'||*buf=='\''))
+		if(*buf=='\"'||*buf=='\'')
 		{
 			if(0!=(ret=parse_string(buf,size,token_buf,*buf,item)))
 				return ret;
+		}
+		else if(is_spec_sym(*buf))
+		{
+			pbuf=buf,psize=size;
+			if(!trim_text(buf,size,trim_sym))
+				return ERR_INVALID_CMD;
+			make_token(pbuf,buf,token_buf,item);
 		}
 		else
 		{

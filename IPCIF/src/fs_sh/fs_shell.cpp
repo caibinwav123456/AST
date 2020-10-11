@@ -37,7 +37,7 @@ int execute_cmd(sh_context* ctx)
 	if(cmd_handler!=NULL)
 	{
 		int ret=cmd_handler(ctx,FS_CMD_HANDLE_STATE_EXEC);
-		return ret==RET_QUIT?ERR_GENERIC:ret;
+		return ret==RET_QUIT?-1:ret;
 	}
 	return 0;
 }
