@@ -12,6 +12,10 @@ using namespace std;
 #define return_msg(code,msg,...) \
 	{printf(msg,##__VA_ARGS__); \
 	return code;}
+#define CMD_PARAM_FLAG_PRE_REVOKE 1
+#define CMD_PARAM_FLAG_USED_PIPE  2
+#define is_pre_revoke(flags) ((flags)&CMD_PARAM_FLAG_PRE_REVOKE)
+#define used_pipe(flags) ((flags)&CMD_PARAM_FLAG_USED_PIPE)
 int init_sh();
 void exit_sh();
 int get_full_path(const string& cur_dir,const string& relative_path,string& full_path);
@@ -24,16 +28,22 @@ struct cmd_param_st
 	sh_context* ctx;
 	void* hthread;
 	void* priv;
+	int ret;
+	dword flags;
 	cmd_param_st* prev;
 	cmd_param_st* next;
 	string cmd;
 	vector<pair<string,string>> args;
-	cmd_param_st(sh_context* _ctx,Pipe* _stream=NULL,Pipe* _stream_next=NULL):ctx(_ctx),stream(_stream),stream_next(_stream_next)
+	cmd_param_st(sh_context* _ctx):ctx(_ctx)
 	{
 		prev=NULL;
 		next=NULL;
+		stream=NULL;
+		stream_next=NULL;
 		hthread=NULL;
 		priv=NULL;
+		ret=0;
+		flags=0;
 	}
 	~cmd_param_st()
 	{
@@ -46,19 +56,21 @@ struct cmd_param_st
 #define common_sh_args(ptr) \
 	sh_context* ctx=ptr->ctx; \
 	const string& cmd=ptr->cmd; \
-	vector<pair<string,string>>& args=ptr->args
+	vector<pair<string,string>>& args=ptr->args; \
+	Pipe* pipe=ptr->stream; \
+	Pipe* pipe_next=ptr->stream_next
 typedef int (*per_cmd_handler)(cmd_param_st* param);
 struct sh_thread_param
 {
 	per_cmd_handler handler;
-	cmd_param_st param;
+	cmd_param_st* param;
 };
 class ShCmdTable
 {
 public:
 	static void AddCmd(const char* cmd,per_cmd_handler handler,per_cmd_handler pre_handler,const char* desc,const char* detail);
 	static int Init();
-	static int ExecCmd(sh_context* ctx,vector<pair<string,string>>& args);
+	static int ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args);
 	static void PrintDesc();
 	static int PrintDetail(const string& cmd);
 private:
@@ -72,6 +84,8 @@ private:
 	vector<string> vstrdesc;
 	map<string,CmdItem> cmd_map;
 	static ShCmdTable* GetTable();
+	static bool find_cmd(const string& cmd,CmdItem* cmditem);
+	static void revoke_preprocess(cmd_param_st* param,const vector<CmdItem>& callback,cmd_param_st* end=NULL);
 };
 class CfgCmd
 {

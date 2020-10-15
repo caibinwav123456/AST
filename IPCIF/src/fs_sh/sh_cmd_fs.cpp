@@ -18,6 +18,10 @@
 	}
 #define MAX_FLIST_CHAR 80
 #define MAX_NUM_FLIST 8
+#define CMD_REDIR "%redir%"
+#define term_stream(pcmd) \
+	if((pcmd)->stream_next!=NULL) \
+		(pcmd)->stream_next->Send(NULL,0)
 enum E_FILE_DISP_MODE
 {
 	file_disp_simple,
@@ -25,6 +29,21 @@ enum E_FILE_DISP_MODE
 };
 DEFINE_UINT_VAL(fs_sh_nbuf,4);
 DEFINE_UINT_VAL(fs_sh_buflen,2048);
+struct st_priv_redir
+{
+	string path;
+	void* hfile;
+};
+static int redir_handler(cmd_param_st* param)
+{
+	assert(param->stream_next==NULL);
+	return 0;
+}
+static int redir_pre_handler(cmd_param_st* param)
+{
+	assert(param->stream_next==NULL);
+	return 0;
+}
 ShCmdTable* ShCmdTable::GetTable()
 {
 	static ShCmdTable table;
@@ -45,25 +64,203 @@ int ShCmdTable::Init()
 	sort(GetTable()->vstrdesc.begin(),GetTable()->vstrdesc.end());
 	return 0;
 }
-int ShCmdTable::ExecCmd(sh_context* ctx,vector<pair<string,string>>& args)
+static inline int init_cmd_param(cmd_param_st* cmd_param,const vector<pair<string,string>>& args,
+	int start,int end,Pipe* stream,bool create_stream=true)
+{
+	if(start>=end)
+		return_msg(ERR_INVALID_CMD,"void substatement\n");
+	cmd_param->args.assign(args.begin()+start,args.begin()+end);
+	if(!cmd_param->args[0].second.empty())
+		return_msg(ERR_INVALID_CMD,"bad command format\n");
+	cmd_param->cmd=cmd_param->args[0].first;
+	cmd_param->stream_next=stream;
+	if(create_stream)
+		cmd_param->stream=new Pipe;
+	return 0;
+}
+bool ShCmdTable::find_cmd(const string& cmd,CmdItem* cmditem)
+{
+	if(cmd==CMD_REDIR)
+	{
+		cmditem->handler=redir_handler;
+		cmditem->pre_handler=redir_pre_handler;
+		cmditem->detail=NULL;
+		return true;
+	}
+	map<string,CmdItem>& c_map=GetTable()->cmd_map;
+	map<string,CmdItem>::iterator it=c_map.find(cmd);
+	if(it==c_map.end()||it->second.handler==NULL)
+		return false;
+	*cmditem=it->second;
+	return true;
+}
+void ShCmdTable::revoke_preprocess(cmd_param_st* param,const vector<CmdItem>& callback,cmd_param_st* end)
+{
+	int i;
+	cmd_param_st* p;
+	for(i=callback.size()-1,p=param;p!=end;i--,p=p->next)
+	{
+		if(callback[i].pre_handler!=NULL)
+		{
+			p->flags|=CMD_PARAM_FLAG_PRE_REVOKE;
+			callback[i].pre_handler(p);
+		}
+	}
+}
+static void end_threads(cmd_param_st* param,cmd_param_st* end)
+{
+	for(cmd_param_st* p=param;p!=end;p=p->prev)
+	{
+		if(VALID(p->hthread))
+		{
+			sys_wait_thread(p->hthread);
+			sys_close_thread(p->hthread);
+			p->hthread=NULL;
+		}
+	}
+}
+static int trace_errors(int mainret,cmd_param_st* cmd_param)
 {
 	int ret=0;
-	if(!args[0].second.empty())
-		return_msg(ERR_INVALID_CMD,"bad command format\n");
-	const string& cmd_head=args[0].first;
-	map<string,CmdItem>& c_map=GetTable()->cmd_map;
-	map<string,CmdItem>::iterator it=c_map.find(cmd_head);
-	if(it==c_map.end()||it->second.handler==NULL)
-		return_msg(ERR_INVALID_CMD,"Command not found.\n");
-	cmd_param_st cmd_param(ctx);
-	cmd_param.cmd=cmd_head;
-	cmd_param.args=args;
-	if(it->second.pre_handler!=NULL)
+	for(cmd_param_st* p=cmd_param;p!=NULL;p=p->next)
 	{
-		if(0!=(ret=it->second.pre_handler(&cmd_param)))
-			return ret;
+		if(p->ret==0)
+			continue;
+		if(ret==0)
+		{
+			ret=p->ret;
+			printf("Tracing errors:\n");
+		}
+		printf("\tIn \"%s\": %s.\n",p->cmd.c_str(),get_error_desc(p->ret));
 	}
-	return it->second.handler(&cmd_param);
+	return mainret;
+}
+static int sh_thread_func(void* ptr)
+{
+	sh_thread_param* param=(sh_thread_param*)ptr;
+	per_cmd_handler handler=param->handler;
+	cmd_param_st* cmd_param=param->param;
+	delete param;
+	cmd_param->ret=handler(cmd_param);
+	if((!used_pipe(cmd_param->flags))&&cmd_param->stream!=NULL)
+	{
+		byte buf[256];
+		while(cmd_param->stream->Recv(buf,256)!=0);
+	}
+	term_stream(cmd_param);
+	return 0;
+}
+int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
+{
+	int ret=0;
+	int irangle=-1,idbrangle=-1,ivbar=-1;
+	for(int i=args.size()-1;i>=0;i--)
+	{
+		if(irangle==-1&&args[i].first==">")
+			irangle=i;
+		if(idbrangle==-1&&args[i].first==">>")
+			idbrangle=i;
+		if(ivbar==-1&&args[i].first=="|")
+			ivbar=i;
+		if(irangle!=-1&&idbrangle!=-1&&ivbar!=-1)
+			break;
+	}
+	if(irangle!=-1&&idbrangle!=-1)
+		return_msg(ERR_INVALID_CMD,"\">\" and \">>\" cannot be both present\n");
+	int pos_angle=(irangle!=-1?irangle:idbrangle);
+	bool bdb=(idbrangle!=-1);
+	int itoken=args.size()-1,tail;
+	cmd_param_st cmd_param(ctx),*last_cmd=NULL;
+	Pipe* pipe=NULL;
+	if(pos_angle!=-1)
+	{
+		if(pos_angle!=itoken-1||(ivbar!=-1&&ivbar==itoken))
+			return_msg(ERR_INVALID_CMD,"the redirection is not a valid file path\n");
+		itoken-=2;
+		if(!args.back().second.empty())
+			return_msg(ERR_INVALID_CMD,"bad command format\n");
+		last_cmd=cmd_param.next=new cmd_param_st(ctx);
+		cmd_param.next->prev=&cmd_param;
+		cmd_param.stream_next=pipe=cmd_param.next->stream=new Pipe;
+		cmd_param.next->args.push_back(pair<string,string>(bdb?">>":">",""));
+		cmd_param.next->args.push_back(args.back());
+		cmd_param.next->cmd=CMD_REDIR;
+	}
+	for(int i=itoken;i>=0;i--)
+	{
+		const string& token=args[i].first;
+		if(token==">"||token==">>")
+			return_msg(ERR_INVALID_CMD,"the redirection cannot be used more than once\n");
+	}
+	for(tail=itoken+1;itoken>=0;itoken--)
+	{
+		if(args[itoken].first=="|")
+		{
+			if(!args[itoken].second.empty())
+				return_msg(ERR_INVALID_CMD,"bad command format\n");
+			cmd_param_st* next=cmd_param.next;
+			cmd_param.next=new cmd_param_st(ctx);
+			cmd_param.next->next=next;
+			cmd_param.next->prev=&cmd_param;
+			if(next!=NULL)
+				next->prev=cmd_param.next;
+			if(last_cmd==NULL)
+				last_cmd=cmd_param.next;
+			if(0!=(ret=init_cmd_param(cmd_param.next,args,itoken+1,tail,pipe)))
+				return ret;
+			pipe=cmd_param.next->stream;
+			tail=itoken;
+		}
+	}
+	if(last_cmd==NULL)
+		last_cmd=&cmd_param;
+	if(0!=(ret=init_cmd_param(&cmd_param,args,0,tail,pipe,false)))
+		return ret;
+	vector<CmdItem> callback;
+	for(cmd_param_st* cur_cmd=last_cmd;cur_cmd!=NULL;cur_cmd=cur_cmd->prev)
+	{
+		CmdItem item;
+		if(!find_cmd(cur_cmd->cmd,&item))
+		{
+			revoke_preprocess(cur_cmd->next,callback);
+			return_msg(ERR_INVALID_CMD,"Command \"%s\" not found.\n",cur_cmd->cmd.c_str());
+		}
+		if(item.pre_handler!=NULL)
+		{
+			if(0!=(ret=item.pre_handler(&cmd_param)))
+			{
+				revoke_preprocess(cur_cmd->next,callback);
+				return ret;
+			}
+		}
+		callback.push_back(item);
+	}
+	int ivec;
+	cmd_param_st* pcmd;
+	for(ivec=0,pcmd=last_cmd;pcmd!=NULL;ivec++,pcmd=pcmd->prev)
+	{
+		if(ivec==(int)callback.size()-1)
+		{
+			assert(pcmd->prev==NULL);
+			ret=pcmd->ret=callback.back().handler(pcmd);
+			term_stream(pcmd);
+			end_threads(last_cmd,pcmd);
+			continue;
+		}
+		sh_thread_param* thrdparam=new sh_thread_param;
+		thrdparam->handler=callback[ivec].handler;
+		thrdparam->param=pcmd;
+		pcmd->hthread=sys_create_thread(sh_thread_func,thrdparam);
+		if(!VALID(pcmd->hthread))
+		{
+			delete thrdparam;
+			revoke_preprocess(&cmd_param,callback,pcmd->next);
+			term_stream(pcmd);
+			end_threads(last_cmd,pcmd);
+			return_msg(ERR_THREAD_CREATE_FAILED,"%s",get_error_desc(ERR_THREAD_CREATE_FAILED));
+		}
+	}
+	return trace_errors(ret,&cmd_param);
 }
 void ShCmdTable::PrintDesc()
 {
