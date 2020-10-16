@@ -5,6 +5,8 @@
 #include "datetime.h"
 #include "Integer64.h"
 #include "pipe.h"
+#include <stdio.h>
+#include <stdarg.h>
 #include <vector>
 #include <string>
 #include <map>
@@ -12,6 +14,27 @@ using namespace std;
 #define return_msg(code,msg,...) \
 	{printf(msg,##__VA_ARGS__); \
 	return code;}
+#define t_output(msg,...) tprintf(pipe_next,__tp_buf__,msg,##__VA_ARGS__)
+#define tb_output(ptr,len) tputs(pipe_next,ptr,len)
+#define return_t_msg(code,msg,...) \
+	{t_output(msg,##__VA_ARGS__); \
+	return code;}
+#define term_stream(pcmd) \
+	if((pcmd)->stream_next!=NULL) \
+		(pcmd)->stream_next->Send(NULL,0)
+#define drain_stream(pcmd) \
+	if((pcmd)->stream!=NULL) \
+	{ \
+		byte buf[256]; \
+		while((pcmd)->stream->Recv(buf,256)!=0); \
+	}
+#define common_sh_args(ptr) \
+	sh_context* ctx=(ptr)->ctx; \
+	const string& cmd=(ptr)->cmd; \
+	vector<pair<string,string>>& args=(ptr)->args; \
+	Pipe* pipe=(ptr)->stream; \
+	Pipe* pipe_next=(ptr)->stream_next; \
+	byte*& __tp_buf__=(ptr)->tp_buf
 #define CMD_PARAM_FLAG_PRE_REVOKE 1
 #define CMD_PARAM_FLAG_USED_PIPE  2
 #define is_pre_revoke(flags) ((flags)&CMD_PARAM_FLAG_PRE_REVOKE)
@@ -27,6 +50,7 @@ struct cmd_param_st
 	Pipe* stream_next;
 	sh_context* ctx;
 	void* hthread;
+	byte* tp_buf;
 	void* priv;
 	int ret;
 	dword flags;
@@ -41,6 +65,7 @@ struct cmd_param_st
 		stream=NULL;
 		stream_next=NULL;
 		hthread=NULL;
+		tp_buf=NULL;
 		priv=NULL;
 		ret=0;
 		flags=0;
@@ -49,22 +74,47 @@ struct cmd_param_st
 	{
 		if(stream!=NULL)
 			delete stream;
+		if(tp_buf!=NULL)
+			delete[] tp_buf;
 		if(next!=NULL)
 			delete next;
 	}
 };
-#define common_sh_args(ptr) \
-	sh_context* ctx=ptr->ctx; \
-	const string& cmd=ptr->cmd; \
-	vector<pair<string,string>>& args=ptr->args; \
-	Pipe* pipe=ptr->stream; \
-	Pipe* pipe_next=ptr->stream_next
 typedef int (*per_cmd_handler)(cmd_param_st* param);
 struct sh_thread_param
 {
 	per_cmd_handler handler;
 	cmd_param_st* param;
 };
+void prepare_tp_buf(byte*& buf);
+inline void tprintf(Pipe* pipe,byte*& buf,const char* msg,...)
+{
+	va_list args;
+	va_start(args,msg);
+	if(pipe==NULL)
+		vprintf(msg,args);
+	else
+	{
+		prepare_tp_buf(buf);
+		vsprintf((char*)buf,msg,args);
+		pipe->Send(buf,strlen((char*)buf));
+	}
+	va_end(args);
+}
+inline void tputs(Pipe* pipe,void* ptr,uint len)
+{
+	if(ptr==NULL)
+		return;
+	byte* pb=(byte*)ptr;
+	if(pipe==NULL)
+	{
+		byte* end=pb+len;
+		for(byte* p=pb;p!=end;p++)
+			putc(*p,stdout);
+	}
+	else
+		pipe->Send(ptr,len);
+}
 class ShCmdTable
 {
 public:
@@ -95,6 +145,7 @@ public:
 		ShCmdTable::AddCmd(cmd,handler,pre_handler,desc,detail);
 	}
 };
+int ban_pre_handler(cmd_param_st* param);
 #define DEF_SH_PRED_CMD(cmd,handler,pre_handler,desc,detail) CfgCmd __config_cmd_ ## cmd ( #cmd, handler, pre_handler, desc, detail )
-#define DEF_SH_CMD(cmd,handler,desc,detail) DEF_SH_PRED_CMD(cmd,handler,NULL,desc,detail)
+#define DEF_SH_CMD(cmd,handler,desc,detail) DEF_SH_PRED_CMD(cmd,handler,ban_pre_handler,desc,detail)
 #endif

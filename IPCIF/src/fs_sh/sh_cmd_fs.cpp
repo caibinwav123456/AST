@@ -8,7 +8,6 @@
 #include "config_val_extern.h"
 #include "interface.h"
 #include <algorithm>
-#include <stdio.h>
 #include <assert.h>
 #define if_safe_release(hif) \
 	if(VALID(hif)) \
@@ -18,10 +17,8 @@
 	}
 #define MAX_FLIST_CHAR 80
 #define MAX_NUM_FLIST 8
+#define MIN_TPBUF_LEN 1024
 #define CMD_REDIR "%redir%"
-#define term_stream(pcmd) \
-	if((pcmd)->stream_next!=NULL) \
-		(pcmd)->stream_next->Send(NULL,0)
 enum E_FILE_DISP_MODE
 {
 	file_disp_simple,
@@ -29,6 +26,21 @@ enum E_FILE_DISP_MODE
 };
 DEFINE_UINT_VAL(fs_sh_nbuf,4);
 DEFINE_UINT_VAL(fs_sh_buflen,2048);
+DEFINE_SIZE_VAL(fs_tpbuf_len,MIN_TPBUF_LEN);
+void prepare_tp_buf(byte*& buf)
+{
+	if(buf!=NULL)
+		return;
+	if(fs_tpbuf_len<MIN_TPBUF_LEN)
+		fs_tpbuf_len=MIN_TPBUF_LEN;
+	buf=new byte[fs_tpbuf_len];
+}
+int ban_pre_handler(cmd_param_st* param)
+{
+	if((!is_pre_revoke(param->flags))&&param->stream!=NULL)
+		return_msg(ERR_GENERIC,"The command \"%s\" cannot be used with \"|\"\n",param->cmd.c_str());
+	return 0;
+}
 struct st_priv_redir
 {
 	string path;
@@ -36,8 +48,16 @@ struct st_priv_redir
 };
 static int redir_handler(cmd_param_st* param)
 {
-	assert(param->stream_next==NULL);
-	return 0;
+	assert(param->stream_next==NULL
+		&&param->stream!=NULL);
+	assert(param->args.size()==2);
+	byte buf[256];
+	uint n=0,acc=0;
+	while((n=param->stream->Recv(buf,256))>0)
+		acc+=n;
+	param->flags|=CMD_PARAM_FLAG_USED_PIPE;
+	return_msg(0,"Aha! I've received %d bytes to \"%s\" to \"%s\"\n",
+		acc,param->args[0].first.c_str(),param->args[1].first.c_str());
 }
 static int redir_pre_handler(cmd_param_st* param)
 {
@@ -63,6 +83,15 @@ int ShCmdTable::Init()
 {
 	sort(GetTable()->vstrdesc.begin(),GetTable()->vstrdesc.end());
 	return 0;
+}
+static inline void link_cmd_param(cmd_param_st* param,sh_context* ctx)
+{
+	cmd_param_st* next=param->next;
+	param->next=new cmd_param_st(ctx);
+	param->next->next=next;
+	param->next->prev=param;
+	if(next!=NULL)
+		next->prev=param->next;
 }
 static inline int init_cmd_param(cmd_param_st* cmd_param,const vector<pair<string,string>>& args,
 	int start,int end,Pipe* stream,bool create_stream=true)
@@ -119,7 +148,7 @@ static void end_threads(cmd_param_st* param,cmd_param_st* end)
 		}
 	}
 }
-static int trace_errors(int mainret,cmd_param_st* cmd_param)
+static int trace_errors(cmd_param_st* cmd_param)
 {
 	int ret=0;
 	for(cmd_param_st* p=cmd_param;p!=NULL;p=p->next)
@@ -133,7 +162,7 @@ static int trace_errors(int mainret,cmd_param_st* cmd_param)
 		}
 		printf("\tIn \"%s\": %s.\n",p->cmd.c_str(),get_error_desc(p->ret));
 	}
-	return mainret;
+	return ret;
 }
 static int sh_thread_func(void* ptr)
 {
@@ -142,11 +171,8 @@ static int sh_thread_func(void* ptr)
 	cmd_param_st* cmd_param=param->param;
 	delete param;
 	cmd_param->ret=handler(cmd_param);
-	if((!used_pipe(cmd_param->flags))&&cmd_param->stream!=NULL)
-	{
-		byte buf[256];
-		while(cmd_param->stream->Recv(buf,256)!=0);
-	}
+	if(!used_pipe(cmd_param->flags))
+		drain_stream(cmd_param);
 	term_stream(cmd_param);
 	return 0;
 }
@@ -179,8 +205,8 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 		itoken-=2;
 		if(!args.back().second.empty())
 			return_msg(ERR_INVALID_CMD,"bad command format\n");
-		last_cmd=cmd_param.next=new cmd_param_st(ctx);
-		cmd_param.next->prev=&cmd_param;
+		link_cmd_param(&cmd_param,ctx);
+		last_cmd=cmd_param.next;
 		cmd_param.stream_next=pipe=cmd_param.next->stream=new Pipe;
 		cmd_param.next->args.push_back(pair<string,string>(bdb?">>":">",""));
 		cmd_param.next->args.push_back(args.back());
@@ -198,12 +224,7 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 		{
 			if(!args[itoken].second.empty())
 				return_msg(ERR_INVALID_CMD,"bad command format\n");
-			cmd_param_st* next=cmd_param.next;
-			cmd_param.next=new cmd_param_st(ctx);
-			cmd_param.next->next=next;
-			cmd_param.next->prev=&cmd_param;
-			if(next!=NULL)
-				next->prev=cmd_param.next;
+			link_cmd_param(&cmd_param,ctx);
 			if(last_cmd==NULL)
 				last_cmd=cmd_param.next;
 			if(0!=(ret=init_cmd_param(cmd_param.next,args,itoken+1,tail,pipe)))
@@ -257,10 +278,10 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 			revoke_preprocess(&cmd_param,callback,pcmd->next);
 			term_stream(pcmd);
 			end_threads(last_cmd,pcmd);
-			return_msg(ERR_THREAD_CREATE_FAILED,"%s",get_error_desc(ERR_THREAD_CREATE_FAILED));
+			return_msg(ERR_THREAD_CREATE_FAILED,"%s\n",get_error_desc(ERR_THREAD_CREATE_FAILED));
 		}
 	}
-	return trace_errors(ret,&cmd_param);
+	return trace_errors(&cmd_param);
 }
 void ShCmdTable::PrintDesc()
 {
