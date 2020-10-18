@@ -31,7 +31,7 @@ using namespace std;
 #define common_sh_args(ptr) \
 	sh_context* ctx=(ptr)->ctx; \
 	const string& cmd=(ptr)->cmd; \
-	vector<pair<string,string>>& args=(ptr)->args; \
+	const vector<pair<string,string>>& args=(ptr)->args; \
 	Pipe* pipe=(ptr)->stream; \
 	Pipe* pipe_next=(ptr)->stream_next; \
 	byte*& __tp_buf__=(ptr)->tp_buf
@@ -42,7 +42,7 @@ using namespace std;
 int init_sh();
 void exit_sh();
 int get_full_path(const string& cur_dir,const string& relative_path,string& full_path);
-bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NULL,UInteger64* size=NULL,bool mute=false);
+bool validate_path(const string& path,dword* flags=NULL,DateTime* date=NULL,UInteger64* size=NULL,string* strret=NULL);
 void list_cur_dir_files(const string& dir,vector<string>& files);
 struct cmd_param_st
 {
@@ -121,8 +121,8 @@ public:
 	static void AddCmd(const char* cmd,per_cmd_handler handler,per_cmd_handler pre_handler,const char* desc,const char* detail);
 	static int Init();
 	static int ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args);
-	static void PrintDesc();
-	static int PrintDetail(const string& cmd);
+	static void PrintDesc(cmd_param_st* pcmd);
+	static int PrintDetail(const string& dcmd,cmd_param_st* pcmd);
 private:
 	struct CmdItem
 	{

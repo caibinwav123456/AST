@@ -283,21 +283,23 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 	}
 	return trace_errors(&cmd_param);
 }
-void ShCmdTable::PrintDesc()
+void ShCmdTable::PrintDesc(cmd_param_st* pcmd)
 {
+	common_sh_args(pcmd);
 	ShCmdTable* ptable=GetTable();
 	for(int i=0;i<(int)ptable->vstrdesc.size();i++)
 	{
-		printf("%s",ptable->vstrdesc[i].c_str());
+		t_output("%s",ptable->vstrdesc[i].c_str());
 	}
 }
-int ShCmdTable::PrintDetail(const string& cmd)
+int ShCmdTable::PrintDetail(const string& dcmd,cmd_param_st* pcmd)
 {
+	common_sh_args(pcmd);
 	map<string,CmdItem>& c_map=GetTable()->cmd_map;
-	map<string,CmdItem>::iterator it=c_map.find(cmd);
+	map<string,CmdItem>::iterator it=c_map.find(dcmd);
 	if(it==c_map.end()||it->second.handler==NULL)
-		return_msg(ERR_INVALID_CMD,"Command not found.\n");
-	printf("%s",it->second.detail);
+		return_t_msg(ERR_INVALID_CMD,"Command not found.\n");
+	t_output("%s",it->second.detail);
 	return 0;
 }
 static vector<proc_data> pdata;
@@ -573,17 +575,32 @@ static int execute(sh_context* ctx)
 		return 0;
 	return ShCmdTable::ExecCmd(ctx,args);
 }
-bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* size,bool mute)
+static inline void sprint_buf(string& ret,char* buf,const char* format,...)
+{
+	va_list args;
+	va_start(args,format);
+	vsprintf(buf,format,args);
+	ret+=buf;
+	va_end(args);
+}
+bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* size,string* strret)
 {
 	DateTime dt[3];
 	dword tflags=0;
+	char strretbuf[1024];
+	bool bret=false;
+	if(strret!=NULL)
+	{
+		bret=true;
+		strret->clear();
+	}
 	int ret=fs_get_attr((char*)path.c_str(),((flags!=NULL)||(size!=NULL)?FS_ATTR_FLAGS:0)|(date!=NULL?FS_ATTR_MODIFY_DATE:0),&tflags,date!=NULL?dt:NULL);
 	if(flags!=NULL&&ret==0)
 		*flags=tflags;
 	if(date!=NULL&&ret==0)
 		*date=dt[fs_attr_modify_date];
-	if((!mute)&&ret!=0&&ret!=ERR_FS_FILE_NOT_EXIST)
-		printf("unexpected exception: %s\n",get_error_desc(ret));
+	if(bret&&ret!=0&&ret!=ERR_FS_FILE_NOT_EXIST)
+		sprint_buf(*strret,strretbuf,"unexpected exception: %s\n",get_error_desc(ret));
 	if(ret!=0)
 		return false;
 	if(size!=NULL)
@@ -596,20 +613,22 @@ bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* si
 		void* hFile=fs_open((char*)path.c_str(),FILE_OPEN_EXISTING|FILE_READ);
 		if(!VALID(hFile))
 		{
-			if(mute)
-				return false;
-			else
-				return_msg(false,"File can not be opened.\n");
+			if(bret)
+				sprint_buf(*strret,strretbuf,"File can not be opened.\n");
+			return false;
 		}
 		if(0!=(ret=fs_get_file_size(hFile,&size->low,&size->high)))
 		{
-			if(!mute)
-				printf("unexpected exception: %s\n",get_error_desc(ret));
+			if(bret)
+				sprint_buf(*strret,strretbuf,"unexpected exception: %s\n",get_error_desc(ret));
 		}
-		if(0!=(ret=fs_perm_close(hFile)))
+		int retclose=0;
+		if(0!=(retclose=fs_perm_close(hFile)))
 		{
-			if(!mute)
-				printf("close file failed: %s\n",get_error_desc(ret));
+			if(bret)
+				sprint_buf(*strret,strretbuf,"close file failed: %s\n",get_error_desc(retclose));
+			if(ret==0)
+				ret=retclose;
 		}
 	}
 	return ret==0;
@@ -621,16 +640,16 @@ static int df_handler(cmd_param_st* param)
 	uint def=0;
 	int ret=0;
 	if(0!=(ret=fs_list_dev(devs,&def)))
-		return_msg(ret,"command failed: %s\n",get_error_desc(ret));
+		return_t_msg(ret,"command failed: %s\n",get_error_desc(ret));
 	for(int i=0;i<(int)devs.size();i++)
 	{
 		fs_dev_info info;
 		if(0!=(ret=fs_get_dev_info(devs[i],info)))
 		{
-			printf("unexpected exception: %s\n",get_error_desc(ret));
+			t_output("unexpected exception: %s\n",get_error_desc(ret));
 			continue;
 		}
-		printf("%s:\t%s\t%s\n",devs[i].c_str(),info.devtype.c_str(),(i==(int)def?" (default)":""));
+		t_output("%s:\t%s\t%s\n",devs[i].c_str(),info.devtype.c_str(),(i==(int)def?" (default)":""));
 	}
 	return 0;
 }
@@ -640,8 +659,9 @@ DEF_SH_CMD(df,df_handler,
 	"The device names are listed as the interface id's of each device,"
 	"the device type/file system format is listed along with its device name.\n"
 	"The default device is labeled with (default).\n");
-static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_DISP_MODE mode)
+static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string>& flist,E_FILE_DISP_MODE mode)
 {
+	common_sh_args(param);
 	if(mode==file_disp_simple)
 	{
 		uint nc=0,nf=0;
@@ -649,18 +669,18 @@ static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_D
 		{
 			if(nc>=MAX_FLIST_CHAR||nf>=MAX_NUM_FLIST)
 			{
-				printf("\n");
+				t_output("\n");
 				nc=0;
 				nf=0;
 			}
 			else if(i!=0)
-				printf("\t");
+				t_output("\t");
 			nc+=flist[i].size();
 			nf++;
-			printf("%s",quote_file(flist[i]).c_str());
+			t_output("%s",quote_file(flist[i]).c_str());
 		}
 		if(nc>0||nf>0)
-			printf("\n");
+			t_output("\n");
 	}
 	else
 	{
@@ -672,11 +692,15 @@ static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_D
 			UInteger64 u64;
 			if(0!=get_full_path(cwd,file,fullpath))
 			{
-				printf("invalid path\n");
+				t_output("invalid path\n");
 				continue;
 			}
-			if(!validate_path(fullpath,NULL,&date,&u64))
+			string strret;
+			if(!validate_path(fullpath,NULL,&date,&u64,&strret))
+			{
+				t_output("%s",strret.c_str());
 				continue;
+			}
 			string sz=FormatI64(u64);
 			string dispsz;
 			string strdate;
@@ -687,27 +711,30 @@ static inline void list_one_dir(const string& cwd,vector<string>& flist,E_FILE_D
 			}
 			CDateTime datetime(date);
 			datetime.Format(strdate,FORMAT_DATE|FORMAT_TIME|FORMAT_WEEKDAY);
-			printf("%s\t%s\t%s\t%s\n",(!file.empty())&&file.back()=='/'?"d":"n",
+			t_output("%s\t%s\t%s\t%s\n",(!file.empty())&&file.back()=='/'?"d":"n",
 				dispsz.c_str(),strdate.c_str(),quote_file(file).c_str());
 		}
 	}
 }
-static int list_file_path(sh_context* ctx,const string& path,E_FILE_DISP_MODE mode,bool dispdir=false)
+static int list_file_path(cmd_param_st* param,const string& path,E_FILE_DISP_MODE mode,bool dispdir=false)
 {
+	common_sh_args(param);
 	int ret=0;
 	dword flags=0;
 	string fullpath;
 	if(0!=(ret=get_full_path(ctx->pwd,path,fullpath)))
 	{
 		if(dispdir)
-			printf("%s:\n",path.c_str());
-		return_msg(ret,"invalid path\n");
+			t_output("%s:\n",path.c_str());
+		return_t_msg(ret,"invalid path\n");
 	}
-	if(!validate_path(fullpath,&flags))
+	string strret;
+	if(!validate_path(fullpath,&flags,NULL,NULL,&strret))
 	{
 		if(dispdir)
-			printf("%s:\n",path.c_str());
-		return_msg(ERR_FS_FILE_NOT_EXIST,"path not exist\n");
+			t_output("%s:\n",path.c_str());
+		t_output("%s",strret.c_str());
+		return_t_msg(ERR_FS_FILE_NOT_EXIST,"path not exist\n");
 	}
 	vector<string> flist;
 	bool bfile=false;
@@ -719,11 +746,11 @@ static int list_file_path(sh_context* ctx,const string& path,E_FILE_DISP_MODE mo
 	else
 	{
 		if(dispdir)
-			printf("%s:\n",path.c_str());
+			t_output("%s:\n",path.c_str());
 		list_cur_dir_files(fullpath,flist);
 		sort(flist.begin(),flist.end());
 	}
-	list_one_dir(bfile?ctx->pwd:fullpath,flist,mode);
+	list_one_dir(param,bfile?ctx->pwd:fullpath,flist,mode);
 	return 0;
 }
 static int ls_handler(cmd_param_st* param)
@@ -733,11 +760,11 @@ static int ls_handler(cmd_param_st* param)
 	string fullpath;
 	E_FILE_DISP_MODE mode=(cmd=="ll"?file_disp_type_time:file_disp_simple);
 	if(args.size()==1)
-		return list_file_path(ctx,"",mode);
+		return list_file_path(param,"",mode);
 	vector<string> paths;
 	for(int i=1;i<(int)args.size();i++)
 	{
-		pair<string,string>& op=args[i];
+		const pair<string,string>& op=args[i];
 		if(!op.first.empty()&&op.first[0]=='-')
 		{
 			if(op.first.size()>=2&&op.first[1]=='-')
@@ -754,7 +781,7 @@ static int ls_handler(cmd_param_st* param)
 		}
 		else if(!op.second.empty())
 		{
-			return_msg(ERR_INVALID_CMD,"bad command format\n");
+			return_t_msg(ERR_INVALID_CMD,"bad command format\n");
 		}
 		else
 			paths.push_back(op.first);
@@ -763,9 +790,9 @@ static int ls_handler(cmd_param_st* param)
 		paths.push_back("");
 	for(int i=0;i<(int)paths.size();i++)
 	{
-		ret=list_file_path(ctx,paths[i],mode,paths.size()>1);
+		ret=list_file_path(param,paths[i],mode,paths.size()>1);
 		if(i<(int)paths.size()-1)
-			printf("\n");
+			t_output("\n");
 	}
 	return ret;
 }
@@ -791,21 +818,23 @@ static int cd_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
 	if(args.size()!=2||!args[1].second.empty())
-		return_msg(ERR_INVALID_CMD,"bad command format\n");
+		return_t_msg(ERR_INVALID_CMD,"bad command format\n");
 	string path(args[1].first),fullpath;
 	int ret=0;
 	dword flags=0;
 	if(0!=(ret=get_full_path(ctx->pwd,path,fullpath)))
 	{
-		return_msg(ret,"invalid path\n");
+		return_t_msg(ret,"invalid path\n");
 	}
-	if(!validate_path(fullpath,&flags))
+	string strret;
+	if(!validate_path(fullpath,&flags,NULL,NULL,&strret))
 	{
-		return_msg(ERR_FS_FILE_NOT_EXIST,"path not exist\n");
+		t_output("%s",strret.c_str());
+		return_t_msg(ERR_FS_FILE_NOT_EXIST,"path not exist\n");
 	}
 	if(!FS_IS_DIR(flags))
 	{
-		return_msg(0,"%s is a file.\n",quote_file(path).c_str());
+		return_t_msg(0,"%s is a file.\n",quote_file(path).c_str());
 	}
 	ctx->pwd=fullpath;
 	return 0;
@@ -826,16 +855,16 @@ static int help_handler(cmd_param_st* param)
 	common_sh_args(param);
 	int argsize=(int)args.size();
 	if(argsize<1)
-		return_msg(ERR_INVALID_CMD,"bad command format\n");
+		return_t_msg(ERR_INVALID_CMD,"bad command format\n");
 	if(argsize==1)
 	{
-		ShCmdTable::PrintDesc();
-		printf("\nType help + command name to get detailed usage of each command.\n");
+		ShCmdTable::PrintDesc(param);
+		t_output("\nType help + command name to get detailed usage of each command.\n");
 		return 0;
 	}
 	if((int)args.size()!=2||!args[1].second.empty())
-		return_msg(ERR_INVALID_CMD,"bad command format\n");
-	return ShCmdTable::PrintDetail(args[1].first);
+		return_t_msg(ERR_INVALID_CMD,"bad command format\n");
+	return ShCmdTable::PrintDetail(args[1].first,param);
 }
 DEF_SH_CMD(help,help_handler,
 	"show available commands and their usages.",
@@ -857,7 +886,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 	int ret=0;
 	dword flags=0;
 	files.clear();
-	if(!(validate_path(dir,&flags,NULL,NULL,true)&&FS_IS_DIR(flags)))
+	if(!(validate_path(dir,&flags)&&FS_IS_DIR(flags)))
 		return;
 	if(0!=(ret=fs_traverse((char*)dir.c_str(),cb_lsfile,&files)))
 	{
