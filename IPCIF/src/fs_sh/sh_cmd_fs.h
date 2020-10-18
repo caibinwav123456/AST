@@ -6,6 +6,7 @@
 #include "Integer64.h"
 #include "pipe.h"
 #include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
 #include <vector>
 #include <string>
