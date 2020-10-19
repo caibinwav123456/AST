@@ -111,9 +111,8 @@ bool ShCmdTable::find_cmd(const string& cmd,CmdItem* cmditem)
 {
 	if(cmd==CMD_REDIR)
 	{
-		cmditem->handler=redir_handler;
-		cmditem->pre_handler=redir_pre_handler;
-		cmditem->detail=NULL;
+		static const CmdItem cmd_redir={redir_handler,redir_pre_handler,NULL};
+		*cmditem=cmd_redir;
 		return true;
 	}
 	map<string,CmdItem>& c_map=GetTable()->cmd_map;
