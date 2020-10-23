@@ -252,7 +252,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 	DIR *dirp;
 	struct dirent *direntp;
 	string fulldir=(dir.empty()?"./":dir);
-	if((dirp=opendir(fulldir.c_str()))==NULL)	
+	if((dirp=opendir(fulldir.c_str()))==NULL)
 		return;
 	while((direntp=readdir(dirp))!=NULL)
 	{
@@ -270,7 +270,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 		if(type==1)
 			file+="/";
 		if(!file.empty())
-			files.push_back(file);		
+			files.push_back(file);
 	}
 	closedir(dirp);
 }

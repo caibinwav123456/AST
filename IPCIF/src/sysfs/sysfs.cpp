@@ -772,7 +772,7 @@ int cb_fsc(void* addr,void* param,int op)
 		{
 			dg_fsmkdir* fsmkdir=(dg_fsmkdir*)addr;
 			if(op&OP_PARAM)
-				strcpy(fsmkdir->dir.path,dgp->fsmkdir.path->c_str());			
+				strcpy(fsmkdir->dir.path,dgp->fsmkdir.path->c_str());
 		}
 		break;
 	case CMD_FSGETATTR:

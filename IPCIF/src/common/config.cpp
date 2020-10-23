@@ -18,7 +18,7 @@ struct token_set
 		alphabet['_']=true;
 		alphabet['-']=true;
 		alphabet['.']=true;
-		alphabet['/']=true;		
+		alphabet['/']=true;
 	}
 };
 bool trim_space(byte c)

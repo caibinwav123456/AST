@@ -134,7 +134,7 @@ static int parse_string(const byte* &buf,int& size,byte* token_buf,byte quote,st
 	str=(char*)token_buf;
 	buf++,size--;
 	return 0;
-}		
+}
 static int __parse_cmd(const byte* buf,int size,
 	vector<pair<string,string>>& args)
 {
@@ -216,5 +216,5 @@ void generate_cmd(const vector<pair<string,string>>& args,string& cmd)
 		}
 		string item=first+(second.empty()?"":"="+second);
 		cmd+=item;
-	}	
+	}
 }
