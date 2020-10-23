@@ -288,7 +288,7 @@ void ShCmdTable::PrintDesc(cmd_param_st* pcmd)
 	ShCmdTable* ptable=GetTable();
 	for(int i=0;i<(int)ptable->vstrdesc.size();i++)
 	{
-		t_output("%s",ptable->vstrdesc[i].c_str());
+		tb_output(ptable->vstrdesc[i].c_str(),ptable->vstrdesc[i].size());
 	}
 }
 int ShCmdTable::PrintDetail(const string& dcmd,cmd_param_st* pcmd)
@@ -298,7 +298,7 @@ int ShCmdTable::PrintDetail(const string& dcmd,cmd_param_st* pcmd)
 	map<string,CmdItem>::iterator it=c_map.find(dcmd);
 	if(it==c_map.end()||it->second.handler==NULL)
 		return_t_msg(ERR_INVALID_CMD,"Command not found.\n");
-	t_output("%s",it->second.detail);
+	tb_output(it->second.detail,strlen(it->second.detail));
 	return 0;
 }
 static vector<proc_data> pdata;

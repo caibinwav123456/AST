@@ -25,6 +25,7 @@ Pipe::Pipe()
 	p_start=0;
 	p_end=0;
 	copyleft=false;
+	cps=false;
 	eof=false;
 	return;
 fail:
@@ -78,27 +79,37 @@ static inline void pipe_read_buf(byte* bptr,uint len,byte* buf,uint& start,uint&
 	if(eof) \
 	{ \
 		sys_signal_sem(semin); \
-		return; \
+		return 0; \
 	}
-void Pipe::Send(void* ptr,uint len)
+uint Pipe::Send(const void* ptr,uint len)
 {
 	if(len==0)
 	{
+		if(cps)
+		{
+			cps=false;
+			sys_signal_sem(semout);
+		}
 		sys_wait_sem(semin);
 		eof_quit;
 		sys_signal_sem(semout);
-		return;
+		return 0;
 	}
 	byte* bptr;
-	uint left,copy;
+	uint left,copy,clenleft;
 	for(bptr=(byte*)ptr,left=len,copy=0;left>0;bptr+=copy,left-=copy)
 	{
-		sys_wait_sem(semin);
+		if(!cps)
+			sys_wait_sem(semin);
 		eof_quit;
-		copy=(left>=pipe_buffer_size?pipe_buffer_size:left);
+		clenleft=pipe_buffer_size-content_len;
+		cps=(left<clenleft);
+		copy=(cps?left:clenleft);
 		pipe_write_buf(bptr,copy,pipe_buf,p_start,p_end);
-		sys_signal_sem(semout);
+		if(!cps)
+			sys_signal_sem(semout);
 	}
+	return len;
 }
 uint Pipe::Recv(void* ptr,uint len)
 {

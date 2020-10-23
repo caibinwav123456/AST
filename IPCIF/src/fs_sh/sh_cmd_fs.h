@@ -98,13 +98,15 @@ inline void tprintf(Pipe* pipe,byte*& buf,const char* msg,...)
 	{
 		prepare_tp_buf(buf);
 		vsprintf((char*)buf,msg,args);
-		pipe->Send(buf,strlen((char*)buf));
+		uint len=strlen((char*)buf);
+		if(len>0)
+			pipe->Send(buf,len);
 	}
 	va_end(args);
 }
-inline void tputs(Pipe* pipe,void* ptr,uint len)
+inline void tputs(Pipe* pipe,const void* ptr,uint len)
 {
-	if(ptr==NULL)
+	if(ptr==NULL||len==0)
 		return;
 	byte* pb=(byte*)ptr;
 	if(pipe==NULL)

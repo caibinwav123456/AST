@@ -6,7 +6,7 @@ class DLL Pipe
 public:
 	Pipe();
 	~Pipe();
-	void Send(void* ptr,uint len);
+	uint Send(const void* ptr,uint len);
 	uint Recv(void* ptr,uint len);
 private:
 	void* semin;
@@ -15,6 +15,7 @@ private:
 	uint p_start;
 	uint p_end;
 	bool copyleft;
+	bool cps;
 	bool eof;
 };
 #endif
