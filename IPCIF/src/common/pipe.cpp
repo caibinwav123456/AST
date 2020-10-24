@@ -2,6 +2,7 @@
 #include "utility.h"
 #include "config_val_extern.h"
 #include <string.h>
+#include <assert.h>
 #define MIN_PIPE_BUFFER_SIZE 16
 #define sem_safe_release(sem) \
 	if(VALID(sem)) \
@@ -50,16 +51,17 @@ Pipe::~Pipe()
 }
 static inline void pipe_write_buf(byte* bptr,uint len,byte* buf,uint& start,uint& end)
 {
-	end=(start+len)%(pipe_buffer_size+1);
-	if(end>=start)
-		memcpy(buf+start,bptr,len);
+	uint nend=(end+len)%(pipe_buffer_size+1);
+	if(nend>=end)
+		memcpy(buf+end,bptr,len);
 	else
 	{
-		uint len1=pipe_buffer_size+1-start;
-		uint len2=len-len1;
-		memcpy(buf+start,bptr,len1);
+		uint len1=pipe_buffer_size+1-end;
+		uint len2=nend;
+		memcpy(buf+end,bptr,len1);
 		memcpy(buf,bptr+len1,len2);
 	}
+	end=nend;
 }
 static inline void pipe_read_buf(byte* bptr,uint len,byte* buf,uint& start,uint& end)
 {
@@ -69,7 +71,7 @@ static inline void pipe_read_buf(byte* bptr,uint len,byte* buf,uint& start,uint&
 	else
 	{
 		uint len1=pipe_buffer_size+1-start;
-		uint len2=len-len1;
+		uint len2=nstart;
 		memcpy(bptr,buf+start,len1);
 		memcpy(bptr+len1,buf,len2);
 	}
@@ -101,11 +103,13 @@ uint Pipe::Send(const void* ptr,uint len)
 	{
 		if(!cps)
 			sys_wait_sem(semin);
+		assert(!(eof&&cps));
 		eof_quit;
 		clenleft=pipe_buffer_size-content_len;
 		cps=(left<clenleft);
 		copy=(cps?left:clenleft);
-		pipe_write_buf(bptr,copy,pipe_buf,p_start,p_end);
+		if(copy>0)
+			pipe_write_buf(bptr,copy,pipe_buf,p_start,p_end);
 		if(!cps)
 			sys_signal_sem(semout);
 	}
@@ -123,11 +127,9 @@ uint Pipe::Recv(void* ptr,uint len)
 		if(!copyleft)
 			sys_wait_sem(semout);
 		clen=content_len;
-		if(clen==0)
-			copyleft=false;
-		else
+		copyleft=(left<clen);
+		if(clen>0)
 		{
-			copyleft=(left<clen);
 			copy=(copyleft?left:clen);
 			pipe_read_buf(bptr,copy,pipe_buf,p_start,p_end);
 		}
