@@ -17,6 +17,7 @@ using namespace std;
 	return code;}
 #define t_output(msg,...) tprintf(pipe_next,__tp_buf__,msg,##__VA_ARGS__)
 #define tb_output(ptr,len) tputs(pipe_next,ptr,len)
+#define ts_output(ptr) tputs(pipe_next,ptr,strlen(ptr),true)
 #define return_t_msg(code,msg,...) \
 	{t_output(msg,##__VA_ARGS__); \
 	return code;}
@@ -104,16 +105,21 @@ inline void tprintf(Pipe* pipe,byte*& buf,const char* msg,...)
 	}
 	va_end(args);
 }
-inline void tputs(Pipe* pipe,const void* ptr,uint len)
+inline void tputs(Pipe* pipe,const void* ptr,uint len,bool bs=false)
 {
 	if(ptr==NULL||len==0)
 		return;
-	byte* pb=(byte*)ptr;
 	if(pipe==NULL)
 	{
-		byte* end=pb+len;
-		for(byte* p=pb;p!=end;p++)
-			putc(*p,stdout);
+		if(bs)
+			printf("%s",(const char*)ptr);
+		else
+		{
+			byte* pb=(byte*)ptr;
+			byte* end=pb+len;
+			for(byte* p=pb;p!=end;p++)
+				putc(*p,stdout);
+		}
 	}
 	else
 		pipe->Send(ptr,len);

@@ -12,7 +12,7 @@
 	}
 #define content_len (p_end>=p_start? \
 	p_end-p_start:p_end+pipe_buffer_size+1-p_start)
-DEFINE_UINT_VAL(pipe_buffer_size,MIN_PIPE_BUFFER_SIZE);
+DEFINE_SIZE_VAL(pipe_buffer_size,MIN_PIPE_BUFFER_SIZE);
 Pipe::Pipe()
 {
 	if(pipe_buffer_size<MIN_PIPE_BUFFER_SIZE)

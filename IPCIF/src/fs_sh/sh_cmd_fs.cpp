@@ -24,15 +24,11 @@ enum E_FILE_DISP_MODE
 	file_disp_simple,
 	file_disp_type_time,
 };
-DEFINE_UINT_VAL(fs_sh_nbuf,4);
-DEFINE_UINT_VAL(fs_sh_buflen,2048);
 DEFINE_SIZE_VAL(fs_tpbuf_len,MIN_TPBUF_LEN);
 void prepare_tp_buf(byte*& buf)
 {
 	if(buf!=NULL)
 		return;
-	if(fs_tpbuf_len<MIN_TPBUF_LEN)
-		fs_tpbuf_len=MIN_TPBUF_LEN;
 	buf=new byte[fs_tpbuf_len];
 }
 int ban_pre_handler(cmd_param_st* param)
@@ -150,6 +146,9 @@ static void end_threads(cmd_param_st* param,cmd_param_st* end)
 static int trace_errors(cmd_param_st* cmd_param)
 {
 	int ret=0;
+	assert(cmd_param!=NULL);
+	if(cmd_param->next==NULL)
+		return cmd_param->ret;
 	for(cmd_param_st* p=cmd_param;p!=NULL;p=p->next)
 	{
 		if(p->ret==0)
@@ -206,7 +205,7 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 			return_msg(ERR_INVALID_CMD,"bad command format\n");
 		link_cmd_param(&cmd_param,ctx);
 		last_cmd=cmd_param.next;
-		cmd_param.stream_next=pipe=cmd_param.next->stream=new Pipe;
+		pipe=cmd_param.next->stream=new Pipe;
 		cmd_param.next->args.push_back(pair<string,string>(bdb?">>":">",""));
 		cmd_param.next->args.push_back(args.back());
 		cmd_param.next->cmd=CMD_REDIR;
@@ -247,7 +246,7 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 		}
 		if(item.pre_handler!=NULL)
 		{
-			if(0!=(ret=item.pre_handler(&cmd_param)))
+			if(0!=(ret=item.pre_handler(cur_cmd)))
 			{
 				revoke_preprocess(cur_cmd->next,callback);
 				return ret;
@@ -288,7 +287,7 @@ void ShCmdTable::PrintDesc(cmd_param_st* pcmd)
 	ShCmdTable* ptable=GetTable();
 	for(int i=0;i<(int)ptable->vstrdesc.size();i++)
 	{
-		tb_output(ptable->vstrdesc[i].c_str(),ptable->vstrdesc[i].size());
+		ts_output(ptable->vstrdesc[i].c_str());
 	}
 }
 int ShCmdTable::PrintDetail(const string& dcmd,cmd_param_st* pcmd)
@@ -298,7 +297,7 @@ int ShCmdTable::PrintDetail(const string& dcmd,cmd_param_st* pcmd)
 	map<string,CmdItem>::iterator it=c_map.find(dcmd);
 	if(it==c_map.end()||it->second.handler==NULL)
 		return_t_msg(ERR_INVALID_CMD,"Command not found.\n");
-	tb_output(it->second.detail,strlen(it->second.detail));
+	ts_output(it->second.detail);
 	return 0;
 }
 static vector<proc_data> pdata;
@@ -487,6 +486,8 @@ static int init_fs()
 		}
 	}
 	int ret=0;
+	uint fs_sh_nbuf=get_num_sysfs_buffer_blocks();
+	uint fs_sh_buflen=get_sysfs_buffer_size();
 	switch(mode)
 	{
 	case 1:
@@ -839,7 +840,7 @@ static int cd_handler(cmd_param_st* param)
 	return 0;
 }
 DEF_SH_CMD(cd,cd_handler,
-	"enter/change current directory to a new one",
+	"enter/change current directory to a new one.",
 	"This command changes current directory to the specified new one.\n"
 	"Format:\n\tcd (new path)\n"
 	"path shall be specified without spaces or other special characters, "
@@ -915,6 +916,8 @@ static int _fs_cmd_handler(sh_context* ctx,dword state)
 int init_sh()
 {
 	int ret=0;
+	if(fs_tpbuf_len<MIN_TPBUF_LEN)
+		fs_tpbuf_len=MIN_TPBUF_LEN;
 	if(0!=(ret=ShCmdTable::Init()))
 		return ret;
 	if(0!=(ret=init_fs()))
