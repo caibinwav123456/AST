@@ -17,7 +17,7 @@ using namespace std;
 	return code;}
 #define t_output(msg,...) tprintf(pipe_next,__tp_buf__,msg,##__VA_ARGS__)
 #define tb_output(ptr,len) tputs(pipe_next,ptr,len)
-#define ts_output(ptr) tputs(pipe_next,ptr,strlen(ptr),true)
+#define ts_output(ptr) tputs(pipe_next,ptr,0,true)
 #define return_t_msg(code,msg,...) \
 	{t_output(msg,##__VA_ARGS__); \
 	return code;}
@@ -107,7 +107,7 @@ inline void tprintf(Pipe* pipe,byte*& buf,const char* msg,...)
 }
 inline void tputs(Pipe* pipe,const void* ptr,uint len,bool bs=false)
 {
-	if(ptr==NULL||len==0)
+	if(ptr==NULL||(len==0&&!bs))
 		return;
 	if(pipe==NULL)
 	{
@@ -122,7 +122,11 @@ inline void tputs(Pipe* pipe,const void* ptr,uint len,bool bs=false)
 		}
 	}
 	else
-		pipe->Send(ptr,len);
+	{
+		uint slen=(bs?strlen((const char*)ptr):len);
+		if(slen>0)
+			pipe->Send(ptr,slen);
+	}
 }
 class ShCmdTable
 {
