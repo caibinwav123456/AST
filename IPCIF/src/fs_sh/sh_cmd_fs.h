@@ -114,12 +114,7 @@ inline void tputs(Pipe* pipe,const void* ptr,uint len,bool bs=false)
 		if(bs)
 			printf("%s",(const char*)ptr);
 		else
-		{
-			byte* pb=(byte*)ptr;
-			byte* end=pb+len;
-			for(byte* p=pb;p!=end;p++)
-				putc(*p,stdout);
-		}
+			fwrite(ptr,len,1,stdout);
 	}
 	else
 	{
