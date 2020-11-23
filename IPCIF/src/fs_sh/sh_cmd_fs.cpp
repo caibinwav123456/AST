@@ -583,22 +583,41 @@ static inline void sprint_buf(string& ret,char* buf,const char* format,...)
 	ret+=buf;
 	va_end(args);
 }
-bool validate_path(const string& path,dword* flags,DateTime* date,UInteger64* size,string* strret)
+bool validate_path(const string& path,dword* flags,st_stat_file_time* date,UInteger64* size,string* strret)
 {
 	DateTime dt[3];
 	dword tflags=0;
 	char strretbuf[1024];
 	bool bret=false;
+	dword timemask=0;
+	if(date!=NULL)
+	{
+		switch(date->ttype)
+		{
+		case fs_attr_creation_date:
+			timemask=FS_ATTR_CREATION_DATE;
+			break;
+		case fs_attr_modify_date:
+			timemask=FS_ATTR_MODIFY_DATE;
+			break;
+		case fs_attr_access_date:
+			timemask=FS_ATTR_ACCESS_DATE;
+			break;
+		default:
+			assert(false);
+			break;
+		}
+	}
 	if(strret!=NULL)
 	{
 		bret=true;
 		strret->clear();
 	}
-	int ret=fs_get_attr((char*)path.c_str(),((flags!=NULL)||(size!=NULL)?FS_ATTR_FLAGS:0)|(date!=NULL?FS_ATTR_MODIFY_DATE:0),&tflags,date!=NULL?dt:NULL);
+	int ret=fs_get_attr((char*)path.c_str(),((flags!=NULL)||(size!=NULL)?FS_ATTR_FLAGS:0)|(date!=NULL?timemask:0),&tflags,date!=NULL?dt:NULL);
 	if(flags!=NULL&&ret==0)
 		*flags=tflags;
 	if(date!=NULL&&ret==0)
-		*date=dt[fs_attr_modify_date];
+		date->time=dt[date->ttype];
 	if(bret&&ret!=0&&ret!=ERR_FS_FILE_NOT_EXIST)
 		sprint_buf(*strret,strretbuf,"unexpected exception: %s\n",get_error_desc(ret));
 	if(ret!=0)
@@ -659,7 +678,7 @@ DEF_SH_CMD(df,df_handler,
 	"The device names are listed as the interface id's of each device,"
 	"the device type/file system format is listed along with its device name.\n"
 	"The default device is labeled with (default).\n");
-static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string>& flist,E_FILE_DISP_MODE mode)
+static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string>& flist,fs_attr_datetime ttype,E_FILE_DISP_MODE mode)
 {
 	common_sh_args(param);
 	if(mode==file_disp_simple)
@@ -684,7 +703,8 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 	}
 	else
 	{
-		DateTime date;
+		st_stat_file_time date;
+		date.ttype=ttype;
 		string fullpath;
 		for(int i=0;i<(int)flist.size();i++)
 		{
@@ -709,14 +729,14 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 				string sec=((int)sz.size()>i+3?sz.substr(sz.size()-i-3,3):sz.substr(0,sz.size()-i));
 				dispsz=sec+(i==0?"":",")+dispsz;
 			}
-			CDateTime datetime(date);
+			CDateTime datetime(date.time);
 			datetime.Format(strdate,FORMAT_DATE|FORMAT_TIME|FORMAT_WEEKDAY);
 			t_output("%s\t%s\t%s\t%s\n",(!file.empty())&&file.back()=='/'?"d":"n",
 				dispsz.c_str(),strdate.c_str(),quote_file(file).c_str());
 		}
 	}
 }
-static int list_file_path(cmd_param_st* param,const string& path,E_FILE_DISP_MODE mode,bool dispdir=false)
+static int list_file_path(cmd_param_st* param,const string& path,fs_attr_datetime ttype,E_FILE_DISP_MODE mode,bool dispdir=false)
 {
 	common_sh_args(param);
 	int ret=0;
@@ -750,7 +770,7 @@ static int list_file_path(cmd_param_st* param,const string& path,E_FILE_DISP_MOD
 		list_cur_dir_files(fullpath,flist);
 		sort(flist.begin(),flist.end());
 	}
-	list_one_dir(param,bfile?ctx->pwd:fullpath,flist,mode);
+	list_one_dir(param,bfile?ctx->pwd:fullpath,flist,ttype,mode);
 	return 0;
 }
 static int ls_handler(cmd_param_st* param)
@@ -760,15 +780,30 @@ static int ls_handler(cmd_param_st* param)
 	string fullpath;
 	E_FILE_DISP_MODE mode=(cmd=="ll"?file_disp_type_time:file_disp_simple);
 	if(args.size()==1)
-		return list_file_path(param,"",mode);
+		return list_file_path(param,"",fs_attr_modify_date,mode);
 	vector<string> paths;
+	fs_attr_datetime tmode=fs_attr_modify_date;
 	for(int i=1;i<(int)args.size();i++)
 	{
 		const pair<string,string>& op=args[i];
 		if(!op.first.empty()&&op.first[0]=='-')
 		{
 			if(op.first.size()>=2&&op.first[1]=='-')
+			{
+				if(op.first.substr(2)=="date")
+				{
+					if(op.second=="c")
+						tmode=fs_attr_creation_date;
+					else if(op.second=="m")
+						tmode=fs_attr_modify_date;
+					else if(op.second=="a")
+						tmode=fs_attr_access_date;
+					else
+						return_t_msg(ERR_INVALID_CMD,"invalid parameter \"%s\" for --date,\n"
+							"the available options are c|m|a, see help.\n",op.second.c_str());
+				}
 				continue;
+			}
 			for(int j=1;j<(int)op.first.size();j++)
 			{
 				switch(op.first[j])
@@ -790,7 +825,7 @@ static int ls_handler(cmd_param_st* param)
 		paths.push_back("");
 	for(int i=0;i<(int)paths.size();i++)
 	{
-		ret=list_file_path(param,paths[i],mode,paths.size()>1);
+		ret=list_file_path(param,paths[i],tmode,mode,paths.size()>1);
 		if(i<(int)paths.size()-1)
 			t_output("\n");
 	}
@@ -798,11 +833,17 @@ static int ls_handler(cmd_param_st* param)
 }
 DEF_SH_CMD(ls,ls_handler,
 	"list contents of one or more directorys.",
-	"Format:\n\tls [-l] [dir1] [dir2] ...\n"
+	"Format:\n\tls [options] [dir1] [dir2] ...\n"
 	"The ls command lists information of files and directories in one or more directories.\n"
-	"Option -l indicates that the information is shown in detail, "
+	"Options:\n"
+	"-l: indicates that the information is shown in detail, "
 	"which includes: file type(normal file or directory),size,date of modifying, and file name, "
 	"and without this option, only file name is shown.\n"
+	"--date:\n"
+	"specify the shown date type, available options are:\n"
+	"c: creation date\n"
+	"m: modify date\n"
+	"a: access date\n"
 	"The directory list is optional, if absent, the content of current directory is shown, "
 	"otherwise the contents of specified directories are shown,\n"
 	"the path of each directory can be an absolute path or a relative path, depending on whether it "

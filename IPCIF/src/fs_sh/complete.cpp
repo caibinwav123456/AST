@@ -66,8 +66,7 @@ string quote_file(const string& file)
 		return file;
 	else
 	{
-		char s[2]={0,0};
-		s[0]=q;
+		char s[2]={q,0};
 		return s+file+s;
 	}
 }
