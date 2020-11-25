@@ -262,7 +262,7 @@ public:
 	virtual ~BiRing(){}
 	bool Empty()
 	{
-		return GetNext()==this;
+		return BiRingNode<T>::GetNext()==this;
 	}
 	void AddNodeToBegin(BiRingNode<T>* node)
 	{
@@ -270,22 +270,22 @@ public:
 	}
 	BiRingNode<T>* GetNodeFromTail()
 	{
-		if(GetNext()==this)
+		if(BiRingNode<T>::GetNext()==this)
 		{
-			assert(GetPrev()==this);
+			assert(BiRingNode<T>::GetPrev()==this);
 			return NULL;
 		}
-		BiRingNode<T>* ret=GetPrev();
+		BiRingNode<T>* ret=BiRingNode<T>::GetPrev();
 		ret->Detach();
 		return ret;
 	}
 	iterator BeginIterate()
 	{
-		return iterator(GetNext(),this);
+		return iterator(BiRingNode<T>::GetNext(),this);
 	}
 	iterator BeginReverseIterate()
 	{
-		return iterator(GetPrev(),this);
+		return iterator(BiRingNode<T>::GetPrev(),this);
 	}
 };
 template<class Key,class T,class Pr=less<Key>>
