@@ -1,9 +1,0 @@
-#!/bin/sh
-rm -f test.c test .config;
-echo "#include <stdio.h>" > test.c;
-echo "void main(void){" >> test.c;
-echo 'printf("CONFIG_X64=%s\n",sizeof(void*)==8?"true":"false");' >> test.c;
-echo "}" >> test.c;
-gcc test.c -o test;
-./test >> .config;
-rm -f test.c test;
