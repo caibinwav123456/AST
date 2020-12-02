@@ -33,7 +33,7 @@ void prepare_tp_buf(byte*& buf)
 }
 int ban_pre_handler(cmd_param_st* param)
 {
-	if((!is_pre_revoke(param->flags))&&param->stream!=NULL)
+	if((!is_pre_revoke(param))&&param->stream!=NULL)
 		return_msg(ERR_GENERIC,"The command \"%s\" cannot be used with \"|\"\n",param->cmd.c_str());
 	return 0;
 }
@@ -51,7 +51,7 @@ static int redir_handler(cmd_param_st* param)
 	uint n=0,acc=0;
 	while((n=param->stream->Recv(buf,256))>0)
 		acc+=n;
-	param->flags|=CMD_PARAM_FLAG_USED_PIPE;
+	set_used_pipe(param);
 	return_msg(0,"Aha! I've received %d bytes to \"%s\" to \"%s\"\n",
 		acc,param->args[0].first.c_str(),param->args[1].first.c_str());
 }
@@ -169,7 +169,7 @@ static int sh_thread_func(void* ptr)
 	cmd_param_st* cmd_param=param->param;
 	delete param;
 	cmd_param->ret=handler(cmd_param);
-	if(!used_pipe(cmd_param->flags))
+	if(!used_pipe(cmd_param))
 		drain_stream(cmd_param);
 	term_stream(cmd_param);
 	return 0;

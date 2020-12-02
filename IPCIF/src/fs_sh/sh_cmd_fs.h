@@ -44,8 +44,10 @@ struct st_stat_file_time
 	byte*& __tp_buf__=(ptr)->tp_buf
 #define CMD_PARAM_FLAG_PRE_REVOKE 1
 #define CMD_PARAM_FLAG_USED_PIPE  2
-#define is_pre_revoke(flags) ((flags)&CMD_PARAM_FLAG_PRE_REVOKE)
-#define used_pipe(flags) ((flags)&CMD_PARAM_FLAG_USED_PIPE)
+#define is_pre_revoke(param) (((param)->flags)&CMD_PARAM_FLAG_PRE_REVOKE)
+#define used_pipe(param) (((param)->flags)&CMD_PARAM_FLAG_USED_PIPE)
+#define set_used_pipe(param) ((param)->flags|=CMD_PARAM_FLAG_USED_PIPE)
+#define reset_used_pipe(param) ((param)->flags&=~CMD_PARAM_FLAG_USED_PIPE)
 int init_sh();
 void exit_sh();
 int get_full_path(const string& cur_dir,const string& relative_path,string& full_path);
