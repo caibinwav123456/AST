@@ -31,11 +31,11 @@ DLLAPI(int) fs_tell(void* h,uint* offset,uint* offhigh)
 }
 DLLAPI(int) fs_read(void* h,void* buf,uint len,uint* rdlen)
 {
-	return fs_read_write(true,h,buf,len,rdlen);
+	return g_sysfs.ReadWrite(CMD_FSREAD,h,buf,len,rdlen);
 }
 DLLAPI(int) fs_write(void* h,void* buf,uint len,uint* wrlen)
 {
-	return fs_read_write(false,h,buf,len,wrlen);
+	return g_sysfs.ReadWrite(CMD_FSWRITE,h,buf,len,wrlen);
 }
 DLLAPI(int) fs_flush(void* h)
 {

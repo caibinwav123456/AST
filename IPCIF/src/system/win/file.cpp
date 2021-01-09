@@ -114,8 +114,9 @@ int sys_fseek(void* fd, uint offlow, uint* offhigh, int seektype)
 		type=FILE_END;
 		break;
 	}
+	LONG high=(offhigh==NULL?0:(LONG)*offhigh);
 	SetLastError(NO_ERROR);
-	SetFilePointer((HANDLE)fd,(LONG)offlow,(PLONG)offhigh,type);
+	SetFilePointer((HANDLE)fd,(LONG)offlow,offhigh==NULL?NULL:&high,type);
 	if(GetLastError()!=NO_ERROR)
 		return ERR_FILE_IO;
 	return 0;

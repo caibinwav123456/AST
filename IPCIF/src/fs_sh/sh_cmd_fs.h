@@ -26,6 +26,8 @@ struct st_stat_file_time
 #define return_t_msg(code,msg,...) \
 	{t_output(msg,##__VA_ARGS__); \
 	return code;}
+#define t_clean_files(files) tclean_hfiles(files,pipe_next,__tp_buf__)
+#define t_clean_file(file) tclean_hfile(file,pipe_next,__tp_buf__)
 #define term_stream(pcmd) \
 	if((pcmd)->stream_next!=NULL) \
 		(pcmd)->stream_next->Send(NULL,0)
@@ -95,6 +97,11 @@ struct sh_thread_param
 	per_cmd_handler handler;
 	cmd_param_st* param;
 };
+struct st_path_handle
+{
+	string path;
+	void* hfile;
+};
 void prepare_tp_buf(byte*& buf);
 inline void tprintf(Pipe* pipe,byte*& buf,const char* msg,...)
 {
@@ -161,6 +168,8 @@ public:
 	}
 };
 int ban_pre_handler(cmd_param_st* param);
+int tclean_hfile(const st_path_handle& file,Pipe* pipe,byte*& buf);
+int tclean_hfiles(const vector<st_path_handle>& vfiles,Pipe* pipe,byte*& buf);
 #define DEF_SH_PRED_CMD(cmd,handler,pre_handler,desc,detail) CfgCmd __config_cmd_ ## cmd ( #cmd, handler, pre_handler, desc, detail )
 #define DEF_SH_CMD(cmd,handler,desc,detail) DEF_SH_PRED_CMD(cmd,handler,ban_pre_handler,desc,detail)
 #endif

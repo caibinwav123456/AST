@@ -128,7 +128,7 @@ int NativeFsDev::parse_cmd_head(const char* head,const string& cmd,string& optio
 	if(cmd.size()<cmd_head.size()||
 		cmd.substr(0,cmd_head.size())!=cmd_head)
 		return ERR_INVALID_CMD;
-	options=cmd.substr(cmd_head.size(),cmd.size()-cmd_head.size());
+	options=cmd.substr(cmd_head.size());
 	return 0;
 }
 int NativeFsDev::Init(string cmd)

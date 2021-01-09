@@ -185,18 +185,13 @@ public:
 	}
 	dword get_flags(){return flags;}
 	LinearBuffer* get_buffer(offset64 off,bool get_oldest=false);
-	bool add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq);
+	void add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq);
 	Heap<BufferPtr,assign_buf_ptr,swap_buf_ptr>::iterator get_iter()
 	{
 		return sorted_buf.BeginIterate();
 	}
 private:
-	int get_seq()
-	{
-		int s=seq;
-		seq++;
-		return s;
-	}
+	int get_seq(){return seq++;}
 	Heap<BufferPtr,assign_buf_ptr,swap_buf_ptr> sorted_buf;
 	vector<BufferPtr> free_buf;
 	map<offset64,BufferPtr,less_buf_ptr> map_buf;
@@ -214,7 +209,6 @@ enum E_FS_MODE
 #define FC_EXIT  (1<<FC_EXIT_OFF)
 #define FC_CLEAR (3<<FC_CLEAR_OFF)
 #define FC_MASK  (FC_EXIT|FC_CLEAR)
-int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen=NULL);
 int __fs_perm_close(void* handle);
 int __fs_recurse_copy(char* from,char* to);
 int __fs_recurse_delete(char* pathname);
