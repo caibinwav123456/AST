@@ -37,6 +37,18 @@ DLL _Integer64<T> operator-(const _Integer64<T>& a,const _Integer64<T>& b)
 	T high=a.high-b.high-c;
 	return _Integer64<T>(low,&high);
 }
+template<class T>
+DLL _Integer64<T>& operator+=(_Integer64<T>& a,const _Integer64<T>& b)
+{
+	a=a+b;
+	return a;
+}
+template<class T>
+DLL _Integer64<T>& operator-=(_Integer64<T>& a,const _Integer64<T>& b)
+{
+	a=a-b;
+	return a;
+}
 static inline _Integer64<uint> __mul32__(uint a,uint b)
 {
 	uint alow=a&((1<<16)-1),
@@ -195,7 +207,7 @@ template<class T>
 DLL string FormatI64Hex(const _Integer64<T>& i)
 {
 	string low,high;
-	char buf[33];
+	char buf[9];
 	sprintf(buf,i.high!=0?"%08x":"%x",i.low);
 	low=buf;
 	if(i.high!=0)
@@ -286,6 +298,10 @@ DLL void __unused_int64_func__()
 		diff=int64_1-int64_2;
 	UInteger64 usum=uint64_1+uint64_2,
 		udiff=uint64_1-uint64_2;
+	int64_1+=int64_2;
+	int64_1-=int64_2;
+	uint64_1+=uint64_2;
+	uint64_1-=uint64_2;
 	string s;
 	if(int64_1==int64_2&&int64_1!=int64_2
 		&&int64_1<int64_2&&int64_1>int64_2)
@@ -297,8 +313,8 @@ DLL void __unused_int64_func__()
 	{
 		printf("unuesd\n");
 	}
-	Mul64(int64_1,int64_2);
-	Mul64(uint64_1,uint64_2);
+	Mul64(int64_1,int64_2,(Integer64*)NULL);
+	Mul64(uint64_1,uint64_2,(UInteger64*)NULL);
 	FormatI64(int64_1);
 	FormatI64(uint64_1);
 	FormatI64Hex(int64_1);

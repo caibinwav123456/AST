@@ -144,9 +144,11 @@ public:
 		if(order>=num)
 			return false;
 		local_assign(min,heap[order],0);
-		if(order<num-1)
-			local_assign(heap[order],heap[num-1],order);
 		num--;
+		if(order<num)
+			local_assign(heap[order],heap[num],order);
+		else
+			return true;
 		for(uint i=order;;)
 		{
 			uint c0=heap_first_child(i);

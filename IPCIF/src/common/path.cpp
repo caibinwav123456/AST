@@ -12,7 +12,7 @@ DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym)
 		pos=nextpos+1;
 	}
 	if(pos<(int)path.length())
-		split.push_back(path.substr(pos,path.length()-pos));
+		split.push_back(path.substr(pos));
 }
 inline bool add_path_component(vector<string>& path, const string& comp)
 {

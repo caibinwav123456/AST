@@ -73,8 +73,8 @@ BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
 	{
 		while((node=backup_data.GetPrev())!=&backup_data)
 		{
-			if(data->sid-node->t.dbase.sid
-				>fsserver_backup_sid_reserve)
+			if((int)(uint)(data->sid-node->t.dbase.sid)
+				>(int)fsserver_backup_sid_reserve)
 			{
 				if((it=bmap.find(node->t.dbase.sid))!=bmap.end())
 					bmap.erase(it);
@@ -880,7 +880,7 @@ int FsServer::HandleReadWrite(dg_fsrdwr* fsrdwr)
 	int ret=0;
 	BiRingNode<FileServerRec>* node=get_fs_node(
 		fsrdwr->header.caller,fsrdwr->rdwr.handle);
-	if(node!=NULL)
+	if(node!=NULL&&node->t.type==FSSERVER_REC_TYPE_FILE_DESCRIPTOR)
 	{
 		uint rdwrlen=0;
 		switch(fsrdwr->header.cmd)

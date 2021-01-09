@@ -8,7 +8,7 @@ static char* err_descs[]=
 };
 DLLAPI(char*) get_error_desc(int errcode)
 {
-	if(_r(errcode)>=sizeof(err_descs)/sizeof(char*))
+	if(_r(errcode)<0||_r(errcode)>=sizeof(err_descs)/sizeof(char*))
 		errcode=ERR_GENERIC;
 	return err_descs[_r(errcode)];
 }

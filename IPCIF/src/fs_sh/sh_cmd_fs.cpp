@@ -37,27 +37,79 @@ int ban_pre_handler(cmd_param_st* param)
 		return_msg(ERR_GENERIC,"The command \"%s\" cannot be used with \"|\"\n",param->cmd.c_str());
 	return 0;
 }
-struct st_priv_redir
-{
-	string path;
-	void* hfile;
-};
 static int redir_handler(cmd_param_st* param)
 {
-	assert(param->stream_next==NULL
-		&&param->stream!=NULL);
-	assert(param->args.size()==2);
-	byte buf[256];
-	uint n=0,acc=0;
-	while((n=param->stream->Recv(buf,256))>0)
-		acc+=n;
-	set_used_pipe(param);
-	return_msg(0,"Aha! I've received %d bytes to \"%s\" to \"%s\"\n",
-		acc,param->args[0].first.c_str(),param->args[1].first.c_str());
+	common_sh_args(param);
+	assert(pipe_next==NULL&&pipe!=NULL);
+	assert(args.size()==2);
+	st_path_handle*& ph=*(st_path_handle**)&(param->priv);
+	assert(ph!=NULL);
+	assert(VALID(ph->hfile)&&!ph->path.empty());
+	int ret=0,dummy=0;
+	if(0!=(ret=fs_seek(ph->hfile,args[0].first==">"?SEEK_BEGIN:SEEK_END,
+		0,&dummy)))
+	{
+		t_output("seek for writing file \"%s\" error: %s\n",ph->path.c_str(),get_error_desc(ret));
+		goto end;
+	}
+	{
+		const uint buflen=1024;
+		byte buf[buflen];
+		uint n=0,wrlen=0;
+		while((n=pipe->Recv(buf,buflen))>0)
+		{
+			if(0!=(ret=(fs_write(ph->hfile,buf,n,&wrlen)))
+				||wrlen!=n)
+			{
+				ret==0?(ret=ERR_FILE_IO):0;
+				t_output("write file \"%s\" error: %s\n",ph->path.c_str(),get_error_desc(ret));
+				break;
+			}
+		}
+	}
+end:
+	if(ret==0)
+		set_used_pipe(param);
+	int retc=t_clean_file(*ph);
+	delete ph;
+	ph=NULL;
+	if(ret==0)
+		ret=retc;
+	return ret;
 }
 static int redir_pre_handler(cmd_param_st* param)
 {
-	assert(param->stream_next==NULL);
+	common_sh_args(param);
+	assert(pipe_next==NULL&&pipe!=NULL);
+	assert(args.size()==2);
+	int ret=0;
+	if(is_pre_revoke(param))
+	{
+		st_path_handle*& ph=*(st_path_handle**)&(param->priv);
+		ret=t_clean_file(*ph);
+		delete ph;
+		ph=NULL;
+		return ret;
+	}
+	st_path_handle* ph=new st_path_handle;
+	string fullpath;
+	ph->path=args[1].first;
+	if(0!=(ret=get_full_path(ctx->pwd,ph->path,fullpath)))
+	{
+		delete ph;
+		return_msg(ret,"invalid path: \"%s\"\n",args[1].first.c_str());
+	}
+	dword open_flag=(args[0].first==">"?
+		FILE_CREATE_ALWAYS|FILE_TRUNCATE_EXISTING
+		|FILE_WRITE|FILE_EXCLUSIVE_WRITE
+		:FILE_OPEN_ALWAYS|FILE_WRITE|FILE_EXCLUSIVE_WRITE);
+	ph->hfile=fs_open((char*)fullpath.c_str(),open_flag);
+	if(!VALID(ph->hfile))
+	{
+		delete ph;
+		return_msg(ERR_FILE_IO,"can not open file: \"%s\" for writing\n",args[1].first.c_str());
+	}
+	param->priv=ph;
 	return 0;
 }
 ShCmdTable* ShCmdTable::GetTable()
@@ -836,25 +888,26 @@ DEF_SH_CMD(ls,ls_handler,
 	"Format:\n\tls [options] [dir1] [dir2] ...\n"
 	"The ls command lists information of files and directories in one or more directories.\n"
 	"Options:\n"
-	"-l: indicates that the information is shown in detail, "
-	"which includes: file type(normal file or directory),size,date of modifying, and file name, "
+	"-l\n"
+	"\tIndicates that the information is shown in detail, "
+	"which includes: file type(normal file or directory), size, date, and file name, "
 	"and without this option, only file name is shown.\n"
-	"--date:\n"
-	"specify the shown date type, available options are:\n"
+	"--date=(c|m|a)\n"
+	"\tSpecify the shown date type, available options are:\n"
 	"c: creation date\n"
 	"m: modify date\n"
 	"a: access date\n"
 	"The directory list is optional, if absent, the content of current directory is shown, "
-	"otherwise the contents of specified directories are shown,\n"
-	"the path of each directory can be an absolute path or a relative path, depending on whether it "
+	"otherwise the contents of specified directories are shown.\n"
+	"The path of each directory can be an absolute path or a relative path, depending on whether it "
 	"starts with a device name and a colon followed by a slash, a slash alone "
 	"indicates the root directory of the default device.\n"
-	"if this path is relatve, it is based on the current directory path.\n"
+	"If this path is relative, it is based on the current directory path.\n"
 	"The information of each directory will be shown respectively, each with a label.\n"
 	"The label will not be shown if the directory list contains only one directory.\n");
 DEF_SH_CMD(ll,ls_handler,
-	"the alias for command \'ls -l\'",
-	"This is an alias for command ls with option -l, see ls.\n");
+	"the alias for command \"ls -l\".",
+	"This is an alias for command ls with option -l, see \"help ls\".\n");
 static int cd_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
@@ -883,14 +936,14 @@ static int cd_handler(cmd_param_st* param)
 DEF_SH_CMD(cd,cd_handler,
 	"enter/change current directory to a new one.",
 	"This command changes current directory to the specified new one.\n"
-	"Format:\n\tcd (new path)\n"
-	"path shall be specified without spaces or other special characters, "
+	"Format:\n\tcd (new-path)\n"
+	"Path shall be specified without spaces or other special characters, "
 	"if so, quote it with \' or \".\n"
-	"the specified path must be an existing directory, or the command will fail.\n"
-	"path can be an absolute path or a relative path, depending on whether it "
+	"The specified path must be an existing directory, or the command will fail.\n"
+	"Path can be an absolute path or a relative path, depending on whether it "
 	"starts with a device name and a colon followed by a slash, a slash alone "
 	"indicates the root directory of the default device.\n"
-	"if path is relatve, it is based on the current directory path.\n");
+	"If path is relative, it is based on the current directory path.\n");
 static int help_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
@@ -900,7 +953,7 @@ static int help_handler(cmd_param_st* param)
 	if(argsize==1)
 	{
 		ShCmdTable::PrintDesc(param);
-		t_output("\nType help + command name to get detailed usage of each command.\n");
+		t_output("\nType \"help (command-name)\" to get detailed usage of each command.\n");
 		return 0;
 	}
 	if((int)args.size()!=2||!args[1].second.empty())
@@ -910,8 +963,8 @@ static int help_handler(cmd_param_st* param)
 DEF_SH_CMD(help,help_handler,
 	"show available commands and their usages.",
 	"Format:\n\thelp [command name]\n"
-	"without the optional argument, this command lists all the available commands.\n"
-	"with the optional argument command name, this command shows the usage of the specified command.\n"
+	"Without the optional argument, this command lists all the available commands.\n"
+	"With the optional argument command name, this command shows the usage of the specified command.\n"
 	);
 static int cb_lsfile(char* name,dword type,void* param,char dsym)
 {

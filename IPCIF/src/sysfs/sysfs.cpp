@@ -120,12 +120,6 @@ LinearBuffer* SortedFileIoRec::get_buffer(offset64 off,bool get_oldest)
 	map<offset64,BufferPtr,less_buf_ptr>::iterator it;
 	if(get_oldest)
 		goto remove;
-	if(!free_buf.empty())
-	{
-		LinearBuffer* buf=free_buf.back().buffer;
-		free_buf.pop_back();
-		return buf;
-	}
 	if((it=map_buf.find(off))!=map_buf.end())
 	{
 		BufferPtr tmpptr=it->second;
@@ -133,6 +127,12 @@ LinearBuffer* SortedFileIoRec::get_buffer(offset64 off,bool get_oldest)
 		verify(sorted_buf.RemoveMin(bufptr,tmpptr.buffer->heap_index));
 		assert(tmpptr.buffer==bufptr.buffer);
 		return tmpptr.buffer;
+	}
+	if(!free_buf.empty())
+	{
+		LinearBuffer* buf=free_buf.back().buffer;
+		free_buf.pop_back();
+		return buf;
 	}
 remove:
 	if(sorted_buf.RemoveMin(bufptr))
@@ -148,7 +148,7 @@ remove:
 	else
 		return NULL;
 }
-bool SortedFileIoRec::add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq)
+void SortedFileIoRec::add_buffer(LinearBuffer* buf,bool add_to_free,bool update_seq)
 {
 	assert(buf!=NULL);
 	BufferPtr bptr;
@@ -171,7 +171,6 @@ bool SortedFileIoRec::add_buffer(LinearBuffer* buf,bool add_to_free,bool update_
 		off.offhigh=buf->offhigh;
 		map_buf[off]=bptr;
 	}
-	return true;
 }
 bool ClearHandler(uint cmd,void* addr,void* param,int op);
 int SysFs::cb_reconn(void* param)
@@ -952,7 +951,7 @@ int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 		pRec->offhigh=(uint)setoff.high;
 		break;
 	case SEEK_CUR:
-		off=off+setoff;
+		off+=setoff;
 		if(off<Integer64(0))
 			return ERR_FS_NEGATIVE_POSITION;
 		pRec->offset=off.low;
@@ -961,7 +960,7 @@ int SysFs::Seek(void* h,uint seektype,int offset,int* offhigh)
 	case SEEK_END:
 		if(0!=(ret=GetSetFileSize(CMD_FSGETSIZE,pRec,&off.low,(uint*)&off.high)))
 			return ret;
-		off=off+setoff;
+		off+=setoff;
 		if(off<Integer64(0))
 			return ERR_FS_NEGATIVE_POSITION;
 		pRec->offset=off.low;
@@ -1082,7 +1081,7 @@ int SysFs::ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen)
 	assert(left<=len);
 	uint done=len-left;
 	uint dummy=0;
-	pos=pos+UInteger64(done,&dummy);
+	pos+=UInteger64(done,&dummy);
 	assert((pos.high&(1<<31))==0);
 	pRec->offset=pos.low;
 	pRec->offhigh=pos.high;
@@ -1198,7 +1197,7 @@ end2:
 		assert(transfer_once<=ought_to_transfer);
 		left-=transfer_once;
 		bbuf+=transfer_once;
-		off=off+UInteger64(transfer_once,&dummy);
+		off+=UInteger64(transfer_once,&dummy);
 		if(transfer_once<ought_to_transfer)
 		{
 			if(cmd==CMD_FSWRITE)
@@ -1300,7 +1299,7 @@ end2:
 		for(Heap<BufferPtr,assign_buf_ptr,swap_buf_ptr>::iterator it=pRec->get_iter();it;it++)
 		{
 			UInteger64 end_buf(it->buffer->offset,&it->buffer->offhigh);
-			end_buf=end_buf+UInteger64(it->buffer->end,&dummy);
+			end_buf+=UInteger64(it->buffer->end,&dummy);
 			if(size64<end_buf)
 				size64=end_buf;
 		}
@@ -1359,7 +1358,7 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	const uint bufsize=8*_1K;
 	UInteger64 srclen;
 	uint dummy=0;
-	UInteger64 once(bufsize,&dummy);
+	const UInteger64 once(bufsize,&dummy);
 	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src)))
 		return ret;
 	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
@@ -1411,7 +1410,7 @@ int SysFs::CopyFile(const char* src,const char* dst)
 		assert(len64.high==0);
 		uint len=len64.low;
 		uint rdwr=0;
-		if(0!=(ret=fs_read_write(true,hsrc,buf,len,&rdwr)))
+		if(0!=(ret=ReadWrite(CMD_FSREAD,hsrc,buf,len,&rdwr)))
 			break;
 		if(rdwr!=len)
 		{
@@ -1419,14 +1418,14 @@ int SysFs::CopyFile(const char* src,const char* dst)
 			break;
 		}
 		rdwr=0;
-		if(0!=(ret=fs_read_write(false,hdst,buf,len,&rdwr)))
+		if(0!=(ret=ReadWrite(CMD_FSWRITE,hdst,buf,len,&rdwr)))
 			break;
 		if(rdwr!=len)
 		{
 			ret=ERR_FILE_IO;
 			break;
 		}
-		srclen=srclen-len64;
+		srclen-=len64;
 	}
 end2:
 	delete[] buf;
@@ -1652,32 +1651,6 @@ int SysFs::MakeDir(const char* path)
 	ret=dg.ret;
 end:
 	EndTransfer(&hif);
-	return ret;
-}
-int fs_read_write(bool read,void* h,void* buf,uint len,uint* rdwrlen)
-{
-	uint left=len;
-	uint rdwr=0;
-	int ret=0;
-	byte* _buf=(byte*)buf;
-	while(left>0)
-	{
-		rdwr=0;
-		if(0!=(ret=g_sysfs.ReadWrite(read?CMD_FSREAD:CMD_FSWRITE,h,_buf,left,&rdwr)))
-			break;
-		if(rdwr==0)
-			break;
-		_buf+=rdwr;
-		left-=rdwr;
-	}
-	if(rdwrlen!=NULL)
-	{
-		*rdwrlen=len-left;
-	}
-	else if(left>0&&ret==0)
-	{
-		return ERR_INVALID_PARAM;
-	}
 	return ret;
 }
 int __fs_perm_close(void* handle)

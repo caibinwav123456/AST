@@ -21,6 +21,10 @@ DLL _Integer64<T> operator+(const _Integer64<T>& a,const _Integer64<T>& b);
 template<class T>
 DLL _Integer64<T> operator-(const _Integer64<T>& a,const _Integer64<T>& b);
 template<class T>
+DLL _Integer64<T>& operator+=(_Integer64<T>& a,const _Integer64<T>& b);
+template<class T>
+DLL _Integer64<T>& operator-=(_Integer64<T>& a,const _Integer64<T>& b);
+template<class T>
 DLL _Integer64<T> Mul64(const _Integer64<T>& a,const _Integer64<T>& b,_Integer64<T>* phigh=NULL);
 template<class T>
 DLL bool operator==(const _Integer64<T>& a,const _Integer64<T>& b);
