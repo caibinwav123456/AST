@@ -54,6 +54,8 @@ static inline bool parse_i64(const string& str,Integer64& i,Integer64 def=0,bool
 		ret=I64FromDec(str,iret);
 	if(verifier!=NULL)
 		ret=(ret&&verifier(iret));
+	if(ret)
+		i=iret;
 	return ret;
 }
 int tclean_hfile(const st_path_handle& file,Pipe* pipe,byte*& buf)
