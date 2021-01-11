@@ -100,9 +100,8 @@ static int redir_pre_handler(cmd_param_st* param)
 		return_msg(ret,"invalid path: \"%s\"\n",args[1].first.c_str());
 	}
 	dword open_flag=(args[0].first==">"?
-		FILE_CREATE_ALWAYS|FILE_TRUNCATE_EXISTING
-		|FILE_WRITE|FILE_EXCLUSIVE_WRITE
-		:FILE_OPEN_ALWAYS|FILE_WRITE|FILE_EXCLUSIVE_WRITE);
+		FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE|FILE_EXCLUSIVE_WRITE
+		:FILE_OPEN_ALWAYS|FILE_READ|FILE_WRITE|FILE_EXCLUSIVE_WRITE);
 	ph->hfile=fs_open((char*)fullpath.c_str(),open_flag);
 	if(!VALID(ph->hfile))
 	{

@@ -331,7 +331,7 @@ static int write_pred_handler(cmd_param_st* param)
 				t_write_clean_priv(newwrite);
 				return_msg(ret,"invalid path: \"%s\"\n",arg.first.c_str());
 			}
-			newwrite->file.hfile=fs_open((char*)fullpath.c_str(),FILE_OPEN_ALWAYS|FILE_WRITE|FILE_EXCLUSIVE_WRITE);
+			newwrite->file.hfile=fs_open((char*)fullpath.c_str(),FILE_OPEN_ALWAYS|FILE_READ|FILE_WRITE|FILE_EXCLUSIVE_WRITE);
 			if(!VALID(newwrite->file.hfile))
 			{
 				t_write_clean_priv(newwrite);

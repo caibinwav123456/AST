@@ -982,7 +982,7 @@ int SysFs::GetPosition(void* h,uint* offset,uint* offhigh)
 		*offhigh=pRec->offhigh;
 	return 0;
 }
-inline int check_access_rights(if_cmd_code cmd,SortedFileIoRec* pRec)
+static inline int check_access_rights(if_cmd_code cmd,SortedFileIoRec* pRec)
 {
 	switch(cmd)
 	{
@@ -1392,7 +1392,7 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	else if(dret==0&&FS_IS_DIR(dflags))
 		return ERR_FILE_IO;
 	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE);
-	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE|FILE_TRUNCATE_EXISTING);
+	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
 	if(!VALID(hsrc)||!VALID(hdst))
 	{
 		ret=ERR_FILE_IO;
