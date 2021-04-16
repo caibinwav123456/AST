@@ -1,7 +1,7 @@
 Target:=$(TopDir)/bin/config.cfg
 
-$(Target):
-	cp config_linux.cfg $@
+$(Target): config_linux.cfg
+	cp $< $@
 
 clean:
 	@echo nothing to do!
