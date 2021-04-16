@@ -229,7 +229,7 @@ void complete(sh_context* ctx)
 			dir="/";
 		else
 			dir=check.substr(0,pos_slash);
-		nodir=check.substr(pos_slash+1,check.size()-(pos_slash+1));
+		nodir=check.substr(pos_slash+1);
 	}
 	else
 	{
@@ -282,7 +282,7 @@ void complete(sh_context* ctx)
 		cmd.insert(icmd,add);
 		icmd+=add.size();
 		printf("%s",add.c_str());
-		printf("%s",cmd.substr(icmd,cmd.size()-icmd).c_str());
+		printf("%s",cmd.substr(icmd).c_str());
 		print_back(cmd.size()-icmd);
 	}
 	else

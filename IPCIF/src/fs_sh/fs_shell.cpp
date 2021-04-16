@@ -99,7 +99,7 @@ bool process_ctrl_key(sh_context* ctx)
 			icmd--;
 			cmd.erase(cmd.begin()+icmd);
 			print_back(1);
-			printf("%s",cmd.substr(icmd,cmd.size()-icmd).c_str());
+			printf("%s",cmd.substr(icmd).c_str());
 			print_blank(1);
 			print_back(cmd.size()-icmd+1);
 		}
@@ -108,7 +108,7 @@ bool process_ctrl_key(sh_context* ctx)
 		if(icmd<cmd.size())
 		{
 			cmd.erase(cmd.begin()+icmd);
-			printf("%s",cmd.substr(icmd,cmd.size()-icmd).c_str());
+			printf("%s",cmd.substr(icmd).c_str());
 			print_blank(1);
 			print_back(cmd.size()-icmd+1);
 		}
@@ -139,7 +139,7 @@ void process_normal_key(sh_context* ctx)
 	cmd.insert(cmd.begin()+icmd,(char)uc);
 	icmd++;
 	printf("%c",uc);
-	printf("%s",cmd.substr(icmd,cmd.size()-icmd).c_str());
+	printf("%s",cmd.substr(icmd).c_str());
 	print_back(cmd.size()-icmd);
 }
 int run_sh()

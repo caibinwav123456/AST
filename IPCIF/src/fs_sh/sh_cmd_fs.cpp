@@ -726,8 +726,8 @@ static int df_handler(cmd_param_st* param)
 DEF_SH_CMD(df,df_handler,
 	"list all the devices of the storage system.",
 	"The df command lists the accessible devices of the storage system.\n"
-	"The device names are listed as the interface id's of each device,"
-	"the device type/file system format is listed along with its device name.\n"
+	"The device names are listed as the interface id's of each device."
+	"The device type/file system format is listed along with its device name.\n"
 	"The default device is labeled with (default).\n");
 static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string>& flist,fs_attr_datetime ttype,E_FILE_DISP_MODE mode)
 {

@@ -823,7 +823,7 @@ int cb_fsc(void* addr,void* param,int op)
 			}
 		}
 		break;
-		case CMD_FSGETDEVINFO:
+	case CMD_FSGETDEVINFO:
 		{
 			dg_fsdevinfo* fsdevinfo=(dg_fsdevinfo*)addr;
 			if(op&OP_PARAM)
@@ -848,7 +848,7 @@ int SysFs::ReOpen(SortedFileIoRec* pRec,void* hif)
 	init_current_datagram_base(&dg,CMD_FSOPEN);
 	fs_datagram_param param;
 	param.dbase=&dg;
-	param.fsopen.flags=pRec->get_flags();
+	param.fsopen.flags=((pRec->get_flags()&~FILE_MASK)|FILE_OPEN_EXISTING);
 	param.fsopen.hFile=&pRec->hFile;
 	param.fsopen.path=&pRec->path;
 	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
