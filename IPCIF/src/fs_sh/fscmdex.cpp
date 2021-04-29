@@ -3,6 +3,8 @@
 #include <assert.h>
 #define t_cat_clean_priv(st_priv) cat_clean_priv(st_priv,__tp_buf__)
 #define t_write_clean_priv(st_priv) write_clean_priv(st_priv,pipe_next,__tp_buf__)
+#define t_print_byte(bbin,b) print_binary_byte(bbin,b,pipe_next)
+#define IS_DISP_CHAR(c) ((c)>=32&&(c)<=126)
 //echo cat fmt hex write cp mv rm mkdir setlen touch
 static int echo_handler(cmd_param_st* param)
 {
@@ -94,7 +96,7 @@ static int cat_pred_handler(cmd_param_st* param)
 	if(is_pre_revoke(param))
 		return t_cat_clean_priv(*(st_priv_cat**)&(param->priv));
 	if(pipe!=NULL)
-		return_msg(ERR_INVALID_CMD,"The command \"%s\" cannot be used with \"|\"\n",param->cmd.c_str());
+		return_msg(ERR_INVALID_CMD,"The command \"%s\" cannot be used with \"|\"\n",cmd.c_str());
 	st_priv_cat* newcat=new st_priv_cat;
 	st_path_handle ph;
 	string fullpath;
@@ -129,6 +131,11 @@ static int cat_pred_handler(cmd_param_st* param)
 			else
 			{
 				bool error=false;
+				if(!arg.second.empty())
+				{
+					t_cat_clean_priv(newcat);
+					return_msg(ERR_INVALID_CMD,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+				}
 				for(int i=1;i<(int)arg.first.size();i++)
 				{
 					switch(arg.first[i])
@@ -270,7 +277,7 @@ static int write_pred_handler(cmd_param_st* param)
 	if(is_pre_revoke(param))
 		return t_write_clean_priv(*(st_priv_write**)&(param->priv));
 	if(pipe==NULL)
-		return_msg(ERR_INVALID_CMD,"The command \"%s\" cannot be used without \"|\"\n",param->cmd.c_str());
+		return_msg(ERR_INVALID_CMD,"The command \"%s\" cannot be used without \"|\"\n",cmd.c_str());
 	st_priv_write* newwrite=new st_priv_write;
 	string fullpath;
 	bool file_arg=false;
@@ -293,6 +300,11 @@ static int write_pred_handler(cmd_param_st* param)
 			else
 			{
 				bool error=false;
+				if(!arg.second.empty())
+				{
+					t_write_clean_priv(newwrite);
+					return_msg(ERR_INVALID_CMD,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+				}
 				for(int i=1;i<(int)arg.first.size();i++)
 				{
 					switch(arg.first[i])
@@ -388,7 +400,7 @@ end:
 }
 DEF_SH_PRED_CMD(write,write_handler,write_pred_handler,
 	"write binary data into a file, for details, see \"help write\".",
-	"Format:\n\t (pre-commands) | write [options] (file-path)\n"
+	"Format:\n\t(pre-commands) | write [options] (file-path)\n"
 	"NOTE: THIS COMMAND NEEDS TO BE USED WITH \"|\" TO PROVIDE A BINARY STREAM TO BE WRITTEN.\n"
 	"The write command writes a stream of binary data into a file, if the file does not exist, "
 	"it will be created.\n"
@@ -401,4 +413,308 @@ DEF_SH_PRED_CMD(write,write_handler,write_pred_handler,
 	"The start-offset value may be ignored, when ignored, it defaults to 0.\n"
 	"-n\n"
 	"\tUse this option to prohibit report after a successfull write of data.\n"
+);
+static int hex_pred_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	if(is_pre_revoke(param))
+		return 0;
+	if(pipe!=NULL)
+		return_msg(ERR_INVALID_CMD,"The command \"%s\" cannot be used with \"|\"\n",cmd.c_str());
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(!arg.second.empty())
+			return_msg(ERR_INVALID_CMD,"invalid parameter: \"%s=%s\", quotes needed.\n",arg.first.c_str(),arg.second.c_str());
+		if(arg.first.empty())
+			continue;
+		if(arg.first[0]!='i')
+		{
+			if(arg.first.size()%2!=0)
+				return_msg(ERR_INVALID_CMD,"invalid parameter: \"%s\"\n",arg.first.c_str());
+			for(int j=0;j<(int)arg.first.size();j++)
+			{
+				char c=arg.first[j];
+				if(!((c>='0'&&c<='9')
+					||(c>='a'&&c<='f')
+					||(c>='A'&&c<='F')))
+					return_msg(ERR_INVALID_CMD,"invalid parameter: \"%s\"\n",arg.first.c_str());
+			}
+		}
+	}
+	return 0;
+}
+static inline byte gen_bits(char c)
+{
+	if(c>='0'&&c<='9')
+		return c-'0';
+	else if(c>='a'&&c<='f')
+		return c-'a'+10;
+	else if(c>='A'&&c<='F')
+		return c-'A'+10;
+	else
+		return 0;
+}
+static int hex_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const string& arg=args[i].first;
+		if(arg.empty())
+			continue;
+		if(arg[0]=='i')
+		{
+			ts_output(arg.c_str()+1);
+		}
+		else
+		{
+			uint outlen=arg.size()/2;
+			byte* binbuf=new byte[outlen];
+			for(int j=0;j<(int)outlen;j++)
+			{
+				const char* pstr=arg.c_str()+j*2;
+				binbuf[j]=((gen_bits(pstr[0])<<4)|gen_bits(pstr[1]));
+			}
+			tb_output(binbuf,outlen);
+			delete[] binbuf;
+		}
+	}
+	return 0;
+}
+DEF_SH_PRED_CMD(hex,hex_handler,hex_pred_handler,
+	"generate a sequential binary data.",
+	"Format:\n\thex [item1] [item2] [item3] ...\n"
+	"The hex command generates a stream of binary data according to the arguments.\n"
+	"The stream of data is output to the stdout or can be redirected to files.\n"
+	"Each item may be specified in two different ways(styles):\n"
+	"1. Heximal bytes\n"
+	"\tThis type of data are strings of 8-bit heximal numbers that indicate byte streams, "
+	"like 1f, 2e, abcd, fedcba, etc. The heximal bytes can be combined together to form a heximal string.\n"
+	"2. ASCII strings\n"
+	"\tThis type of data are normal ansi strings preceded with a single ascii character \'i\'. "
+	"Quotes(\' or \") are needed when the string contains spaces or other special characters. "
+	"The escape character \'\\\' must be used when the quoted string contains special characters other than spaces.\n"
+);
+struct st_priv_fmt
+{
+	bool bbin;
+	bool bcompact;
+	bool bshow_ascii;
+	bool bshow_addr;
+	uint line_len;
+	st_priv_fmt()
+	{
+		bbin=false;
+		bcompact=false;
+		bshow_ascii=false;
+		bshow_addr=false;
+		line_len=0;
+	}
+};
+static inline void fmt_clean_priv(st_priv_fmt*& stfmt)
+{
+	delete stfmt;
+	stfmt=NULL;
+}
+static int fmt_pred_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	if(is_pre_revoke(param))
+	{
+		fmt_clean_priv(*(st_priv_fmt**)&(param->priv));
+		return 0;
+	}
+	if(pipe==NULL)
+		return_msg(ERR_INVALID_CMD,"The command \"%s\" cannot be used without \"|\"\n",cmd.c_str());
+	st_priv_fmt* newfmt=new st_priv_fmt;
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(arg.first.empty())
+			continue;
+		if(arg.first[0]=='-')
+		{
+			if((int)arg.first.size()>1
+				&&arg.first[1]=='-')
+			{
+				if(arg.first.substr(2)=="linelen")
+				{
+					uint linelen=0;
+					sscanf(arg.second.c_str(),"%u",&linelen);
+					if(linelen>=4&&linelen<=32)
+					{
+						newfmt->line_len=linelen;
+						continue;
+					}
+				}
+			}
+			else
+			{
+				bool error=false;
+				if(!arg.second.empty())
+				{
+					fmt_clean_priv(newfmt);
+					return_msg(ERR_INVALID_CMD,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+				}
+				for(int i=1;i<(int)arg.first.size();i++)
+				{
+					switch(arg.first[i])
+					{
+					case 'h':
+						//default
+						break;
+					case 'H':
+						newfmt->bcompact=true;
+						break;
+					case 'b':
+						newfmt->bbin=true;
+						break;
+					case 'B':
+						newfmt->bbin=true;
+						newfmt->bcompact=true;
+						break;
+					case 'a':
+						newfmt->bshow_ascii=true;
+						break;
+					case 'r':
+						newfmt->bshow_addr=true;
+						break;
+					default:
+						error=true;
+						break;
+					}
+				}
+				if(!error)
+					continue;
+			}
+		}
+		fmt_clean_priv(newfmt);
+		return_msg(ERR_INVALID_CMD,"the option \"%s\" is invalid\n",arg.first.c_str());
+	}
+	if((newfmt->bshow_ascii||newfmt->bshow_addr)&&newfmt->line_len==0)
+	{
+		char* ill_option=newfmt->bshow_ascii?"a":"r";
+		fmt_clean_priv(newfmt);
+		return_msg(ERR_INVALID_CMD,"--linelen must be specified when using the option -%s\n",ill_option);
+	}
+	param->priv=newfmt;
+	return 0;
+}
+static inline void print_binary_byte(bool bin,byte b,Pipe* pipe)
+{
+	if(bin)
+	{
+		byte rem=b;
+		for(int i=0;i<8;i++)
+		{
+			if(rem&0x80)
+				tputs(pipe,"1",1);
+			else
+				tputs(pipe,"0",1);
+			rem<<=1;
+		}
+	}
+	else
+	{
+		char strhex[5];
+		sprintf(strhex,"%02x",(uint)b);
+		tputs(pipe,strhex,0,true);
+	}
+}
+static int fmt_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	st_priv_fmt* fmtdata=(st_priv_fmt*)param->priv;
+	assert(fmtdata!=NULL);
+	assert(pipe!=NULL);
+	byte bbuf;
+	bool ending=true;
+	byte* tmpbuf=NULL;
+	uint cnt=0,n,addr=0;
+	char addr_str[16];
+	if(fmtdata->bshow_ascii)
+		tmpbuf=new byte[fmtdata->line_len];
+	while((n=pipe->Recv(&bbuf,1))>0)
+	{
+		if(fmtdata->bshow_addr&&ending)
+		{
+			sprintf(addr_str,"%08x: ",addr);
+			ts_output(addr_str);
+			addr+=fmtdata->line_len;
+		}
+		ending=false;
+		t_print_byte(fmtdata->bbin,bbuf);
+		if(!fmtdata->bcompact)
+			ts_output(" ");
+		if(fmtdata->line_len>0)
+		{
+			if(fmtdata->bshow_ascii)
+				tmpbuf[cnt]=(IS_DISP_CHAR(bbuf)?bbuf:'.');
+			cnt++;
+			if(cnt>=fmtdata->line_len)
+			{
+				cnt=0;
+				if(fmtdata->bshow_ascii)
+				{
+					ts_output("\t");
+					tb_output(tmpbuf,fmtdata->line_len);
+				}
+				ts_output("\n");
+				ending=true;
+			}
+		}
+	}
+	if(!ending)
+	{
+		if(fmtdata->bshow_ascii)
+		{
+			uint nbits=(fmtdata->bbin?8:2)+(fmtdata->bcompact?0:1);
+			uint nchar=fmtdata->line_len-cnt;
+			nbits*=nchar;
+			for(int i=0;i<(int)nbits;i++)
+			{
+				tb_output(" ",1);
+			}
+			ts_output("\t");
+			tb_output(tmpbuf,cnt);
+		}
+		ts_output("\n");
+	}
+	if(tmpbuf!=NULL)
+		delete[] tmpbuf;
+	set_used_pipe(param);
+	fmt_clean_priv(*(st_priv_fmt**)&(param->priv));
+	return 0;
+}
+DEF_SH_PRED_CMD(fmt,fmt_handler,fmt_pred_handler,
+	"format display of a sequential binary piped stream.",
+	"Format:\n\t(pre-commands) | fmt [options]\n"
+	"NOTE: THIS COMMAND NEEDS TO BE USED WITH \"|\" TO PROVIDE A BINARY STREAM TO BE DISPLAYED.\n"
+	"The fmt command receives a stream of binary data generated by the precedent command. "
+	"Multiple options can be specified to customize the output format.\n"
+	"Options:\n"
+	"--linelen=(decimal-number)\n"
+	"\tThis option specifies the number of bytes shown in each line within the output content. "
+	"The bytes count is given in a decimal number between 4 and 32.\n"
+	"If this option is not set, the output stream is shown in continuous bytes without line segregation.\n"
+	"-h\n"
+	"\tThis option specifies that the output stream is displayed in heximal format "
+	"with each byte separated by a space character.\n"
+	"\tThis is the default format.\n"
+	"-H\n"
+	"\tThis option specifies that the output stream is displayed in compact heximal format "
+	"with no space separations between adjancent bytes.\n"
+	"-b\n"
+	"\tThis option specifies that the output stream is displayed in binary format "
+	"with each byte separated by a space character.\n"
+	"-B\n"
+	"\tThis option specifies that the output stream is displayed in compact binary format "
+	"with no space separations between adjancent bytes.\n"
+	"-a\n"
+	"\tThe ascii characters is shown besides the output stream.\n"
+	"\tThis option must be used together with option \'--linelen\'.\n"
+	"-r\n"
+	"\tThe offset of each line in the output stream is displayed before the line in 32-bit heximal format.\n"
+	"\tThis option must be used together with option \'--linelen\'.\n"
 );
