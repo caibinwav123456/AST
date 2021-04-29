@@ -594,7 +594,7 @@ static int fmt_pred_handler(cmd_param_st* param)
 	}
 	if((newfmt->bshow_ascii||newfmt->bshow_addr)&&newfmt->line_len==0)
 	{
-		char* ill_option=newfmt->bshow_ascii?"a":"r";
+		const char* ill_option=newfmt->bshow_ascii?"a":"r";
 		fmt_clean_priv(newfmt);
 		return_msg(ERR_INVALID_CMD,"--linelen must be specified when using the option -%s\n",ill_option);
 	}
