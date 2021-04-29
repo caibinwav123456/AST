@@ -15,12 +15,12 @@ static const char spec_file_char[]={' ',';','@','|','<','>','`','^','!','?','\"'
 	'(',')','[',']','$','\\','&'};
 struct spec_fchar_verifier
 {
-	bool alphabet[256];
+	bool alphabet[128];
 	spec_fchar_verifier()
 	{
-		memset(alphabet,0,256*sizeof(bool));
+		memset(alphabet,0,128*sizeof(bool));
 		for(int i=0;i<(int)(sizeof(spec_file_char)/sizeof(char));i++)
-			alphabet[(int)spec_file_char[i]]=true;
+			alphabet[(uint)(uchar)spec_file_char[i]]=true;
 	}
 	bool is_spec(char c)
 	{
