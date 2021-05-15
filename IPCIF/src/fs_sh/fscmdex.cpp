@@ -790,9 +790,9 @@ static int mv_handler(cmd_param_st* param)
 	}
 	string src,dest;
 	int ret=0;
-	st_inner_path inner={false,src.c_str()};
 	if(0!=(ret=check_path(param,args[1].first,src)))
 		return_t_msg(ret,"%s: path check failed\n",args[1].first.c_str());
+	st_inner_path inner={false,src.c_str()};
 	if(0!=(ret=check_path(param,args[2].first,dest,NULL,&inner)))
 		return_t_msg(ret,"%s: path check failed\n",args[2].first.c_str());
 	if(!inner.detect_outer)
