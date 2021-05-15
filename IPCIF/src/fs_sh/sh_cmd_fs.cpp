@@ -123,7 +123,7 @@ void ShCmdTable::AddCmd(const char* cmd,per_cmd_handler handler,per_cmd_handler 
 	item.pre_handler=pre_handler;
 	item.detail=detail;
 	ShCmdTable* ptable=GetTable();
-	ptable->vstrdesc.push_back(string(cmd)+" - "+desc+"\n");
+	ptable->vstrdesc.push_back(string(cmd)+"\t- "+desc+"\n");
 	ptable->cmd_map[cmd]=item;
 }
 int ShCmdTable::Init()
@@ -634,7 +634,7 @@ static inline void sprint_buf(string& ret,char* buf,const char* format,...)
 	ret+=buf;
 	va_end(args);
 }
-bool validate_path(const string& path,dword* flags,st_stat_file_time* date,UInteger64* size,string* strret)
+int validate_path(const string& path,dword* flags,st_stat_file_time* date,UInteger64* size,string* strret)
 {
 	DateTime dt[3];
 	dword tflags=0;
@@ -669,23 +669,28 @@ bool validate_path(const string& path,dword* flags,st_stat_file_time* date,UInte
 		*flags=tflags;
 	if(date!=NULL&&ret==0)
 		date->time=dt[date->ttype];
-	if(bret&&ret!=0&&ret!=ERR_FS_FILE_NOT_EXIST)
-		sprint_buf(*strret,strretbuf,"unexpected exception: %s\n",get_error_desc(ret));
+	if(bret&&ret!=0)
+	{
+		if(ret!=ERR_FS_FILE_NOT_EXIST)
+			sprint_buf(*strret,strretbuf,"unexpected exception: %s\n",get_error_desc(ret));
+		else
+			sprint_buf(*strret,strretbuf,"%s: %s\n",path.c_str(),get_error_desc(ret));
+	}
 	if(ret!=0)
-		return false;
+		return ret;
 	if(size!=NULL)
 	{
 		if(FS_IS_DIR(tflags))
 		{
 			*size=UInteger64(1024);
-			return true;
+			return 0;
 		}
 		void* hFile=fs_open((char*)path.c_str(),FILE_OPEN_EXISTING|FILE_READ);
 		if(!VALID(hFile))
 		{
 			if(bret)
 				sprint_buf(*strret,strretbuf,"File can not be opened.\n");
-			return false;
+			return ERR_FILE_IO;
 		}
 		if(0!=(ret=fs_get_file_size(hFile,&size->low,&size->high)))
 		{
@@ -701,7 +706,7 @@ bool validate_path(const string& path,dword* flags,st_stat_file_time* date,UInte
 				ret=retclose;
 		}
 	}
-	return ret==0;
+	return ret;
 }
 static int df_handler(cmd_param_st* param)
 {
@@ -767,7 +772,7 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 				continue;
 			}
 			string strret;
-			if(!validate_path(fullpath,NULL,&date,&u64,&strret))
+			if(0!=validate_path(fullpath,NULL,&date,&u64,&strret))
 			{
 				t_output("%s",strret.c_str());
 				continue;
@@ -800,12 +805,12 @@ static int list_file_path(cmd_param_st* param,const string& path,fs_attr_datetim
 		return_t_msg(ret,"invalid path\n");
 	}
 	string strret;
-	if(!validate_path(fullpath,&flags,NULL,NULL,&strret))
+	if(0!=(ret=validate_path(fullpath,&flags,NULL,NULL,&strret)))
 	{
 		if(dispdir)
 			t_output("%s:\n",path.c_str());
 		t_output("%s",strret.c_str());
-		return_t_msg(ERR_FS_FILE_NOT_EXIST,"path not exist\n");
+		return ret;
 	}
 	vector<string> flist;
 	bool bfile=false;
@@ -920,10 +925,10 @@ static int cd_handler(cmd_param_st* param)
 		return_t_msg(ret,"invalid path\n");
 	}
 	string strret;
-	if(!validate_path(fullpath,&flags,NULL,NULL,&strret))
+	if(0!=(ret=validate_path(fullpath,&flags,NULL,NULL,&strret)))
 	{
 		t_output("%s",strret.c_str());
-		return_t_msg(ERR_FS_FILE_NOT_EXIST,"path not exist\n");
+		return ret;
 	}
 	if(!FS_IS_DIR(flags))
 	{
@@ -979,7 +984,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 	int ret=0;
 	dword flags=0;
 	files.clear();
-	if(!(validate_path(dir,&flags)&&FS_IS_DIR(flags)))
+	if((0!=validate_path(dir,&flags))||!FS_IS_DIR(flags))
 		return;
 	if(0!=(ret=fs_traverse((char*)dir.c_str(),cb_lsfile,&files)))
 	{

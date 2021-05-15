@@ -53,7 +53,7 @@ struct st_stat_file_time
 int init_sh();
 void exit_sh();
 int get_full_path(const string& cur_dir,const string& relative_path,string& full_path);
-bool validate_path(const string& path,dword* flags=NULL,st_stat_file_time* date=NULL,UInteger64* size=NULL,string* strret=NULL);
+int validate_path(const string& path,dword* flags=NULL,st_stat_file_time* date=NULL,UInteger64* size=NULL,string* strret=NULL);
 void list_cur_dir_files(const string& dir,vector<string>& files);
 struct cmd_param_st
 {

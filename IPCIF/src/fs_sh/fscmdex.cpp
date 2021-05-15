@@ -1,11 +1,12 @@
 #include "sh_cmd_fs.h"
 #include "sysfs.h"
+#include <string.h>
 #include <assert.h>
 #define t_cat_clean_priv(st_priv) cat_clean_priv(st_priv,__tp_buf__)
 #define t_write_clean_priv(st_priv) write_clean_priv(st_priv,pipe_next,__tp_buf__)
 #define t_print_byte(bbin,b) print_binary_byte(bbin,b,pipe_next)
 #define IS_DISP_CHAR(c) ((c)>=32&&(c)<=126)
-//echo cat fmt hex write cp mv rm mkdir setlen touch
+//echo cat fmt hex write cp mv rm mkdir setlen touch print
 static int echo_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
@@ -483,7 +484,7 @@ static int hex_handler(cmd_param_st* param)
 	return 0;
 }
 DEF_SH_PRED_CMD(hex,hex_handler,hex_pred_handler,
-	"generate a sequential binary data.",
+	"generate sequential binary data.",
 	"Format:\n\thex [item1] [item2] [item3] ...\n"
 	"The hex command generates a stream of binary data according to the arguments.\n"
 	"The stream of data is output to the stdout or can be redirected to files.\n"
@@ -717,4 +718,121 @@ DEF_SH_PRED_CMD(fmt,fmt_handler,fmt_pred_handler,
 	"-r\n"
 	"\tThe offset of each line in the output stream is displayed before the line in 32-bit heximal format.\n"
 	"\tThis option must be used together with option \'--linelen\'.\n"
+);
+struct st_inner_path
+{
+	bool detect_outer;
+	const char* inner;
+	string get_inner_path()
+	{
+		const char* pstr=strrchr(inner,'/');
+		return pstr==NULL?"":pstr;
+	}
+};
+static int check_path(cmd_param_st* param,const string& path,string& fullpath,dword* flags=NULL,st_inner_path* inner=NULL)
+{
+	common_sh_args(param);
+	int ret=0;
+	if(0!=(ret=get_full_path(ctx->pwd,path,fullpath)))
+		return_t_msg(ret,"%s: invalid path\n",path.c_str());
+	if(fullpath.empty())
+		return_t_msg(ERR_INVALID_PATH,"%s: invalid path\n",path.c_str());
+	if(fullpath[0]=='/')
+	{
+		vector<string> devs;
+		uint def=0;
+		if(0!=(ret=fs_list_dev(devs,&def)))
+			return_t_msg(ret,"%s\n",get_error_desc(ret));
+		fullpath=devs[def]+":"+(fullpath=="/"?"":fullpath);
+	}
+	string strret;
+	dword dummy=0;
+	dword* pflag=(flags!=NULL?flags:(inner!=NULL?&dummy:NULL));
+	if(inner!=NULL)
+		inner->detect_outer=false;
+	if(0!=(ret=validate_path(fullpath,pflag,NULL,NULL,&strret)))
+	{
+		if(ret==ERR_FS_FILE_NOT_EXIST&&inner!=NULL)
+		{
+			int pos=fullpath.rfind('/');
+			if(pos!=string::npos)
+			{
+				string fullpath_outer=fullpath.substr(0,pos);
+				if(0==(ret=validate_path(fullpath_outer,flags,NULL,NULL,&strret)))
+				{
+					inner->detect_outer=true;
+					return 0;
+				}
+			}
+		}
+		t_output("%s:\n%s",path.c_str(),strret.c_str());
+		return ret;
+	}
+	if(inner!=NULL&&FS_IS_DIR(*pflag))
+	{
+		string inner_path=inner->get_inner_path();
+		if(inner_path.empty())
+			return_t_msg(ERR_GENERIC,"%s: cannot move/copy/remove root directory\n",inner->inner);
+		inner->detect_outer=true;
+		fullpath+=inner_path;
+	}
+	return 0;
+}
+static int mv_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	if(args.size()!=3)
+		return_t_msg(ERR_INVALID_PARAM,"%s: command must take 2 parameters\n",cmd.c_str());
+	for(int i=1;i<3;i++)
+	{
+		if(!args[i].second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"%s=%s: invalid command parameter\n",args[i].first.c_str(),args[i].second.c_str());
+	}
+	string src,dest;
+	int ret=0;
+	st_inner_path inner={false,src.c_str()};
+	if(0!=(ret=check_path(param,args[1].first,src)))
+		return_t_msg(ret,"%s: path check failed\n",args[1].first.c_str());
+	if(0!=(ret=check_path(param,args[2].first,dest,NULL,&inner)))
+		return_t_msg(ret,"%s: path check failed\n",args[2].first.c_str());
+	if(!inner.detect_outer)
+		return_t_msg(ERR_GENERIC,"the destination path \"%s\" already exists\n",args[2].first.c_str());
+	if(dest.size()==src.size())
+		return 0;
+	if(dest.size()>src.size()&&dest.substr(0,src.size())==src)
+		return_t_msg(ERR_GENERIC,"cannot move a directory to its sub-directory\n");
+	if(0!=(ret=fs_move((char*)(src.c_str()),(char*)(dest.c_str()))))
+		return_t_msg(ret,"%s: %s\n",cmd.c_str(),get_error_desc(ret));
+	return 0;
+}
+DEF_SH_CMD(mv,mv_handler,
+	"move a file or a directory to a new path.",
+	""
+);
+static int cp_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	return 0;
+}
+DEF_SH_CMD(cp,cp_handler,
+	"copy a file(or files) or a directory(or directories) to a new path.",
+	""
+);
+static int rm_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	return 0;
+}
+DEF_SH_CMD(rm,rm_handler,
+	"remove a file(or files) or a directory(or directories).",
+	""
+);
+static int mkdir_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	return 0;
+}
+DEF_SH_CMD(mkdir,mkdir_handler,
+	"create a new directory(or directories).",
+	""
 );
