@@ -1,0 +1,28 @@
+IPCIF/include/config_val_extern.h:
+#define DEFINE_BOOL_VAL(name,def_val) bool name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_BOOL,&name)
+#define DEFINE_INT_VAL(name,def_val) int name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_INT,&name)
+#define DEFINE_UINT_VAL(name,def_val) uint name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_UINT,&name)
+#define DEFINE_FLOAT_VAL(name,def_val) float name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_FLOAT,&name)
+#define DEFINE_DOUBLE_VAL(name,def_val) double name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_DOUBLE,&name)
+#define DEFINE_STRING_VAL(name,def_val) string name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_STRING,&name)
+#define DEFINE_SIZE_VAL(name,def_val) uint name(def_val);config_val __config_##name(#name,CONFIG_VAL_TYPE_SIZE,&name)
+IPCIF/src/common/pipe.cpp:
+DEFINE_SIZE_VAL(pipe_buffer_size,MIN_PIPE_BUFFER_SIZE);
+IPCIF/src/common/syslog.cpp:
+DEFINE_STRING_VAL(sys_log_path,"");
+DEFINE_STRING_VAL(sys_log_sem,"sem_syslog");
+IPCIF/src/common/utility.cpp:
+DEFINE_UINT_VAL(sys_log_level,0);
+DEFINE_STRING_VAL(if_user,"");
+DEFINE_UINT_VAL(num_sysfs_buffer_blocks,4);
+DEFINE_SIZE_VAL(sysfs_buffer_size,1024);
+IPCIF/src/fs_sh/sh_cmd_fs.cpp:
+DEFINE_SIZE_VAL(fs_tpbuf_len,MIN_TPBUF_LEN);
+IPCIF/src/sysfs/fs_server.cpp:
+DEFINE_UINT_VAL(fsserver_handle_pass,8);
+DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
+DEFINE_UINT_VAL(fsserver_backup_buf_num,4);
+DEFINE_UINT_VAL(fsserver_backup_sid_reserve,16);
+IPCIF/src/sysfs/sysfs.cpp:
+DEFINE_UINT_VAL(use_storage_level,0);
+DEFINE_UINT_VAL(sysfs_query_pass,4);

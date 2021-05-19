@@ -1,0 +1,83 @@
+common_request.cpp
+__tmp_connect_if__: if id is NULL?                   :ok  /unrolled
+
+utility.cpp
+l 181 __get_stat__: need to copy empty string for refreshing. :ok
+
+ASTManager.cpp
+l 155 main: add data.quit=true                       :ok
+
+//process_data.h
+//l 35,42: add constructor
+//84: change name to hif?
+
+storage_main.cpp
+l 33: assign usefull pdata value                      :ok
+l 46: escalate request_resolver to start of function  :ok
+
+utility.cpp
+l 317: GetStoageInfo, correct name   :ok
+
+parse cmd: add handling of / slash    :ok
+
+arch_get_process returns NULL?  /acknowleged
+
+request_resolver.cpp
+l 12: no judgement?        :add option process all
+
+storage_main.cpp
+l 70: hif_sto add *      :ok
+
+systime.cpp
+l 42: l 84: modify to ERR_FS_NOT_EXIST    :ok
+
+native_fs.cpp
+l 109: put it up to beginning       :ok
+
+sysfs_struct.h
+l 141: proc_ring: unnecessary?     :ok
+
+sysfs.cpp
+l 710: add if ret==0               :ok
+fmap_protect: used too frequently? :not
+l 621: use back() instead?         :ok
+
+inode.cpp
+l 27: move it to while() statement  :ok
+
+sh_cmd_fs.cpp
+l 318: set param date to null       :ok
+
+fs_server.cpp
+l 1010: 'it' not used?              :ok
+
+fscmdex.cpp
+l 193: what if len==neg_1?          :ok
+
+sysfs.cpp
+l 123, l 129: exchange              :ok
+l 174: return true: unnecessary?    :ok
+l 1654: eliminate this function to simplify read/write ops    :ok
+
+fs_server.cpp
+l 76: 'fsserver_backup_sid_reserve' convert to signed and compare, be carefull with the difference between sizes of uint and dword in x64 systems       :ok
+l 88: examine records within bmap first        :need not
+l 883: +check of node type          :ok
+
+file.cpp
+l 102: set another variable for offhigh to avoid side-effects    :ok
+
+sysfs_struct.h
+l 194: simplify codes               :ok
+
+algor_templ.h
+l 147: 		if(order<num-1)
+			local_assign(heap[order],heap[num-1],order);
+		num--;
+simplified as:
+		num--;
+		if(order<num)
+			local_assign(heap[order],heap[num],order);
+		else
+			return true;
+                :ok
