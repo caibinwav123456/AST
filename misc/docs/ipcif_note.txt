@@ -1,0 +1,44 @@
+cb 之后加无效判断                     无需
+astmgr_data加quit成员              ok
+full_sys_log_path放到里面去       ok
+返回最后一个报文后再stop_if       ok
+建议：common requests->common.dll->suspend(bool bsusp,bool& busy,char* id,void* handle)
+
+bug：
+1. __get_stat__ memset if_ids size
+2. __get_stat__ return find_next_exe
+
+next:
+1.在守护Reconnec线程中查看if,quitcode.
+2.在ReqHandler中查看if.
+3.在Exit中先结束线程，然后视情况close if.
+4.CLEAR_ALL还需要做的
+5.The code which calls Reconnect, SuspendIO and Exit must in the same thread.
+
+1.INT64
+2.ReOpen
+
+1.CloseHandle vector
+2.ret=0 backup
+
+1.增加检查盘lock文件记录user_id的情况判断是否使用中或意外中断; ok
+2.Exclusively Read: ok
+
+1.sid加锁: ok
+
+1.mutex_p/v彻底放入protect中: ok
+2.request_resolver加选项: 都处理: ok
+3.reset sid 延后
+
+1.fs_recurse_fcopy/fdelete加错误循环
+2.将cmd_data_size_map移到fss_container中
+
+1.增加应用id实例id
+2.实例退出时删除backup缓存。
+3.astloader意外退出时astmgr加上stop_if
+4.fs_sh在检测到astmgr意外退出时重新register utility id
+5.主程序退出时广播工具程序。
+6.主程序检测到工具程序退出时广播managed程序。
+
+1.fs_get_dev_info增加space total/space available
+2.sys_load_library: 在utility里增加封装接口,动态加载dll后调用config_val初始化可配置全局变量。
