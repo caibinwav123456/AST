@@ -797,7 +797,7 @@ static int mv_handler(cmd_param_st* param)
 		return_t_msg(ret,"%s: path check failed\n",args[2].first.c_str());
 	if(!inner.detect_outer)
 		return_t_msg(ERR_GENERIC,"the destination path \"%s\" already exists\n",args[2].first.c_str());
-	if(dest.size()==src.size())
+	if(dest==src)
 		return 0;
 	if(dest.size()>src.size()&&dest.substr(0,src.size())==src)
 		return_t_msg(ERR_GENERIC,"cannot move a directory to its sub-directory\n");
