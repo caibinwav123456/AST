@@ -2,14 +2,13 @@ name: Pub FPM test
 
 on: [workflow_dispatch, fork, release]
 
-env:
-
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release .\IPCIF\src\project\win\win32.sln
