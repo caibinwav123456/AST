@@ -11,6 +11,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: setup access
+      run: chmod -R 777 ./IPCIF
     - name: Configure
       working-directory: ./IPCIF
       run: ./Configure
