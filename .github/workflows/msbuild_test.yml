@@ -3,21 +3,14 @@ name: Pub FPM test
 on: [workflow_dispatch, fork, release]
 
 env:
-  # Path to the solution file relative to the root of the project.
-  SOLUTION_FILE_PATH: .\PhotoMagic_Release_VS2010\PhotoMagic.sln
-
-  # Configuration type to build.
-  # You can convert this to a build matrix if you need coverage of multiple configuration types.
-  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-  BUILD_CONFIGURATION: Release
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-    - name: Add MSBuild to PATH
-      run: vswhere
-    - name: Find MSBuild
-      run: dir "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin"
+    - uses: actions/checkout@v2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release .\IPCIF\src\project\win\win32.sln
 
