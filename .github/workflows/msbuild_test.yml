@@ -1,4 +1,4 @@
-name: Pub FPM test
+name: AST for Win32
 
 on: [workflow_dispatch, fork, release]
 
