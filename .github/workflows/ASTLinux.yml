@@ -1,7 +1,7 @@
 name: ASTLinux
 
 on:
-  :
+  workflow_dispatch:
     branches: ASTLinux
 
 jobs:
