@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 rm -f test.c test .config;
 echo "#include <stdio.h>" > test.c;
 echo "void main(void){" >> test.c;
