@@ -212,6 +212,12 @@ enum E_FS_MODE
 int __fs_perm_close(void* handle);
 int __fs_recurse_copy(char* from,char* to,file_recurse_cbdata* cbdata);
 int __fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata);
+struct fs_if_path
+{
+	if_proc* ifpath;
+	const string* purepath;
+	fs_if_path(if_proc* _if,const string* _path):ifpath(_if),purepath(_path){}
+};
 class SysFs
 {
 public:
@@ -233,21 +239,21 @@ public:
 	void Exit();
 	int SuspendIO(bool bsusp,uint time=0,dword cause=FC_EXIT);
 	bool ReqHandler(uint cmd,void* addr,void* param,int op);
-	void* Open(const char* pathname,dword flags);
+	void* Open(const char* pathname,dword flags,fs_if_path* ifp=NULL);
 	int Close(void* h);
 	int Seek(void* h,uint seektype,int offset,int* offhigh=NULL);
 	int GetPosition(void* h,uint* offset,uint* offhigh=NULL);
 	int ReadWrite(if_cmd_code cmd,void* h,void* buf,uint len,uint* rdwrlen=NULL);
 	int FlushBuffer(void* h);
 	int GetSetFileSize(if_cmd_code cmd,void* h,uint* low,uint* high=NULL);
-	int MoveFile(const char* src,const char* dst);
-	int CopyFile(const char* src,const char* dst);
-	int DeleteFile(const char* pathname);
-	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags=NULL,DateTime* datetime=NULL);
-	int ListFile(const char* path,vector<fsls_element>& files);
+	int MoveFile(const char* src,const char* dst,fs_if_path* sifp=NULL,fs_if_path* difp=NULL);
+	int CopyFile(const char* src,const char* dst,fs_if_path* sifp=NULL,fs_if_path* difp=NULL);
+	int DeleteFile(const char* pathname,fs_if_path* ifp=NULL);
+	int GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags=NULL,DateTime* datetime=NULL,fs_if_path* ifp=NULL);
+	int ListFile(const char* path,vector<fsls_element>& files,fs_if_path* ifp=NULL);
 	int ListDev(vector<string>& devlist,uint* defdev=NULL);
 	int GetDevInfo(const string& devname,fs_dev_info& devinfo);
-	int MakeDir(const char* path);
+	int MakeDir(const char* path,fs_if_path* ifp=NULL);
 private:
 	int ConnectServer(if_proc* pif,void** phif,bool once=false);
 	bool Reconnect(void* proc_id);
@@ -266,7 +272,7 @@ private:
 	SortedFileIoRec* handle_to_rec_ptr(void* handle);
 	static int cb_reconn(void* param);
 	void* sysfs_get_handle();
-	int fs_parse_path(if_proc** ppif,string& path,const string& in_path);
+	int fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if_path* ifp);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
 	vector<if_proc*> ifvproc;

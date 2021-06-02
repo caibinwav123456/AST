@@ -609,8 +609,14 @@ int SysFs::EnumStorageModule(vector<proc_data>* pdata)
 	}
 	return 0;
 }
-int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path)
+int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if_path* ifp)
 {
+	if(ifp!=NULL)
+	{
+		*ppif=ifp->ifpath;
+		path=*ifp->purepath;
+		return 0;
+	}
 	vector<string> split_in_path,split_out_path;
 	split_path(in_path,split_in_path,'/');
 	int ret=0;
@@ -856,13 +862,13 @@ int SysFs::ReOpen(SortedFileIoRec* pRec,void* hif)
 end:
 	return ret;
 }
-void* SysFs::Open(const char* pathname,dword flags)
+void* SysFs::Open(const char* pathname,dword flags,fs_if_path* ifp)
 {
 	uninited_return_val(NULL);
 	if_proc* ifproc;
 	string path;
 	int ret=0;
-	if(0!=(ret=fs_parse_path(&ifproc,path,string(pathname))))
+	if(0!=(ret=fs_parse_path(&ifproc,path,string(pathname),ifp)))
 		return NULL;
 	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len,flags);
 	pRec->pif=ifproc;
@@ -1310,21 +1316,22 @@ end2:
 	}
 	return ret;
 }
-int SysFs::MoveFile(const char* src,const char* dst)
+int SysFs::MoveFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path* difp)
 {
 	uninited_return;
 	int ret=0;
 	if_proc *ifsrc,*ifdst;
 	string puresrc,puredst;
-	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src)))
+	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src,sifp)))
 		return ret;
-	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
+	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst,difp)))
 		return ret;
 	if(ifsrc!=ifdst)
 	{
-		if(0!=(ret=CopyFile(src,dst)))
+		fs_if_path sfp(ifsrc,&puresrc),dfp(ifdst,&puredst);
+		if(0!=(ret=CopyFile(src,dst,&sfp,&dfp)))
 			return ret;
-		if(0!=(ret=DeleteFile(src)))
+		if(0!=(ret=DeleteFile(src,&sfp)))
 			return ret;
 		return 0;
 	}
@@ -1347,7 +1354,7 @@ end:
 	EndTransfer(&hif);
 	return ret;
 }
-int SysFs::CopyFile(const char* src,const char* dst)
+int SysFs::CopyFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path* difp)
 {
 	uninited_return;
 	int ret=0;
@@ -1357,32 +1364,33 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	UInteger64 srclen;
 	uint dummy=0;
 	const UInteger64 once(bufsize,&dummy);
-	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src)))
+	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src,sifp)))
 		return ret;
-	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst)))
+	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst,difp)))
 		return ret;
+	fs_if_path sfp(ifsrc,&puresrc),dfp(ifdst,&puredst);
 	dword sflags=0,dflags=0;
 	DateTime date[3];
 	if(0!=(ret=GetSetFileAttr(CMD_FSGETATTR,src,
 		FS_ATTR_FLAGS|FS_ATTR_CREATION_DATE
 		|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,
-		&sflags,date)))
+		&sflags,date,&sfp)))
 		return ret;
 	if(ifsrc==ifdst&&puresrc==puredst)
 		return 0;
-	int dret=GetSetFileAttr(CMD_FSGETATTR,src,FS_ATTR_FLAGS,&dflags);
+	int dret=GetSetFileAttr(CMD_FSGETATTR,dst,FS_ATTR_FLAGS,&dflags,NULL,&dfp);
 	if(dret!=0&&dret!=ERR_FS_FILE_NOT_EXIST)
 		return dret;
 	if(FS_IS_DIR(sflags))
 	{
 		if(dret!=0)
 		{
-			if(0!=(ret=MakeDir(dst)))
+			if(0!=(ret=MakeDir(dst,&dfp)))
 				return ret;
 			GetSetFileAttr(CMD_FSSETATTR,dst,
 				FS_ATTR_FLAGS|FS_ATTR_CREATION_DATE
 				|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,
-				&sflags,date);
+				&sflags,date,&dfp);
 			return ret;
 		}
 		else if(!FS_IS_DIR(dflags))
@@ -1391,8 +1399,8 @@ int SysFs::CopyFile(const char* src,const char* dst)
 	}
 	else if(dret==0&&FS_IS_DIR(dflags))
 		return ERR_FILE_IO;
-	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE);
-	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
+	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE,&sfp);
+	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE,&dfp);
 	if(!VALID(hsrc)||!VALID(hdst))
 	{
 		ret=ERR_FILE_IO;
@@ -1439,24 +1447,24 @@ end:
 		if(ret==0)
 			ret=retc;
 		if(ret!=0)
-			DeleteFile(dst);
+			DeleteFile(dst,&dfp);
 	}
 	if(ret!=0)
 		goto no_stat_end;
 	GetSetFileAttr(CMD_FSSETATTR,dst,
 		FS_ATTR_FLAGS|FS_ATTR_CREATION_DATE
 		|FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,
-		&sflags,date);
+		&sflags,date,&dfp);
 no_stat_end:
 	return ret;
 }
-int SysFs::DeleteFile(const char* pathname)
+int SysFs::DeleteFile(const char* pathname,fs_if_path* ifp)
 {
 	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,pathname)))
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,pathname,ifp)))
 		return ret;
 	void* hif;
 	if(0!=(ret=BeginTransfer(ifpath,&hif)))
@@ -1473,14 +1481,14 @@ end:
 	EndTransfer(&hif);
 	return ret;
 }
-int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags,DateTime* datetime)
+int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* flags,DateTime* datetime,fs_if_path* ifp)
 {
 	uninited_return;
 	assert(cmd==CMD_FSGETATTR||cmd==CMD_FSSETATTR);
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,path)))
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,path,ifp)))
 		return ret;
 	void* hif;
 	if(0!=(ret=BeginTransfer(ifpath,&hif)))
@@ -1543,13 +1551,13 @@ end:
 	}
 	return ret;
 }
-int SysFs::ListFile(const char* path,vector<fsls_element>& files)
+int SysFs::ListFile(const char* path,vector<fsls_element>& files,fs_if_path* ifp)
 {
 	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,path)))
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,path,ifp)))
 		return ret;
 	files.clear();
 	uint nfile=0;
@@ -1627,13 +1635,13 @@ end:
 		devinfo=dinfo;
 	return ret;
 }
-int SysFs::MakeDir(const char* path)
+int SysFs::MakeDir(const char* path,fs_if_path* ifp)
 {
 	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
 	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,path)))
+	if(0!=(ret=fs_parse_path(&ifpath,purepath,path,ifp)))
 		return ret;
 	void* hif;
 	if(0!=(ret=BeginTransfer(ifpath,&hif)))
