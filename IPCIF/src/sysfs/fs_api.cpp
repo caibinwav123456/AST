@@ -102,13 +102,13 @@ DLLAPI(int) fs_get_dev_info(const string& devname,fs_dev_info& dev)
 {
 	return g_sysfs.GetDevInfo(devname,dev);
 }
-DLLAPI(int) fs_recurse_copy(char* from,char* to)
+DLLAPI(int) fs_recurse_copy(char* from,char* to,file_recurse_cbdata* cbdata)
 {
-	return __fs_recurse_copy(from,to);
+	return __fs_recurse_copy(from,to,cbdata);
 }
-DLLAPI(int) fs_recurse_delete(char* pathname)
+DLLAPI(int) fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata)
 {
-	return __fs_recurse_delete(pathname);
+	return __fs_recurse_delete(pathname,cbdata);
 }
 
 DLLAPI(int) fss_init(vector<if_proc>* pif,RequestResolver* resolver)

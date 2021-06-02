@@ -210,8 +210,8 @@ enum E_FS_MODE
 #define FC_CLEAR (3<<FC_CLEAR_OFF)
 #define FC_MASK  (FC_EXIT|FC_CLEAR)
 int __fs_perm_close(void* handle);
-int __fs_recurse_copy(char* from,char* to);
-int __fs_recurse_delete(char* pathname);
+int __fs_recurse_copy(char* from,char* to,file_recurse_cbdata* cbdata);
+int __fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata);
 class SysFs
 {
 public:
