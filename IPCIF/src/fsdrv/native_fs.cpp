@@ -179,7 +179,7 @@ int NativeFsDev::Format(string cmd)
 	merge_path(fullpath,vbase);
 	if(dev_is_locked(fullpath))
 		return ERR_FS_DEV_FORMAT_FAILED_ALREADY_INUSE;
-	if(0!=(ret=sys_recurse_fdelete((char*)fullpath.c_str())))
+	if(0!=(ret=sys_recurse_fdelete((char*)fullpath.c_str(),NULL)))
 		return ret;
 	if(0!=(ret=sys_mkdir((char*)fullpath.c_str())))
 		return ret;

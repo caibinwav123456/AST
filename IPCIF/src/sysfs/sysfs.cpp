@@ -1685,7 +1685,10 @@ int cb_fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
 	for(int i=0;i<(int)vfile.size();i++)
 	{
 		if(0!=cb((char*)vfile[i].filename.c_str(),FS_IS_DIR(vfile[i].flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'/'))
+		{
 			ret=ERR_FILE_IO;
+			break;
+		}
 	}
 	return ret;
 }
@@ -1739,13 +1742,13 @@ int cb_fs_delete(char* pathname)
 	}
 	return ret;
 }
-int __fs_recurse_copy(char* from,char* to)
+int __fs_recurse_copy(char* from,char* to,file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
-	return recurse_fcopy(from,to,&cb,'/');
+	return recurse_fcopy(from,to,&cb,cbdata,'/');
 }
-int __fs_recurse_delete(char* pathname)
+int __fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
-	return recurse_fdelete(pathname,&cb,'/');
+	return recurse_fdelete(pathname,&cb,cbdata,'/');
 }
