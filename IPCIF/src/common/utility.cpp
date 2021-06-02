@@ -393,9 +393,11 @@ struct rcopy_param
 	char* start;
 	char* tstart;
 	file_recurse_callback* callback;
+	file_recurse_cbdata* cbdata;
 };
 static int cb_copy(char* name, dword type, void* param, char dsym)
 {
+	int ret=0;
 	rcopy_param* cpy=(rcopy_param*)param;
 	file_recurse_callback* callback=cpy->callback;
 	rcopy_param newcpy=*cpy;
@@ -407,17 +409,17 @@ static int cb_copy(char* name, dword type, void* param, char dsym)
 	newcpy.tstart+=strlen(name);
 	if(type==FILE_TYPE_DIR)
 	{
-		int ret;
-		if(0!=(ret=callback->_mkdir_(newcpy.to)))
-			return ret;
-		return callback->_ftraverse_(newcpy.from,cb_copy,&newcpy);
+		ret=callback->_mkdir_(newcpy.to);
+		newcpy.cbdata!=NULL?ret=newcpy.cbdata->cb(ret,newcpy.to,type,newcpy.cbdata->param,dsym):0;
+		return ret==0?callback->_ftraverse_(newcpy.from,cb_copy,&newcpy):ret;
 	}
 	else
 	{
-		return callback->_fcopy_(newcpy.from,newcpy.to);
+		ret=callback->_fcopy_(newcpy.from,newcpy.to);
+		return newcpy.cbdata!=NULL?newcpy.cbdata->cb(ret,newcpy.to,type,newcpy.cbdata->param,dsym):ret;
 	}
 }
-DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback, char dsym)
+DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback, file_recurse_cbdata* cbdata, char dsym)
 {
 	int ret=0;
 	dword type=0;
@@ -433,6 +435,7 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 	rparam.start=rparam.from+strlen(rparam.from);
 	rparam.tstart=rparam.to+strlen(rparam.to);
 	rparam.callback=callback;
+	rparam.cbdata=cbdata;
 	if(rparam.start>rparam.from&&*(rparam.start-1)==dsym)
 	{
 		*(--rparam.start)=0;
@@ -447,9 +450,9 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 		ret=ERR_GENERIC;
 		goto end;
 	}
-	if(0!=(ret=callback->_mkdir_(rparam.to)))
-		goto end;
-	ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam);
+	ret=callback->_mkdir_(rparam.to);
+	cbdata!=NULL?ret=cbdata->cb(ret,rparam.to,type,cbdata->param,dsym):0;
+	ret==0?ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam):0;
 end:
 	delete[] rparam.from;
 	delete[] rparam.to;
@@ -460,9 +463,11 @@ struct rdel_param
 	char* path;
 	char* start;
 	file_recurse_callback* callback;
+	file_recurse_cbdata* cbdata;
 };
 static int cb_delete(char* name, dword type, void* param, char dsym)
 {
+	int ret=0;
 	rdel_param* del=(rdel_param*)param;
 	file_recurse_callback* callback=del->callback;
 	rdel_param newdel=*del;
@@ -471,18 +476,13 @@ static int cb_delete(char* name, dword type, void* param, char dsym)
 	newdel.start+=strlen(name);
 	if(type==FILE_TYPE_DIR)
 	{
-		int ret;
-		if(0!=(ret=callback->_ftraverse_(newdel.path,cb_delete,&newdel)))
-			return ret;
+		ret=callback->_ftraverse_(newdel.path,cb_delete,&newdel);
 		*(newdel.start)=0;
-		return callback->_fdelete_(newdel.path);
 	}
-	else
-	{
-		return callback->_fdelete_(newdel.path);
-	}
+	ret==0?ret=callback->_fdelete_(newdel.path):0;
+	return newdel.cbdata!=NULL?newdel.cbdata->cb(ret,newdel.path,type,newdel.cbdata->param,dsym):ret;
 }
-DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, char dsym)
+DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, file_recurse_cbdata* cbdata, char dsym)
 {
 	dword type=0;
 	int ret=callback->_fstat_(pathname,&type);
@@ -497,25 +497,25 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, cha
 	strcpy(rparam.path,pathname);
 	rparam.start=rparam.path+strlen(rparam.path);
 	rparam.callback=callback;
+	rparam.cbdata=cbdata;
 	if(rparam.start>rparam.path&&*(rparam.start-1)==dsym)
 	{
 		*(--rparam.start)=0;
 	}
-	if(0==(ret=callback->_ftraverse_(rparam.path, cb_delete, &rparam)))
-	{
-		*rparam.start=0;
-		ret=callback->_fdelete_(rparam.path);
-	}
+	ret=callback->_ftraverse_(rparam.path, cb_delete, &rparam);
+	*rparam.start=0;
+	ret==0?ret=callback->_fdelete_(rparam.path):0;
+	cbdata!=NULL?ret=cbdata->cb(ret,rparam.path,type,cbdata->param,dsym):0;
 	delete[] rparam.path;
 	return ret;
 }
-DLLAPI(int) sys_recurse_fcopy(char* from, char* to)
+DLLAPI(int) sys_recurse_fcopy(char* from, char* to, file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
-	return recurse_fcopy(from,to,&cb,_dir_symbol);
+	return recurse_fcopy(from,to,&cb,cbdata,_dir_symbol);
 }
-DLLAPI(int) sys_recurse_fdelete(char* pathname)
+DLLAPI(int) sys_recurse_fdelete(char* pathname, file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
-	return recurse_fdelete(pathname,&cb,_dir_symbol);
+	return recurse_fdelete(pathname,&cb,cbdata,_dir_symbol);
 }

@@ -201,6 +201,8 @@ int sys_ftraverse(char* pathname, int(*cb)(char*, dword, void*, char), void* par
 	while(FindNextFileA(hFind,&data))
 	{
 		check_file(data,cb,param,ret);
+		if(ret!=0)
+			break;
 	}
 	FindClose(hFind);
 	return ret;

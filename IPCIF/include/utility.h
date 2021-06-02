@@ -59,6 +59,11 @@ struct process_stat
 	main_process_info* main_info;
 	if_ids* ifs;
 };
+struct file_recurse_cbdata
+{
+	int (*cb)(int, char*, dword, void*, char);
+	void* param;
+};
 struct file_recurse_callback
 {
 	int (*_fstat_)(char* pathname, dword* type);
@@ -89,11 +94,11 @@ DLLAPI(void*) find_first_exe(process_stat* pstat);
 DLLAPI(int) find_next_exe(void* handle,process_stat* pstat);
 DLLAPI(void) find_exe_close(void* handle);
 DLL int __LOGFILE(uint level,uint ftype,char* file,int line,char* format,...);
-DLLAPI(int) recurse_fcopy(char* from,char* to,file_recurse_callback* callback,char dsym);
-DLLAPI(int) recurse_fdelete(char* pathname,file_recurse_callback* callback,char dsym);
+DLLAPI(int) recurse_fcopy(char* from,char* to,file_recurse_callback* callback,file_recurse_cbdata* cbdata,char dsym);
+DLLAPI(int) recurse_fdelete(char* pathname,file_recurse_callback* callback,file_recurse_cbdata* cbdata,char dsym);
 DLLAPI(char*) get_error_desc(int errcode);
-DLLAPI(int) sys_recurse_fcopy(char* from,char* to);
-DLLAPI(int) sys_recurse_fdelete(char* pathname);
+DLLAPI(int) sys_recurse_fcopy(char* from,char* to,file_recurse_cbdata* cbdata);
+DLLAPI(int) sys_recurse_fdelete(char* pathname,file_recurse_cbdata* cbdata);
 #ifdef __cplusplus
 }
 #endif
