@@ -855,7 +855,7 @@ static int ls_handler(cmd_param_st* param)
 					else if(op.second=="a")
 						tmode=fs_attr_access_date;
 					else
-						return_t_msg(ERR_INVALID_CMD,"invalid parameter \"%s\" for --date,\n"
+						return_t_msg(ERR_INVALID_PARAM,"invalid parameter \"%s\" for --date,\n"
 							"the available options are c|m|a, see help.\n",op.second.c_str());
 				}
 				continue;

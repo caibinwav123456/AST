@@ -123,7 +123,7 @@ static int cat_pred_handler(cmd_param_st* param)
 						if((int)newcat->files.size()>1)
 						{
 							t_cat_clean_priv(newcat);
-							return_msg(ERR_INVALID_CMD,"--sec can not be used with multiple files\n");
+							return_msg(ERR_INVALID_PARAM,"--sec can not be used with multiple files\n");
 						}
 						continue;
 					}
@@ -135,7 +135,7 @@ static int cat_pred_handler(cmd_param_st* param)
 				if(!arg.second.empty())
 				{
 					t_cat_clean_priv(newcat);
-					return_msg(ERR_INVALID_CMD,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+					return_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
 				}
 				for(int i=1;i<(int)arg.first.size();i++)
 				{
@@ -146,7 +146,7 @@ static int cat_pred_handler(cmd_param_st* param)
 						if((int)newcat->files.size()>1)
 						{
 							t_cat_clean_priv(newcat);
-							return_msg(ERR_INVALID_CMD,"-e can not be used with multiple files\n");
+							return_msg(ERR_INVALID_PARAM,"-e can not be used with multiple files\n");
 						}
 						newcat->seektype=SEEK_END;
 						break;
@@ -159,19 +159,19 @@ static int cat_pred_handler(cmd_param_st* param)
 					continue;
 			}
 			t_cat_clean_priv(newcat);
-			return_msg(ERR_INVALID_CMD,"the option \"%s\" is invalid\n",arg.first.c_str());
+			return_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
 		}
 		else
 		{
 			if(secset&&!newcat->files.empty())
 			{
 				t_cat_clean_priv(newcat);
-				return_msg(ERR_INVALID_CMD,"--sec can not be used with multiple files\n");
+				return_msg(ERR_INVALID_PARAM,"--sec can not be used with multiple files\n");
 			}
 			if(!arg.second.empty())
 			{
 				t_cat_clean_priv(newcat);
-				return_msg(ERR_INVALID_CMD,"the path \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+				return_msg(ERR_INVALID_PARAM,"the path \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
 			}
 			int ret=0;
 			ph.path=arg.first;
@@ -192,7 +192,7 @@ static int cat_pred_handler(cmd_param_st* param)
 	if(newcat->files.empty())
 	{
 		t_cat_clean_priv(newcat);
-		return_msg(ERR_INVALID_CMD,"no file specified\n");
+		return_msg(ERR_INVALID_PARAM,"no file specified\n");
 	}
 	param->priv=newcat;
 	return 0;
@@ -304,7 +304,7 @@ static int write_pred_handler(cmd_param_st* param)
 				if(!arg.second.empty())
 				{
 					t_write_clean_priv(newwrite);
-					return_msg(ERR_INVALID_CMD,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+					return_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
 				}
 				for(int i=1;i<(int)arg.first.size();i++)
 				{
@@ -322,19 +322,19 @@ static int write_pred_handler(cmd_param_st* param)
 					continue;
 			}
 			t_write_clean_priv(newwrite);
-			return_msg(ERR_INVALID_CMD,"the option \"%s\" is invalid\n",arg.first.c_str());
+			return_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
 		}
 		else
 		{
 			if(file_arg)
 			{
 				t_write_clean_priv(newwrite);
-				return_msg(ERR_INVALID_CMD,"can not write to multiple files\n");
+				return_msg(ERR_INVALID_PARAM,"can not write to multiple files\n");
 			}
 			if(!arg.second.empty())
 			{
 				t_write_clean_priv(newwrite);
-				return_msg(ERR_INVALID_CMD,"the path \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+				return_msg(ERR_INVALID_PARAM,"the path \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
 			}
 			file_arg=true;
 			int ret=0;
@@ -355,7 +355,7 @@ static int write_pred_handler(cmd_param_st* param)
 	if(!file_arg)
 	{
 		t_write_clean_priv(newwrite);
-		return_msg(ERR_INVALID_CMD,"no file specified\n");
+		return_msg(ERR_INVALID_PARAM,"no file specified\n");
 	}
 	param->priv=newwrite;
 	return 0;
@@ -426,20 +426,20 @@ static int hex_pred_handler(cmd_param_st* param)
 	{
 		const pair<string,string>& arg=args[i];
 		if(!arg.second.empty())
-			return_msg(ERR_INVALID_CMD,"invalid parameter: \"%s=%s\", quotes needed.\n",arg.first.c_str(),arg.second.c_str());
+			return_msg(ERR_INVALID_PARAM,"invalid parameter: \"%s=%s\", quotes needed.\n",arg.first.c_str(),arg.second.c_str());
 		if(arg.first.empty())
 			continue;
 		if(arg.first[0]!='i')
 		{
 			if(arg.first.size()%2!=0)
-				return_msg(ERR_INVALID_CMD,"invalid parameter: \"%s\"\n",arg.first.c_str());
+				return_msg(ERR_INVALID_PARAM,"invalid parameter: \"%s\"\n",arg.first.c_str());
 			for(int j=0;j<(int)arg.first.size();j++)
 			{
 				char c=arg.first[j];
 				if(!((c>='0'&&c<='9')
 					||(c>='a'&&c<='f')
 					||(c>='A'&&c<='F')))
-					return_msg(ERR_INVALID_CMD,"invalid parameter: \"%s\"\n",arg.first.c_str());
+					return_msg(ERR_INVALID_PARAM,"invalid parameter: \"%s\"\n",arg.first.c_str());
 			}
 		}
 	}
@@ -556,7 +556,7 @@ static int fmt_pred_handler(cmd_param_st* param)
 				if(!arg.second.empty())
 				{
 					fmt_clean_priv(newfmt);
-					return_msg(ERR_INVALID_CMD,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+					return_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
 				}
 				for(int i=1;i<(int)arg.first.size();i++)
 				{
@@ -591,13 +591,13 @@ static int fmt_pred_handler(cmd_param_st* param)
 			}
 		}
 		fmt_clean_priv(newfmt);
-		return_msg(ERR_INVALID_CMD,"the option \"%s\" is invalid\n",arg.first.c_str());
+		return_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
 	}
 	if((newfmt->bshow_ascii||newfmt->bshow_addr)&&newfmt->line_len==0)
 	{
 		const char* ill_option=newfmt->bshow_ascii?"a":"r";
 		fmt_clean_priv(newfmt);
-		return_msg(ERR_INVALID_CMD,"--linelen must be specified when using the option -%s\n",ill_option);
+		return_msg(ERR_INVALID_PARAM,"--linelen must be specified when using the option -%s\n",ill_option);
 	}
 	param->priv=newfmt;
 	return 0;
@@ -765,8 +765,7 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,dw
 				}
 			}
 		}
-		t_output("%s:\n%s",path.c_str(),strret.c_str());
-		return ret;
+		return_t_msg(ret,"%s:\n%s",path.c_str(),strret.c_str());
 	}
 	if(inner!=NULL&&FS_IS_DIR(*pflag))
 	{
@@ -812,6 +811,62 @@ DEF_SH_CMD(mv,mv_handler,
 static int cp_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
+	string src,dst,fsrc,fdst;
+	int pcnt=0;
+	bool error=false;
+	bool recur=false,verbose=false,force=false,stop_at_error=false;
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(arg.first.empty())
+			continue;
+		if(!arg.second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+		if(arg.first[0]=='-')
+		{
+			for(int i=1;i<(int)arg.first.size();i++)
+			{
+				switch(arg.first[i])
+				{
+				case 'r':
+				case 'R':
+					recur=true;
+					break;
+				case 'v':
+					verbose=true;
+					force=false;
+					break;
+				case 'f':
+					if(!verbose)
+						force=true;
+					break;
+				case 's':
+					stop_at_error=true;
+					break;
+				default:
+					return_t_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
+				}
+			}
+		}
+		pcnt++;
+		switch(pcnt)
+		{
+		case 1:
+			src=arg.first;
+			break;
+		case 2:
+			dst=arg.first;
+			break;
+		default:
+			error=true;
+			break;
+		}
+		if(error)
+			break;
+	}
+	pcnt!=2?error=true:0;
+	if(error)
+		return_t_msg(ERR_INVALID_PARAM,"path count not equal to 2\n");
 	return 0;
 }
 DEF_SH_CMD(cp,cp_handler,
@@ -821,6 +876,45 @@ DEF_SH_CMD(cp,cp_handler,
 static int rm_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
+	vector<string> vfiles;
+	bool error=false;
+	bool recur=false,verbose=false,force=false,stop_at_error=false;
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(arg.first.empty())
+			continue;
+		if(!arg.second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+		if(arg.first[0]=='-')
+		{
+			for(int i=1;i<(int)arg.first.size();i++)
+			{
+				switch(arg.first[i])
+				{
+				case 'r':
+				case 'R':
+					recur=true;
+					break;
+				case 'v':
+					verbose=true;
+					force=false;
+					break;
+				case 'f':
+					if(!verbose)
+						force=true;
+					break;
+				case 's':
+					stop_at_error=true;
+					break;
+				default:
+					return_t_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
+				}
+			}
+		}
+		else
+			vfiles.push_back(arg.first);
+	}
 	return 0;
 }
 DEF_SH_CMD(rm,rm_handler,
