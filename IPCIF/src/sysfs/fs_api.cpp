@@ -89,10 +89,10 @@ DLLAPI(int) fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* pa
 		return ret;
 	for(int i=0;i<(int)vfile.size();i++)
 	{
-		if(0!=cb((char*)vfile[i].filename.c_str(),FS_IS_DIR(vfile[i].flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'/'))
-			ret=ERR_FILE_IO;
+		if(0!=(ret=cb((char*)vfile[i].filename.c_str(),FS_IS_DIR(vfile[i].flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'/')))
+			return ret;
 	}
-	return ret;
+	return 0;
 }
 DLLAPI(int) fs_list_dev(vector<string>& devlist,uint* defdev)
 {

@@ -198,12 +198,15 @@ int sys_ftraverse(char* pathname, int(*cb)(char*, dword, void*, char), void* par
 		return 0;
 	int ret=0;
 	check_file(data,cb,param,ret);
+	if(ret!=0)
+		goto end;
 	while(FindNextFileA(hFind,&data))
 	{
 		check_file(data,cb,param,ret);
 		if(ret!=0)
 			break;
 	}
+end:
 	FindClose(hFind);
 	return ret;
 }
