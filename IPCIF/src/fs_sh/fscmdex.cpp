@@ -729,20 +729,29 @@ struct st_inner_path
 		return pstr==NULL?"":pstr;
 	}
 };
-static int check_path(cmd_param_st* param,const string& path,string& fullpath,dword* flags=NULL,st_inner_path* inner=NULL)
+#define SILENT_RET(ret,bsilent,R,...) \
+	{if(!(bsilent)) \
+	{ \
+		R(ret,##__VA_ARGS__); \
+	} \
+	else \
+	{ \
+		return ret; \
+	}}
+static int check_path(cmd_param_st* param,const string& path,string& fullpath,bool no_output_msg=false,dword* flags=NULL,st_inner_path* inner=NULL)
 {
 	common_sh_args(param);
 	int ret=0;
 	if(0!=(ret=get_full_path(ctx->pwd,path,fullpath)))
-		return_t_msg(ret,"%s: invalid path\n",path.c_str());
+		SILENT_RET(ret,no_output_msg,return_t_msg,"%s: invalid path\n",path.c_str());
 	if(fullpath.empty())
-		return_t_msg(ERR_INVALID_PATH,"%s: invalid path\n",path.c_str());
+		SILENT_RET(ERR_INVALID_PATH,no_output_msg,return_t_msg,"%s: invalid path\n",path.c_str());
 	if(fullpath[0]=='/')
 	{
 		vector<string> devs;
 		uint def=0;
 		if(0!=(ret=fs_list_dev(devs,&def)))
-			return_t_msg(ret,"%s\n",get_error_desc(ret));
+			SILENT_RET(ret,no_output_msg,return_t_msg,"%s\n",get_error_desc(ret));
 		fullpath=devs[def]+":"+(fullpath=="/"?"":fullpath);
 	}
 	string strret;
@@ -765,13 +774,13 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,dw
 				}
 			}
 		}
-		return_t_msg(ret,"%s:\n%s",path.c_str(),strret.c_str());
+		SILENT_RET(ret,no_output_msg,return_t_msg,"%s:\n%s",path.c_str(),strret.c_str());
 	}
 	if(inner!=NULL&&FS_IS_DIR(*pflag))
 	{
 		string inner_path=inner->get_inner_path();
 		if(inner_path.empty())
-			return_t_msg(ERR_GENERIC,"%s: cannot move/copy/remove root directory\n",inner->inner);
+			SILENT_RET(ERR_GENERIC,no_output_msg,return_t_msg,"%s: cannot move/copy/remove root directory\n",inner->inner);
 		inner->detect_outer=true;
 		fullpath+=inner_path;
 	}
@@ -790,10 +799,10 @@ static int mv_handler(cmd_param_st* param)
 	string src,dest;
 	int ret=0;
 	if(0!=(ret=check_path(param,args[1].first,src)))
-		return_t_msg(ret,"%s: path check failed\n",args[1].first.c_str());
+		return ret;
 	st_inner_path inner={false,src.c_str()};
-	if(0!=(ret=check_path(param,args[2].first,dest,NULL,&inner)))
-		return_t_msg(ret,"%s: path check failed\n",args[2].first.c_str());
+	if(0!=(ret=check_path(param,args[2].first,dest,false,NULL,&inner)))
+		return ret;
 	if(!inner.detect_outer)
 		return_t_msg(ERR_GENERIC,"the destination path \"%s\" already exists\n",args[2].first.c_str());
 	if(dest==src)
@@ -808,13 +817,146 @@ DEF_SH_CMD(mv,mv_handler,
 	"move a file or a directory to a new path.",
 	""
 );
+#define CMD_ID_CP 0
+#define CMD_ID_RM 1
+struct file_recurse_ret
+{
+	int ret;
+	string path;
+	file_recurse_ret(int _ret=0,const char* str=NULL):ret(0),path(str==NULL?"":str){}
+};
+struct file_recurse_option
+{
+	bool recur;
+	bool verbose;
+	bool force;
+	bool stop_at_error;
+	file_recurse_option()
+	{
+		recur=false;
+		verbose=false;
+		force=false;
+		stop_at_error=false;
+	}
+};
+struct file_recurse_st
+{
+	cmd_param_st* param;
+	file_recurse_option option;
+	string src;
+	string dest;
+	string fsrc;
+	string fdest;
+	vector<file_recurse_ret> ret;
+	uint cmd_id;
+	file_recurse_st(cmd_param_st* _param,uint _cmd_id)
+	{
+		param=_param;
+		cmd_id=_cmd_id;
+	}
+};
+static int cb_fs_recurse_data(int recret,char* path,dword flags,void* rparam,char dsym)
+{
+	file_recurse_st* rec=(file_recurse_st*)rparam;
+	common_sh_args(rec->param);
+	if(rec->option.verbose)
+	{
+		switch(rec->cmd_id)
+		{
+		case CMD_ID_CP:
+			assert(strlen(path)>rec->fsrc.size());
+			ts_output(path);
+			ts_output(" -> ");
+			ts_output((rec->fdest+string(path).substr(rec->fsrc.size())).c_str());
+			ts_output(recret==0?" ok\n":" failed\n");
+			break;
+		case CMD_ID_RM:
+			ts_output("deleting ");
+			ts_output(path);
+			ts_output(recret==0?" ok\n":" failed\n");
+			break;
+		}
+	}
+	if(recret!=0)
+		rec->ret.push_back(file_recurse_ret(recret,path));
+	return rec->option.stop_at_error?recret:0;
+}
+static void output_fsrecur_errors(file_recurse_st* frecur)
+{
+	common_sh_args(frecur->param);
+	ts_output("Trace errors:\n\n");
+	for(int i=0;i<(int)frecur->ret.size();i++)
+	{
+		ts_output(frecur->ret[i].path.c_str());
+		ts_output(": ");
+		ts_output(get_error_desc(frecur->ret[i].ret));
+		ts_output("\n");
+	}
+}
+static int do_copy(file_recurse_st& frecur)
+{
+	common_sh_args(frecur.param);
+	int ret=0;
+	st_inner_path inner={false,frecur.fsrc.c_str()};
+	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,frecur.option.force,NULL,&inner)))
+		return ret;
+	if(frecur.fdest==frecur.fsrc)
+		return 0;
+	if(frecur.fdest.size()>frecur.fsrc.size()&&frecur.fdest.substr(0,frecur.fsrc.size())==frecur.fsrc)
+		SILENT_RET(ERR_GENERIC,frecur.option.force,return_t_msg,"cannot copy a directory to its sub-directory\n");
+	file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
+	if(!frecur.option.recur)
+	{
+		if(0!=(ret=fs_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str())))
+			SILENT_RET(ret,frecur.option.force,return_t_msg,"Error: %s\n",get_error_desc(ret));
+	}
+	else if(0!=(ret=fs_recurse_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str(),&cbdata)))
+	{
+		if(!frecur.option.force)
+			output_fsrecur_errors(&frecur);
+		SILENT_RET(ret,frecur.option.force,return_t_msg,"\nError occured while copying files!\n\n");
+	}
+	return 0;
+}
+static int do_delete(file_recurse_st& frecur)
+{
+	common_sh_args(frecur.param);
+	int ret=0;
+	file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
+	if(!frecur.option.recur)
+	{
+		if(0!=(ret=fs_delete((char*)frecur.fsrc.c_str())))
+			SILENT_RET(ret,frecur.option.force,return_t_msg,"Error: %s\n",get_error_desc(ret));
+	}
+	else if(0!=(ret=fs_recurse_delete((char*)frecur.fsrc.c_str(),&cbdata)))
+	{
+		if(!frecur.option.force)
+			output_fsrecur_errors(&frecur);
+		SILENT_RET(ret,frecur.option.force,return_t_msg,"\nError occured while deleting files!\n\n");
+	}
+	return 0;
+}
+static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
+{
+	file_recurse_st* rec=(file_recurse_st*)rparam;
+	rec->fsrc=path;
+	switch(rec->cmd_id)
+	{
+	case CMD_ID_CP:
+		do_copy(*rec);
+		break;
+	case CMD_ID_RM:
+		do_delete(*rec);
+		break;
+	}
+	return 0;
+}
 static int cp_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
-	string src,dst,fsrc,fdst;
 	int pcnt=0;
 	bool error=false;
-	bool recur=false,verbose=false,force=false,stop_at_error=false;
+	file_recurse_st frecur(param,CMD_ID_CP);
 	for(int i=1;i<(int)args.size();i++)
 	{
 		const pair<string,string>& arg=args[i];
@@ -830,18 +972,18 @@ static int cp_handler(cmd_param_st* param)
 				{
 				case 'r':
 				case 'R':
-					recur=true;
+					frecur.option.recur=true;
 					break;
 				case 'v':
-					verbose=true;
-					force=false;
+					frecur.option.verbose=true;
+					frecur.option.force=false;
 					break;
 				case 'f':
-					if(!verbose)
-						force=true;
+					if(!frecur.option.verbose)
+						frecur.option.force=true;
 					break;
 				case 's':
-					stop_at_error=true;
+					frecur.option.stop_at_error=true;
 					break;
 				default:
 					return_t_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
@@ -852,10 +994,10 @@ static int cp_handler(cmd_param_st* param)
 		switch(pcnt)
 		{
 		case 1:
-			src=arg.first;
+			frecur.src=arg.first;
 			break;
 		case 2:
-			dst=arg.first;
+			frecur.dest=arg.first;
 			break;
 		default:
 			error=true;
@@ -867,7 +1009,17 @@ static int cp_handler(cmd_param_st* param)
 	pcnt!=2?error=true:0;
 	if(error)
 		return_t_msg(ERR_INVALID_PARAM,"path count not equal to 2\n");
-	return 0;
+	int ret=0;
+	string w_src;
+	bool wildcard=false;
+	if(frecur.src.size()>=2&&frecur.src.substr(frecur.src.size()-2)=="/*")
+	{
+		wildcard=true;
+		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
+	}
+	if(0!=(ret=check_path(frecur.param,frecur.src,wildcard?w_src:frecur.fsrc,frecur.option.force)))
+		return ret;
+	return wildcard?fs_traverse((char*)w_src.c_str(),cb_fs_recurse_func,&frecur):do_copy(frecur);
 }
 DEF_SH_CMD(cp,cp_handler,
 	"copy a file(or files) or a directory(or directories) to a new path.",
@@ -877,8 +1029,7 @@ static int rm_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
 	vector<string> vfiles;
-	bool error=false;
-	bool recur=false,verbose=false,force=false,stop_at_error=false;
+	file_recurse_st frecur(param,CMD_ID_RM);
 	for(int i=1;i<(int)args.size();i++)
 	{
 		const pair<string,string>& arg=args[i];
@@ -894,18 +1045,18 @@ static int rm_handler(cmd_param_st* param)
 				{
 				case 'r':
 				case 'R':
-					recur=true;
+					frecur.option.recur=true;
 					break;
 				case 'v':
-					verbose=true;
-					force=false;
+					frecur.option.verbose=true;
+					frecur.option.force=false;
 					break;
 				case 'f':
-					if(!verbose)
-						force=true;
+					if(!frecur.option.verbose)
+						frecur.option.force=true;
 					break;
 				case 's':
-					stop_at_error=true;
+					frecur.option.stop_at_error=true;
 					break;
 				default:
 					return_t_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
@@ -913,9 +1064,33 @@ static int rm_handler(cmd_param_st* param)
 			}
 		}
 		else
+		{
 			vfiles.push_back(arg.first);
+		}
 	}
-	return 0;
+	int ret=0;
+	for(int i=0;i<(int)vfiles.size();i++)
+	{
+		int retc=0;
+		string w_path;
+		bool wildcard=false;
+		string& curfile=vfiles[i];
+		if(curfile.size()>=2&&curfile.substr(curfile.size()-2)=="/*")
+		{
+			wildcard=true;
+			curfile=curfile.substr(0,curfile.size()-2);
+		}
+		if(0!=(retc=check_path(frecur.param,curfile,wildcard?w_path:frecur.fsrc,frecur.option.force)))
+		{
+			ret=retc;
+			continue;
+		}
+		if(0!=(retc=(wildcard?fs_traverse((char*)w_path.c_str(),cb_fs_recurse_func,&frecur):do_delete(frecur))))
+		{
+			ret=retc;
+		}
+	}
+	return ret;
 }
 DEF_SH_CMD(rm,rm_handler,
 	"remove a file(or files) or a directory(or directories).",
@@ -924,7 +1099,41 @@ DEF_SH_CMD(rm,rm_handler,
 static int mkdir_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
-	return 0;
+	vector<string> vpath;
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(arg.first.empty())
+			continue;
+		if(!arg.second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",arg.first.c_str(),arg.second.c_str());
+		if(arg.first[0]=='-')
+		{
+			return_t_msg(ERR_INVALID_PATH,"%s: invalid path\n",arg.first.c_str());
+		}
+		else
+		{
+			vpath.push_back(arg.first);
+		}
+	}
+	int ret=0;
+	string fullpath;
+	for(int i=0;i<(int)vpath.size();i++)
+	{
+		int retc=0;
+		string& path=vpath[i];
+		if(0!=(retc=get_full_path(ctx->pwd,path,fullpath)))
+		{
+			t_output("%s: invalid path\n",path.c_str());
+			ret=retc;
+		}
+		if(0!=(retc=fs_mkdir((char*)fullpath.c_str())))
+		{
+			t_output("%s: create directory failed: %s\n",fullpath.c_str(),get_error_desc(retc));
+			ret=retc;
+		}
+	}
+	return ret;
 }
 DEF_SH_CMD(mkdir,mkdir_handler,
 	"create a new directory(or directories).",

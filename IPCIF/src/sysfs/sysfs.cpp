@@ -1692,13 +1692,10 @@ int cb_fs_traverse(char* pathname,int(*cb)(char*,dword,void*,char),void* param)
 		return ret;
 	for(int i=0;i<(int)vfile.size();i++)
 	{
-		if(0!=cb((char*)vfile[i].filename.c_str(),FS_IS_DIR(vfile[i].flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'/'))
-		{
-			ret=ERR_FILE_IO;
-			break;
-		}
+		if(0!=(ret=cb((char*)vfile[i].filename.c_str(),FS_IS_DIR(vfile[i].flags)?FILE_TYPE_DIR:FILE_TYPE_NORMAL,param,'/')))
+			return ret;
 	}
-	return ret;
+	return 0;
 }
 int cb_fs_stat(char* pathname,dword* type)
 {
