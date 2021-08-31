@@ -859,26 +859,30 @@ static int cb_fs_recurse_data(int recret,char* path,dword flags,void* rparam,cha
 {
 	file_recurse_st* rec=(file_recurse_st*)rparam;
 	common_sh_args(rec->param);
+	string pathdir;
+	if(flags==FILE_TYPE_DIR)
+		pathdir=string(path)+"/";
+	const char* rpath=(flags==FILE_TYPE_DIR?pathdir.c_str():path);
 	if(rec->option.verbose)
 	{
 		switch(rec->cmd_id)
 		{
 		case CMD_ID_CP:
 			assert(strlen(path)>rec->fsrc.size());
-			ts_output(path);
+			ts_output(rpath);
 			ts_output(" -> ");
-			ts_output((rec->fdest+string(path).substr(rec->fsrc.size())).c_str());
+			ts_output((rec->fdest+string(path).substr(rec->fsrc.size())+(flags==FILE_TYPE_DIR?"/":"")).c_str());
 			ts_output(recret==0?" ok\n":" failed\n");
 			break;
 		case CMD_ID_RM:
 			ts_output("deleting ");
-			ts_output(path);
+			ts_output(rpath);
 			ts_output(recret==0?" ok\n":" failed\n");
 			break;
 		}
 	}
 	if(recret!=0)
-		rec->ret.push_back(file_recurse_ret(recret,path));
+		rec->ret.push_back(file_recurse_ret(recret,rpath));
 	return rec->option.stop_at_error?recret:0;
 }
 static void output_fsrecur_errors(file_recurse_st* frecur)
@@ -907,8 +911,20 @@ static int do_copy(file_recurse_st& frecur)
 	file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 	if(!frecur.option.recur)
 	{
+		if(frecur.option.verbose)
+		{
+			ts_output(frecur.fsrc.c_str());
+			ts_output(" -> ");
+			ts_output(frecur.fdest.c_str());
+		}
 		if(0!=(ret=fs_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str())))
+		{
+			if(frecur.option.verbose)
+				ts_output(" failed\n");
 			SILENT_RET(ret,frecur.option.force,return_t_msg,"Error: %s\n",get_error_desc(ret));
+		}
+		if(frecur.option.verbose)
+			ts_output(" ok\n");
 	}
 	else if(0!=(ret=fs_recurse_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str(),&cbdata)))
 	{
@@ -925,8 +941,19 @@ static int do_delete(file_recurse_st& frecur)
 	file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 	if(!frecur.option.recur)
 	{
+		if(frecur.option.verbose)
+		{
+			ts_output("deleting ");
+			ts_output(frecur.fsrc.c_str());
+		}
 		if(0!=(ret=fs_delete((char*)frecur.fsrc.c_str())))
+		{
+			if(frecur.option.verbose)
+				ts_output(" failed\n");
 			SILENT_RET(ret,frecur.option.force,return_t_msg,"Error: %s\n",get_error_desc(ret));
+		}
+		if(frecur.option.verbose)
+			ts_output(" ok\n");
 	}
 	else if(0!=(ret=fs_recurse_delete((char*)frecur.fsrc.c_str(),&cbdata)))
 	{
