@@ -1171,3 +1171,102 @@ DEF_SH_CMD(mkdir,mkdir_handler,
 	"create a new directory(or directories).",
 	""
 );
+static int setlen_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	string path,fullpath;
+	Integer64 length;
+	bool lenset=false;
+	if(args.size()!=3)
+		return_t_msg(ERR_INVALID_PARAM,"the number of command parameters must be 2\n");
+	if(!args[1].second.empty())
+		return_t_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",args[1].first.c_str(),args[1].second.c_str());
+	if(!args[2].second.empty())
+		return_t_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",args[2].first.c_str(),args[2].second.c_str());
+	path=args[1].first;
+	if(parse_i64(args[2].first,length,0,len_vrf))
+		return_t_msg(ERR_INVALID_PARAM,"%s: length not valid\n",args[2].first.c_str());
+	int ret=0;
+	dword flags=0;
+	if(0!=(ret=check_path(param,path,fullpath,false,&flags)))
+		return ret;
+	if(FS_IS_DIR(flags))
+		return_t_msg(ERR_GENERIC,"\'%s\' is a directory\n",fullpath.c_str());
+	void* hfile=fs_open((char*)fullpath.c_str(),FILE_OPEN_EXISTING|FILE_WRITE);
+	if(!VALID(hfile))
+		return_t_msg(ERR_GENERIC,"open file \'%s\' failed\n",fullpath.c_str());
+	if(0!=(ret=fs_set_file_size((char*)fullpath.c_str(),&length.low,(uint*)&length.high)))
+	{
+		t_output("%s: setlen failed: %s\n",fullpath.c_str(),get_error_desc(ret));
+		goto end;
+	}
+end:
+	fs_perm_close(hfile);
+	return ret;
+}
+DEF_SH_CMD(setlen,setlen_handler,
+	"set file length.",
+	""
+);
+static int touch_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	if(args.size()<2)
+		return_t_msg(ERR_INVALID_PARAM,"there must be at least one path to be touched\n");
+	int ret=0;
+	string fullpath;
+	string strret;
+	DateTime datetime[3];
+	memset(datetime,0,sizeof(datetime));
+	sys_get_date_time(&datetime[fs_attr_modify_date]);
+	datetime[fs_attr_access_date]=datetime[fs_attr_modify_date];
+	for(int i=1;i<(int)args.size();i++)
+	{
+		if(!args[i].second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"the option \'%s=%s\' is invalid\n",args[i].first.c_str(),args[i].second.c_str());
+		const string& path=args[i].first;
+		if(0!=(ret=get_full_path(ctx->pwd,path,fullpath)))
+		{
+			t_output("%s: invalid path\n",path.c_str());
+			continue;
+		}
+		dword flags=0;
+		if(0!=(ret=validate_path(fullpath,&flags,NULL,NULL,&strret)))
+		{
+			if(ret!=ERR_FS_FILE_NOT_EXIST)
+			{
+				t_output("%s:\n%s",fullpath.c_str(),strret.c_str());
+				continue;
+			}
+			else if(FS_IS_DIR(flags))
+			{
+				t_output("\'%s\' is a directory\n",fullpath.c_str());
+				continue;
+			}
+			void* hfile=fs_open((char*)fullpath.c_str(),FILE_CREATE_ALWAYS);
+			if(!VALID(hfile))
+			{
+				t_output("create file \'%s\' failed\n",fullpath.c_str());
+				continue;
+			}
+			fs_perm_close(hfile);
+			continue;
+		}
+		if(0!=(ret=fs_set_attr((char*)fullpath.c_str(),FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,0,datetime)))
+			t_output("update timestamp failed: %s\n",fullpath.c_str());
+	}
+	return 0;
+}
+DEF_SH_CMD(touch,touch_handler,
+	"update timestamp of a file or create a new empty file if it does not exist.",
+	""
+);
+static int print_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	return 0;
+}
+DEF_SH_CMD(print,print_handler,
+	"show all environment variables.",
+	""
+);
