@@ -335,10 +335,10 @@ int fs_native_getattr(void* hdev,char* path,dword* attrflags)
 	decl_dev(dev,hdev);
 	nt_path(fullpath,dev,path);
 	dword type=0;
-	int ret=sys_fstat((char*)fullpath.c_str(),&type);
+	int ret=sys_fstat((char*)fullpath.c_str(),attrflags!=NULL?&type:NULL);
 	if(ret!=0)
 		return ERR_FS_FILE_NOT_EXIST;
-	*attrflags=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0);
+	attrflags!=NULL?*attrflags=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0):0;
 	return 0;
 }
 int fs_native_setattr(void* hdev,char* path,dword attrflags)
