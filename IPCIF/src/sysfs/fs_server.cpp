@@ -962,9 +962,8 @@ int FsServer::HandleGetSetAttr(dg_fsattr* fsattr)
 	switch(fsattr->header.cmd)
 	{
 	case CMD_FSGETATTR:
-		if(fsattr->attr.mask&FS_ATTR_FLAGS)
-			if(0!=(ret=cdrvcall->getattr(chdev,fsattr->attr.path,&fsattr->attr.flags)))
-				break;
+		if(0!=(ret=cdrvcall->getattr(chdev,fsattr->attr.path,(fsattr->attr.mask&FS_ATTR_FLAGS)?&fsattr->attr.flags:NULL)))
+			break;
 		if(fsattr->attr.mask&FS_ATTR_DATE)
 		{
 			DateTime date[3];

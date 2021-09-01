@@ -862,27 +862,27 @@ static int cb_fs_recurse_data(int recret,char* path,dword flags,void* rparam,cha
 	string pathdir;
 	if(flags==FILE_TYPE_DIR)
 		pathdir=string(path)+"/";
-	const char* rpath=(flags==FILE_TYPE_DIR?pathdir.c_str():path);
+	const char* dpath=(flags==FILE_TYPE_DIR?pathdir.c_str():path);
 	if(rec->option.verbose)
 	{
 		switch(rec->cmd_id)
 		{
 		case CMD_ID_CP:
-			assert(strlen(path)>rec->fsrc.size());
-			ts_output(rpath);
+			assert(strlen(path)>=rec->fdest.size());
+			ts_output((rec->fsrc+string(path).substr(rec->fdest.size())+(flags==FILE_TYPE_DIR?"/":"")).c_str());
 			ts_output(" -> ");
-			ts_output((rec->fdest+string(path).substr(rec->fsrc.size())+(flags==FILE_TYPE_DIR?"/":"")).c_str());
+			ts_output(dpath);
 			ts_output(recret==0?" ok\n":" failed\n");
 			break;
 		case CMD_ID_RM:
 			ts_output("deleting ");
-			ts_output(rpath);
+			ts_output(dpath);
 			ts_output(recret==0?" ok\n":" failed\n");
 			break;
 		}
 	}
 	if(recret!=0)
-		rec->ret.push_back(file_recurse_ret(recret,rpath));
+		rec->ret.push_back(file_recurse_ret(recret,dpath));
 	return rec->option.stop_at_error?recret:0;
 }
 static void output_fsrecur_errors(file_recurse_st* frecur)
@@ -966,7 +966,7 @@ static int do_delete(file_recurse_st& frecur)
 static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 {
 	file_recurse_st* rec=(file_recurse_st*)rparam;
-	rec->fsrc=path;
+	rec->fsrc=rec->src+"/"+path;
 	switch(rec->cmd_id)
 	{
 	case CMD_ID_CP:
@@ -1016,6 +1016,7 @@ static int cp_handler(cmd_param_st* param)
 					return_t_msg(ERR_INVALID_PARAM,"the option \"%s\" is invalid\n",arg.first.c_str());
 				}
 			}
+			continue;
 		}
 		pcnt++;
 		switch(pcnt)
@@ -1044,8 +1045,10 @@ static int cp_handler(cmd_param_st* param)
 		wildcard=true;
 		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
 	}
-	if(0!=(ret=check_path(frecur.param,frecur.src,wildcard?w_src:frecur.fsrc,frecur.option.force)))
+	if(0!=(ret=check_path(frecur.param,frecur.src,frecur.fsrc,frecur.option.force)))
 		return ret;
+	if(wildcard)
+		w_src=frecur.src=frecur.fsrc;
 	return wildcard?fs_traverse((char*)w_src.c_str(),cb_fs_recurse_func,&frecur):do_copy(frecur);
 }
 DEF_SH_CMD(cp,cp_handler,
@@ -1107,11 +1110,13 @@ static int rm_handler(cmd_param_st* param)
 			wildcard=true;
 			curfile=curfile.substr(0,curfile.size()-2);
 		}
-		if(0!=(retc=check_path(frecur.param,curfile,wildcard?w_path:frecur.fsrc,frecur.option.force)))
+		if(0!=(retc=check_path(frecur.param,curfile,frecur.fsrc,frecur.option.force)))
 		{
 			ret=retc;
 			continue;
 		}
+		if(wildcard)
+			w_path=frecur.src=frecur.fsrc;
 		if(0!=(retc=(wildcard?fs_traverse((char*)w_path.c_str(),cb_fs_recurse_func,&frecur):do_delete(frecur))))
 		{
 			ret=retc;
