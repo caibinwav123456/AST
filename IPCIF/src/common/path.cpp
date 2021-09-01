@@ -93,23 +93,20 @@ DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge
 }
 DLLAPI(bool) is_subpath(const string& cur_dir, const string& relative_path1, const string& relative_path2, char dsym)
 {
+	int ret=0;
 	vector<string> absolute1,absolute2;
 	if(sys_is_absolute_path(const_cast<char*>(relative_path1.c_str()),dsym))
-	{
-		get_absolute_path(relative_path1,string(""),absolute1,dsym);
-	}
+		ret=get_absolute_path(relative_path1,string(""),absolute1,dsym);
 	else
-	{
-		get_absolute_path(cur_dir,relative_path1,absolute1,dsym);
-	}
+		ret=get_absolute_path(cur_dir,relative_path1,absolute1,dsym);
+	if(ret!=0)
+		return false;
 	if(sys_is_absolute_path(const_cast<char*>(relative_path2.c_str()),dsym))
-	{
-		get_absolute_path(relative_path2,string(""),absolute2,dsym);
-	}
+		ret=get_absolute_path(relative_path2,string(""),absolute2,dsym);
 	else
-	{
-		get_absolute_path(cur_dir,relative_path2,absolute2,dsym);
-	}
+		ret=get_absolute_path(cur_dir,relative_path2,absolute2,dsym);
+	if(ret!=0)
+		return false;
 	if(absolute1.size()<=absolute2.size())
 	{
 		return false;

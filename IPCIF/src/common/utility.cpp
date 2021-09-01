@@ -443,7 +443,7 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 		*(--rparam.tstart)=0;
 	}
 	if(strcmp(rparam.from,rparam.to)==0
-		||is_subpath(string(get_current_directory()),string(rparam.to),string(rparam.from)))
+		||is_subpath(string(get_current_directory()),string(rparam.to),string(rparam.from),dsym))
 	{
 		ret=ERR_GENERIC;
 		goto end;
