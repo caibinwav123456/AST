@@ -23,7 +23,7 @@ void testfile()
 {
 	int ret=sys_mkdir("D:\\unit_test\\");
 	ret=sys_mkdir("D:\\unit_test\\test1\\test2\\");
-	ret=sys_recurse_fcopy("D:\\unit_test\\","D:\\unit_test\\test1\\");
+	ret=sys_recurse_fcopy("D:\\unit_test\\","D:\\unit_test\\test1\\",NULL);
 
 	void* hFile=sys_fopen("D:\\unit_test\\test1\\test2\\test.txt",FILE_READ|FILE_WRITE|FILE_CREATE_ALWAYS);
 	char* str="hello";
@@ -59,8 +59,8 @@ void testfile()
 	ret=sys_fflush(hFile);
 	sys_fclose(hFile);
 
-	ret=sys_recurse_fcopy("D:\\unit_test\\","D:\\unit_test2\\");
-	ret=sys_recurse_fdelete("D:\\unit_test\\");
+	ret=sys_recurse_fcopy("D:\\unit_test\\","D:\\unit_test2\\",NULL);
+	ret=sys_recurse_fdelete("D:\\unit_test\\",NULL);
 }
 void test_read()
 {

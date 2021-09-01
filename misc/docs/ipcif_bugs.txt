@@ -81,3 +81,12 @@ simplified as:
 		else
 			return true;
                 :ok
+
+utility.cpp
+l 446: add param "dsym"              :ok
+
+path.cpp
+l 99: handle return val, so do all   :ok
+
+sysfs.cpp
+l 1554: ListFile: see what will it return if path does not exist, should be 0. So do DeleteFile, GetAttrbute.  :ok
