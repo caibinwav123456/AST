@@ -452,10 +452,12 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 		ret=callback->_mkdir_(rparam.to);
 	else
 		ret=callback->_fcopy_(from,to);
-	int retc=ret;
-	cbdata!=NULL?ret=cbdata->cb(ret,rparam.to,type,cbdata->param,dsym):0;
-	if(type==FILE_TYPE_DIR)
-		(ret==0&&retc==0)?ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam):0;
+	{
+		int retc=ret;
+		cbdata!=NULL?ret=cbdata->cb(ret,rparam.to,type,cbdata->param,dsym):0;
+		if(type==FILE_TYPE_DIR)
+			(ret==0&&retc==0)?ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam):0;
+	}
 end:
 	delete[] rparam.from;
 	delete[] rparam.to;
