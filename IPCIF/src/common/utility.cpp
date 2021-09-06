@@ -409,9 +409,9 @@ static int cb_copy(char* name, dword type, void* param, char dsym)
 	newcpy.tstart+=strlen(name);
 	if(type==FILE_TYPE_DIR)
 	{
-		ret=callback->_mkdir_(newcpy.to);
+		int retc=ret=callback->_mkdir_(newcpy.to);
 		newcpy.cbdata!=NULL?ret=newcpy.cbdata->cb(ret,newcpy.to,type,newcpy.cbdata->param,dsym):0;
-		return ret==0?callback->_ftraverse_(newcpy.from,cb_copy,&newcpy):ret;
+		return (ret==0&&retc==0)?callback->_ftraverse_(newcpy.from,cb_copy,&newcpy):ret;
 	}
 	else
 	{
@@ -452,9 +452,10 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 		ret=callback->_mkdir_(rparam.to);
 	else
 		ret=callback->_fcopy_(from,to);
+	int retc=ret;
 	cbdata!=NULL?ret=cbdata->cb(ret,rparam.to,type,cbdata->param,dsym):0;
 	if(type==FILE_TYPE_DIR)
-		ret==0?ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam):0;
+		(ret==0&&retc==0)?ret=callback->_ftraverse_(rparam.from,cb_copy,&rparam):0;
 end:
 	delete[] rparam.from;
 	delete[] rparam.to;
@@ -466,6 +467,7 @@ struct rdel_param
 	char* start;
 	file_recurse_callback* callback;
 	file_recurse_cbdata* cbdata;
+	int quitdel;
 };
 static int cb_delete(char* name, dword type, void* param, char dsym)
 {
@@ -473,6 +475,7 @@ static int cb_delete(char* name, dword type, void* param, char dsym)
 	rdel_param* del=(rdel_param*)param;
 	file_recurse_callback* callback=del->callback;
 	rdel_param newdel=*del;
+	newdel.quitdel=0;
 	*(newdel.start++)=dsym;
 	strcpy(newdel.start,name);
 	newdel.start+=strlen(name);
@@ -481,8 +484,10 @@ static int cb_delete(char* name, dword type, void* param, char dsym)
 		ret=callback->_ftraverse_(newdel.path,cb_delete,&newdel);
 		*(newdel.start)=0;
 	}
-	ret==0?ret=callback->_fdelete_(newdel.path):0;
-	return newdel.cbdata!=NULL?newdel.cbdata->cb(ret,newdel.path,type,newdel.cbdata->param,dsym):ret;
+	int retc=0;
+	(ret==0&&newdel.quitdel==0)?ret=retc=callback->_fdelete_(newdel.path):0;
+	ret!=0?del->quitdel=ret:(newdel.quitdel!=0?del->quitdel=newdel.quitdel:0);
+	return (((ret==0&&newdel.quitdel==0)||retc!=0)&&newdel.cbdata!=NULL)?newdel.cbdata->cb(ret,newdel.path,type,newdel.cbdata->param,dsym):ret;
 }
 DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, file_recurse_cbdata* cbdata, char dsym)
 {
@@ -498,6 +503,7 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, fil
 	rparam.start=rparam.path+strlen(rparam.path);
 	rparam.callback=callback;
 	rparam.cbdata=cbdata;
+	rparam.quitdel=0;
 	if(rparam.start>rparam.path&&*(rparam.start-1)==dsym)
 	{
 		*(--rparam.start)=0;
@@ -505,8 +511,9 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, fil
 	if(type==FILE_TYPE_DIR)
 		ret=callback->_ftraverse_(rparam.path,cb_delete,&rparam);
 	*rparam.start=0;
-	ret==0?ret=callback->_fdelete_(rparam.path):0;
-	cbdata!=NULL?ret=cbdata->cb(ret,rparam.path,type,cbdata->param,dsym):0;
+	int retc=0;
+	(ret==0&&rparam.quitdel==0)?ret=retc=callback->_fdelete_(rparam.path):0;
+	(((ret==0&&rparam.quitdel==0)||retc!=0)&&cbdata!=NULL)?ret=cbdata->cb(ret,rparam.path,type,cbdata->param,dsym):0;
 	delete[] rparam.path;
 	return ret;
 }
