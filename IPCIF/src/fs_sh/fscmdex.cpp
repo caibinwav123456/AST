@@ -823,7 +823,7 @@ struct file_recurse_ret
 {
 	int ret;
 	string path;
-	file_recurse_ret(int _ret=0,const char* str=NULL):ret(0),path(str==NULL?"":str){}
+	file_recurse_ret(int _ret=0,const char* str=NULL):ret(_ret),path(str==NULL?"":str){}
 };
 struct file_recurse_option
 {
@@ -885,9 +885,11 @@ static int cb_fs_recurse_data(int recret,char* path,dword flags,void* rparam,cha
 		rec->ret.push_back(file_recurse_ret(recret,dpath));
 	return rec->option.stop_at_error?recret:0;
 }
-static void output_fsrecur_errors(file_recurse_st* frecur)
+static void output_fsrecur_errors(file_recurse_st* frecur,const char* msg)
 {
 	common_sh_args(frecur->param);
+	if(frecur->ret.empty())
+		return;
 	ts_output("Trace errors:\n\n");
 	for(int i=0;i<(int)frecur->ret.size();i++)
 	{
@@ -896,6 +898,7 @@ static void output_fsrecur_errors(file_recurse_st* frecur)
 		ts_output(get_error_desc(frecur->ret[i].ret));
 		ts_output("\n");
 	}
+	ts_output(msg);
 }
 static int do_copy(file_recurse_st& frecur)
 {
@@ -926,13 +929,13 @@ static int do_copy(file_recurse_st& frecur)
 		if(frecur.option.verbose)
 			ts_output(" ok\n");
 	}
-	else if(0!=(ret=fs_recurse_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str(),&cbdata)))
+	else
 	{
+		ret=fs_recurse_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str(),&cbdata);
 		if(!frecur.option.force)
-			output_fsrecur_errors(&frecur);
-		SILENT_RET(ret,frecur.option.force,return_t_msg,"\nError occured while copying files!\n\n");
+			output_fsrecur_errors(&frecur,"\nError occured while copying files!\n\n");
 	}
-	return 0;
+	return ret;
 }
 static int do_delete(file_recurse_st& frecur)
 {
@@ -955,13 +958,13 @@ static int do_delete(file_recurse_st& frecur)
 		if(frecur.option.verbose)
 			ts_output(" ok\n");
 	}
-	else if(0!=(ret=fs_recurse_delete((char*)frecur.fsrc.c_str(),&cbdata)))
+	else
 	{
+		ret=fs_recurse_delete((char*)frecur.fsrc.c_str(),&cbdata);
 		if(!frecur.option.force)
-			output_fsrecur_errors(&frecur);
-		SILENT_RET(ret,frecur.option.force,return_t_msg,"\nError occured while deleting files!\n\n");
+			output_fsrecur_errors(&frecur,"\nError occured while deleting files!\n\n");
 	}
-	return 0;
+	return ret;
 }
 static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 {
@@ -1184,7 +1187,7 @@ static int setlen_handler(cmd_param_st* param)
 	if(!args[2].second.empty())
 		return_t_msg(ERR_INVALID_PARAM,"the option \"%s=%s\" is invalid\n",args[2].first.c_str(),args[2].second.c_str());
 	path=args[1].first;
-	if(parse_i64(args[2].first,length,0,len_vrf))
+	if(!parse_i64(args[2].first,length,0,len_vrf))
 		return_t_msg(ERR_INVALID_PARAM,"%s: length not valid\n",args[2].first.c_str());
 	int ret=0;
 	dword flags=0;
@@ -1195,7 +1198,7 @@ static int setlen_handler(cmd_param_st* param)
 	void* hfile=fs_open((char*)fullpath.c_str(),FILE_OPEN_EXISTING|FILE_WRITE);
 	if(!VALID(hfile))
 		return_t_msg(ERR_GENERIC,"open file \'%s\' failed\n",fullpath.c_str());
-	if(0!=(ret=fs_set_file_size((char*)fullpath.c_str(),&length.low,(uint*)&length.high)))
+	if(0!=(ret=fs_set_file_size(hfile,&length.low,(uint*)&length.high)))
 	{
 		t_output("%s: setlen failed: %s\n",fullpath.c_str(),get_error_desc(ret));
 		goto end;
@@ -1224,38 +1227,46 @@ static int touch_handler(cmd_param_st* param)
 	{
 		if(!args[i].second.empty())
 			return_t_msg(ERR_INVALID_PARAM,"the option \'%s=%s\' is invalid\n",args[i].first.c_str(),args[i].second.c_str());
+		int retc=0;
 		const string& path=args[i].first;
-		if(0!=(ret=get_full_path(ctx->pwd,path,fullpath)))
+		if(0!=(retc=get_full_path(ctx->pwd,path,fullpath)))
 		{
+			ret=retc;
 			t_output("%s: invalid path\n",path.c_str());
 			continue;
 		}
 		dword flags=0;
-		if(0!=(ret=validate_path(fullpath,&flags,NULL,NULL,&strret)))
+		if(0!=(retc=validate_path(fullpath,&flags,NULL,NULL,&strret)))
 		{
-			if(ret!=ERR_FS_FILE_NOT_EXIST)
+			if(retc!=ERR_FS_FILE_NOT_EXIST)
 			{
+				ret=retc;
 				t_output("%s:\n%s",fullpath.c_str(),strret.c_str());
-				continue;
-			}
-			else if(FS_IS_DIR(flags))
-			{
-				t_output("\'%s\' is a directory\n",fullpath.c_str());
 				continue;
 			}
 			void* hfile=fs_open((char*)fullpath.c_str(),FILE_CREATE_ALWAYS);
 			if(!VALID(hfile))
 			{
+				ret=ERR_GENERIC;
 				t_output("create file \'%s\' failed\n",fullpath.c_str());
 				continue;
 			}
 			fs_perm_close(hfile);
 			continue;
 		}
-		if(0!=(ret=fs_set_attr((char*)fullpath.c_str(),FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,0,datetime)))
+		else if(FS_IS_DIR(flags))
+		{
+			ret=ERR_GENERIC;
+			t_output("\'%s\' is a directory\n",fullpath.c_str());
+			continue;
+		}
+		if(0!=(retc=fs_set_attr((char*)fullpath.c_str(),FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,0,datetime)))
+		{
+			ret=retc;
 			t_output("update timestamp failed: %s\n",fullpath.c_str());
+		}
 	}
-	return 0;
+	return ret;
 }
 DEF_SH_CMD(touch,touch_handler,
 	"update timestamp of a file or create a new empty file if it does not exist.",
