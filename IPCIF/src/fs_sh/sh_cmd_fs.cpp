@@ -555,50 +555,50 @@ static int init_fs()
 	}
 	return ret;
 }
+static bool fs_extract_drive_tag(const string& path,string& tag,string& pure)
+{
+	const int pos=path.find('/');
+	string first_dir;
+	if(pos==0)
+	{
+		tag="";
+		pure=path;
+		return true;
+	}
+	else if(pos==string::npos)
+		first_dir=path;
+	else
+		first_dir=path.substr(0,pos);
+	if((!first_dir.empty())&&first_dir.back()==':')
+	{
+		tag=first_dir;
+		pure=(pos==string::npos?"":path.substr(pos+1));
+		return true;
+	}
+	else
+	{
+		tag="";
+		pure=path;
+		return false;
+	}
+}
 int get_full_path(const string& cur_dir,const string& relative_path,string& full_path)
 {
 	int ret=0;
-	vector<string> cur_dir_split,relative_path_split,direct;
-	string drv_name;
-	split_path(relative_path,relative_path_split,'/');
-	if((!relative_path.empty())&&relative_path[0]=='/')
+	string tag,pure;
+	if(fs_extract_drive_tag(relative_path,tag,pure))
 	{
-		if(0!=(ret=(get_direct_path(direct,relative_path_split))))
+		if(0!=(ret=get_absolute_path(pure,"",full_path,NULL,'/')))
 			return ret;
-		merge_path(full_path,direct,'/');
-		full_path="/"+full_path;
-		return 0;
 	}
-	if((!relative_path_split.empty())&&(!relative_path_split[0].empty())
-		&&relative_path_split[0].back()==':')
+	else
 	{
-		drv_name=relative_path_split[0];
-		relative_path_split.erase(relative_path_split.begin());
-		if(0!=(ret=(get_direct_path(direct,relative_path_split))))
+		if(!fs_extract_drive_tag(cur_dir,tag,pure))
+			return ERR_INVALID_PATH;
+		if(0!=(ret=get_absolute_path(pure,relative_path,full_path,NULL,'/')))
 			return ret;
-		direct.insert(direct.begin(),drv_name);
-		merge_path(full_path,direct,'/');
-		return 0;
 	}
-	bool root=(cur_dir[0]=='/');
-	split_path(cur_dir,cur_dir_split,'/');
-	bool drive=((!cur_dir_split.empty())&&(!cur_dir_split[0].empty())
-		&&cur_dir_split[0].back()==':');
-	if((!root)&&(!drive))
-		return ERR_INVALID_PATH;
-	if(drive)
-	{
-		drv_name=cur_dir_split[0];
-		cur_dir_split.erase(cur_dir_split.begin());
-	}
-	cur_dir_split.insert(cur_dir_split.end(),relative_path_split.begin(),relative_path_split.end());
-	if(0!=(ret=(get_direct_path(direct,cur_dir_split))))
-		return ret;
-	if(drive)
-		direct.insert(direct.begin(),drv_name);
-	merge_path(full_path,direct,'/');
-	if(root)
-		full_path="/"+full_path;
+	full_path=tag+"/"+full_path;
 	return 0;
 }
 static int execute(sh_context* ctx)

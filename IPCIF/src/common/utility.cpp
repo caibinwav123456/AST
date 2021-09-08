@@ -140,7 +140,7 @@ process_identifier::process_identifier()
 	init_error=0;
 	sys_get_current_process_path(exe_dir,MAX_DIR_SIZE);
 	string absolute_path;
-	if(0!=(init_error=get_absolute_path(string(exe_dir),string(CFG_FILE_PATH),absolute_path)))
+	if(0!=(init_error=get_absolute_path(string(exe_dir),string(CFG_FILE_PATH),absolute_path,sys_is_absolute_path)))
 		return;
 	if(0!=(init_error=config.LoadConfigFile(absolute_path.c_str())))
 		return;
@@ -442,8 +442,7 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 	{
 		*(--rparam.tstart)=0;
 	}
-	if(strcmp(rparam.from,rparam.to)==0
-		||is_subpath(string(get_current_directory()),string(rparam.to),string(rparam.from),dsym))
+	if(strcmp(rparam.from,rparam.to)==0)
 	{
 		ret=ERR_GENERIC;
 		goto end;
