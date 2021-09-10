@@ -598,7 +598,7 @@ int get_full_path(const string& cur_dir,const string& relative_path,string& full
 		if(0!=(ret=get_absolute_path(pure,relative_path,full_path,NULL,'/')))
 			return ret;
 	}
-	full_path=tag+"/"+full_path;
+	full_path=(full_path.empty()?(tag.empty()?"/":tag):tag+"/"+full_path);
 	return 0;
 }
 static int execute(sh_context* ctx)
