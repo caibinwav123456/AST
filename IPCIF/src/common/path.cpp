@@ -33,7 +33,7 @@ inline bool add_path_component(vector<string>& path, const string& comp)
 		return true;
 	}
 }
-DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym)
+DLLAPI(void) merge_path(string& path, const vector<string>& split, char dsym)
 {
 	path.clear();
 	for(int i=0;i<(int)split.size();i++)
@@ -43,7 +43,7 @@ DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym)
 			path+=dsym;
 	}
 }
-DLLAPI(int)get_direct_path(vector<string>& direct, vector<string>& indirect)
+DLLAPI(int)get_direct_path(vector<string>& direct, const vector<string>& indirect)
 {
 	direct.clear();
 	for(int i=0;i<(int)indirect.size();i++)
