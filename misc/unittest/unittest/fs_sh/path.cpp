@@ -33,7 +33,7 @@ inline bool add_path_component(vector<string>& path, const string& comp)
 		return true;
 	}
 }
-DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym)
+DLLAPI(void) merge_path(string& path, const vector<string>& split, char dsym)
 {
 	path.clear();
 	for(int i=0;i<(int)split.size();i++)
@@ -43,7 +43,7 @@ DLLAPI(void) merge_path(string& path, vector<string>& split, char dsym)
 			path+=dsym;
 	}
 }
-DLLAPI(int)get_direct_path(vector<string>& direct, vector<string>& indirect)
+DLLAPI(int)get_direct_path(vector<string>& direct, const vector<string>& indirect)
 {
 	direct.clear();
 	for(int i=0;i<(int)indirect.size();i++)
@@ -69,17 +69,20 @@ int get_absolute_path(const string& cur_dir, const string& relative_path, vector
 	split_path(relative_path, relative_path_split, dsym);
 	return get_absolute_path(cur_dir, relative_path_split, absolute_path, dsym);
 }
-DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path, string& absolute_path, char dsym)
+DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path, string& absolute_path, int (*is_absolute_path)(char* path, char dsym), char dsym)
 {
-	if(sys_is_absolute_path((char*)relative_path.c_str(),dsym))
-	{
-		absolute_path=relative_path;
-		return 0;
-	}
+	int ret=0;
 	vector<string> array_absolute_path;
-	int ret=get_absolute_path(cur_dir, relative_path, array_absolute_path, dsym);
-	if(ret!=0)
-		return ret;
+	if(is_absolute_path!=NULL&&is_absolute_path((char*)relative_path.c_str(),dsym))
+	{
+		if(0!=(ret=get_absolute_path(relative_path, "", array_absolute_path, dsym)))
+			return ret;
+	}
+	else
+	{
+		if(0!=(ret=get_absolute_path(cur_dir, relative_path, array_absolute_path, dsym)))
+			return ret;
+	}
 	merge_path(absolute_path, array_absolute_path,dsym);
 	return 0;
 }
@@ -91,35 +94,7 @@ DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge
 	path_array1.insert(path_array1.end(),path_array2.begin(),path_array2.end());
 	merge_path(merge, path_array1,dsym);
 }
-DLLAPI(bool) is_subpath(const string& cur_dir, const string& relative_path1, const string& relative_path2, char dsym)
+DLLAPI(bool) is_subpath(const string& relative_path1, const string& relative_path2)
 {
-	vector<string> absolute1,absolute2;
-	if(sys_is_absolute_path(const_cast<char*>(relative_path1.c_str()),dsym))
-	{
-		get_absolute_path(relative_path1,string(""),absolute1,dsym);
-	}
-	else
-	{
-		get_absolute_path(cur_dir,relative_path1,absolute1,dsym);
-	}
-	if(sys_is_absolute_path(const_cast<char*>(relative_path2.c_str()),dsym))
-	{
-		get_absolute_path(relative_path2,string(""),absolute2,dsym);
-	}
-	else
-	{
-		get_absolute_path(cur_dir,relative_path2,absolute2,dsym);
-	}
-	if(absolute1.size()<=absolute2.size())
-	{
-		return false;
-	}
-	for(int i=0;i<(int)absolute2.size();i++)
-	{
-		if(absolute1[i]!=absolute2[i])
-		{
-			return false;
-		}
-	}
-	return true;
+	return relative_path1.size()>relative_path2.size()&&relative_path1.substr(0,relative_path2.size())==relative_path2;
 }

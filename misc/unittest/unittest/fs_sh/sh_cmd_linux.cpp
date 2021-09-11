@@ -147,7 +147,7 @@ static int execute(sh_context* ctx)
 			return ret;
 		string path(args[1].first);
 		string abspath;
-		if(0!=(ret=get_absolute_path(ctx->pwd,path,abspath)))
+		if(0!=(ret=get_absolute_path(ctx->pwd,path,abspath,sys_is_absolute_path)))
 		{
 			printf("invalid path\n");
 			return ret;
