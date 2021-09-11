@@ -904,9 +904,6 @@ static int do_copy(file_recurse_st& frecur)
 {
 	common_sh_args(frecur.param);
 	int ret=0;
-	st_inner_path inner={false,frecur.fsrc.c_str()};
-	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,frecur.option.force,NULL,&inner)))
-		return ret;
 	if(frecur.fdest==frecur.fsrc)
 		return 0;
 	if(frecur.fdest.size()>frecur.fsrc.size()&&frecur.fdest.substr(0,frecur.fsrc.size())==frecur.fsrc)
@@ -970,9 +967,11 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 {
 	file_recurse_st* rec=(file_recurse_st*)rparam;
 	rec->fsrc=rec->src+"/"+path;
+	rec->ret.clear();
 	switch(rec->cmd_id)
 	{
 	case CMD_ID_CP:
+		rec->fdest=rec->dest+"/"+path;
 		do_copy(*rec);
 		break;
 	case CMD_ID_RM:
@@ -1043,7 +1042,12 @@ static int cp_handler(cmd_param_st* param)
 	int ret=0;
 	string w_src;
 	bool wildcard=false;
-	if(frecur.src.size()>=2&&frecur.src.substr(frecur.src.size()-2)=="/*")
+	if(frecur.src=="*")
+	{
+		wildcard=true;
+		frecur.src="";
+	}
+	else if(frecur.src.size()>=2&&frecur.src.substr(frecur.src.size()-2)=="/*")
 	{
 		wildcard=true;
 		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
@@ -1052,6 +1056,11 @@ static int cp_handler(cmd_param_st* param)
 		return ret;
 	if(wildcard)
 		w_src=frecur.src=frecur.fsrc;
+	st_inner_path inner={false,frecur.fsrc.c_str()};
+	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,frecur.option.force,NULL,wildcard?NULL:&inner)))
+		return ret;
+	if(wildcard)
+		frecur.dest=frecur.fdest;
 	return wildcard?fs_traverse((char*)w_src.c_str(),cb_fs_recurse_func,&frecur):do_copy(frecur);
 }
 DEF_SH_CMD(cp,cp_handler,
@@ -1108,7 +1117,12 @@ static int rm_handler(cmd_param_st* param)
 		string w_path;
 		bool wildcard=false;
 		string& curfile=vfiles[i];
-		if(curfile.size()>=2&&curfile.substr(curfile.size()-2)=="/*")
+		if(curfile=="*")
+		{
+			wildcard=true;
+			curfile="";
+		}
+		else if(curfile.size()>=2&&curfile.substr(curfile.size()-2)=="/*")
 		{
 			wildcard=true;
 			curfile=curfile.substr(0,curfile.size()-2);
