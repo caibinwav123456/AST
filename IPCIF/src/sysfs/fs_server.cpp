@@ -852,12 +852,13 @@ bool FsServer::RemoveNode(void* proc_id,void* h)
 int FsServer::HandleOpen(dg_fsopen* fsopen)
 {
 	int ret=0;
+	void* hfile;
 	if(check_root(fsopen->open.path))
 	{
 		ret=ERR_FILE_IO;
 		goto end;
 	}
-	void* hfile=cdrvcall->open(chdev,fsopen->open.path,fsopen->open.flags);
+	hfile=cdrvcall->open(chdev,fsopen->open.path,fsopen->open.flags);
 	if(VALID(hfile))
 	{
 		FileServerRec rec;
