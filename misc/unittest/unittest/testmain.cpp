@@ -14,6 +14,7 @@
 #include "fsdrv_interface.h"
 #include "mutex.h"
 #include "pipe.h"
+#include "sysfs.h"
 using namespace std;
 DEFINE_FLOAT_VAL(eg_fl,0);
 DEFINE_DOUBLE_VAL(eg_db,0);
@@ -61,6 +62,30 @@ void testfile()
 
 	ret=sys_recurse_fcopy("D:\\unit_test\\","D:\\unit_test2\\",NULL);
 	ret=sys_recurse_fdelete("D:\\unit_test\\",NULL);
+}
+static bool check_instance_exist()
+{
+	void* hproc=sys_get_process(get_main_info()->manager_exe_file);
+	if(!VALID(hproc))
+		return false;
+	sys_close_process(hproc);
+	return true;
+}
+static RequestResolver reqrslvr;
+void test_fs()
+{
+	int ret=0;
+	void* handle=0;
+	if(!check_instance_exist())
+		return;
+	if(0!=(ret=fsc_init(4,2048,NULL,&reqrslvr)))
+		return;
+	ret=fs_move("sto0:/","sto0:/xyz");
+	ret=fs_move("sto1:/disk1/","sto1:");
+	ret=fs_delete("sto0:");
+	handle=fs_open("/",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
+	handle=fs_open("sto1:",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
+	fsc_exit();
 }
 void test_read()
 {
@@ -475,6 +500,7 @@ int _tmain(int argc, TCHAR** argv)
 	if(0!=mainly_initial())
 		return -1;
 	//printf("%d\n",ERR_GENERIC);
+	//test_fs();
 	//testfile();
 	//test_read();
 	//testtime();

@@ -4,11 +4,13 @@
 #include "interface.h"
 #include "config_val_extern.h"
 #include "utility.h"
+#include <string.h>
 #define cifproc if_info->ifproc
 #define cstomod if_info->sto_mod
 #define cstodrv if_info->sto_drv
 #define chdev if_info->hdev
 #define cdrvcall if_info->sto_drv->drvcall
+#define check_root(path) (strcmp((path),"/")==0)
 DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
 DEFINE_UINT_VAL(fsserver_backup_buf_num,4);
@@ -850,6 +852,11 @@ bool FsServer::RemoveNode(void* proc_id,void* h)
 int FsServer::HandleOpen(dg_fsopen* fsopen)
 {
 	int ret=0;
+	if(check_root(fsopen->open.path))
+	{
+		ret=ERR_FILE_IO;
+		goto end;
+	}
 	void* hfile=cdrvcall->open(chdev,fsopen->open.path,fsopen->open.flags);
 	if(VALID(hfile))
 	{
@@ -862,6 +869,7 @@ int FsServer::HandleOpen(dg_fsopen* fsopen)
 	{
 		ret=ERR_FILE_IO;
 	}
+end:
 	fsopen->header.ret=ret;
 	return ret;
 }
@@ -940,13 +948,27 @@ int FsServer::HandleGetSetSize(dg_fssize* fssize)
 }
 int FsServer::HandleMove(dg_fsmove* fsmove)
 {
-	int ret=cdrvcall->move(chdev,fsmove->move.src,fsmove->move.dst);
+	int ret=0;
+	if(check_root(fsmove->move.src)||check_root(fsmove->move.dst))
+	{
+		ret=ERR_FILE_IO;
+		goto end;
+	}
+	ret=cdrvcall->move(chdev,fsmove->move.src,fsmove->move.dst);
+end:
 	fsmove->header.ret=ret;
 	return ret;
 }
 int FsServer::HandleDelete(dg_fsdel* fsdel)
 {
-	int ret=cdrvcall->del(chdev,fsdel->del.path);
+	int ret=0;
+	if(check_root(fsdel->del.path))
+	{
+		ret=ERR_FILE_IO;
+		goto end;
+	}
+	ret=cdrvcall->del(chdev,fsdel->del.path);
+end:
 	fsdel->header.ret=ret;
 	return ret;
 }
