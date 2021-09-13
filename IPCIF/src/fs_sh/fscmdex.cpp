@@ -1292,6 +1292,6 @@ static int print_handler(cmd_param_st* param)
 	return 0;
 }
 DEF_SH_CMD(print,print_handler,
-	"show all environment variables.",
+	"show specified/all environment variables.",
 	""
 );

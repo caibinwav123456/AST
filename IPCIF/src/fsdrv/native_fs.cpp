@@ -175,7 +175,8 @@ int NativeFsDev::Format(string cmd)
 		return ERR_INVALID_CMD;
 	vector<string> vbase;
 	string fullpath;
-	__get_full_path(cmd_options[NATIVEFS_BASE_PATH],vbase);
+	if(0!=(ret=__get_full_path(cmd_options[NATIVEFS_BASE_PATH],vbase)))
+		return ret;
 	merge_path(fullpath,vbase);
 	if(dev_is_locked(fullpath))
 		return ERR_FS_DEV_FORMAT_FAILED_ALREADY_INUSE;
