@@ -386,6 +386,10 @@ void process_identifier::FindExecutableClose(void* handle)
 	if(it!=NULL)
 		delete it;
 }
+DLL void reset_datagram_base(void* data)
+{
+	((datagram_base*)data)->ret=ERR_GENERIC;
+}
 struct rcopy_param
 {
 	char* from;
