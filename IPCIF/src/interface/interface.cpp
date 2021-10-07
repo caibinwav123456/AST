@@ -372,6 +372,7 @@ DLLAPI(void) stop_if(void* handle)
 	{
 		sys_sem_signal_all(data->sem_array[i]);
 	}
+	sys_sleep(50);
 }
 /*
  *This function can only be called by the server.
