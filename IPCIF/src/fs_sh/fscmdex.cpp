@@ -1314,6 +1314,7 @@ static int touch_handler(cmd_param_st* param)
 		if(!args[i].second.empty())
 			return_t_msg(ERR_INVALID_PARAM,"the option \'%s=%s\' is invalid\n",args[i].first.c_str(),args[i].second.c_str());
 		int retc=0;
+		bool isdir=false;
 		const string& path=args[i].first;
 		if(0!=(retc=get_full_path(ctx->pwd,path,fullpath)))
 		{
@@ -1343,12 +1344,13 @@ static int touch_handler(cmd_param_st* param)
 		else if(FS_IS_DIR(flags))
 		{
 			ret=ERR_GENERIC;
-			t_output("\'%s\' is a directory\n",fullpath.c_str());
-			continue;
+			t_output("\'%s\': is a directory\n",fullpath.c_str());
+			isdir=true;
 		}
 		if(0!=(retc=fs_set_attr((char*)fullpath.c_str(),FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,0,datetime)))
 		{
-			t_output("\'%s\': update timestamp failed: %s\n",fullpath.c_str(),get_error_desc(retc));
+			if(!isdir)
+				t_output("\'%s\': update timestamp failed: %s\n",fullpath.c_str(),get_error_desc(retc));
 			ret=retc;
 		}
 	}
