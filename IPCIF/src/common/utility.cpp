@@ -447,10 +447,7 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 		*(--rparam.tstart)=0;
 	}
 	if(strcmp(rparam.from,rparam.to)==0)
-	{
-		ret=ERR_GENERIC;
 		goto end;
-	}
 	if(type==FILE_TYPE_DIR)
 		ret=callback->_mkdir_(rparam.to);
 	else
