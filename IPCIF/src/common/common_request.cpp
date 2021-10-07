@@ -62,6 +62,10 @@ end:
 	}
 	return ret;
 }
+static void reset_datagram_param(void* param)
+{
+	((datagram_base*)((datagram_param*)param)->dg)->ret=ERR_GENERIC;
+}
 DLLAPI(int) send_simple_request(uint cmd, void* hif, char* id, char* user)
 {
 	int ret=0;
@@ -70,7 +74,7 @@ DLLAPI(int) send_simple_request(uint cmd, void* hif, char* id, char* user)
 		return ret;
 	datagram_base data;
 	init_current_datagram_base(&data,cmd);
-	if(0!=(ret=send_request_no_reset(h, cb_simple_req, &data)))
+	if(0!=(ret=send_request_no_reset(h, cb_simple_req, &data, reset_datagram_base)))
 		goto end;
 	ret=data.ret;
 end:
@@ -95,7 +99,7 @@ DLLAPI(int) send_cmd_clear(void* pid, void* hif, char* id, char* user)
 	p.dg=&dc;
 	p.copyto=sizeof(dg_clear);
 	p.copyfrom=sizeof(datagram_base);
-	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p)))
+	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p, reset_datagram_param)))
 		goto end;
 	ret=dc.header.ret;
 end:
@@ -120,7 +124,7 @@ DLLAPI(int) send_cmd_suspend(int bsusp, void* hif, char* id, char* user)
 	p.dg=&ds;
 	p.copyto=sizeof(dg_suspend);
 	p.copyfrom=sizeof(datagram_base);
-	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p)))
+	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p, reset_datagram_param)))
 		goto end;
 	ret=ds.header.ret;
 end:
@@ -141,7 +145,7 @@ DLLAPI(int) send_cmd_getid(uint* pid, void* hif, char* id, char* user)
 	p.dg=&dg;
 	p.copyto=sizeof(dg_getid);
 	p.copyfrom=sizeof(dg_getid);
-	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p)))
+	if(0!=(ret=send_request_no_reset(h, cb_multibyte_req, &p, reset_datagram_param)))
 		goto end;
 	ret=dg.header.ret;
 	if(ret==0)

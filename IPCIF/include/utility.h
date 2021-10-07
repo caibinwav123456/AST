@@ -109,6 +109,7 @@ inline void init_datagram_base(datagram_base* data, uint cmd, void* caller, dwor
 	data->caller=caller;
 	data->sid=sid;
 }
+DLL void reset_datagram_base(void* data);
 inline void init_process_stat(process_stat* pstat, char* name)
 {
 	memset(pstat,0,sizeof(process_stat));

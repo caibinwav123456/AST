@@ -846,6 +846,19 @@ int cb_fsc(void* addr,void* param,int op)
 	}
 	return 0;
 }
+static void reset_fs_datagram_param(void* param)
+{
+	((datagram_base*)((fs_datagram_param*)param)->dbase)->ret=ERR_GENERIC;
+}
+static inline int fs_send_request(void* hif,fs_datagram_param* param)
+{
+	if_request_stat ifstat;
+	init_if_request_stat(&ifstat);
+	int ret=send_request_no_reset(hif,cb_fsc,param,reset_fs_datagram_param,&ifstat);
+	if(ifstat.retry_count>0)
+		LOGFILE(1,log_ftype_error,"FS request is reset, retry for %d times.",ifstat.retry_count);
+	return ret;
+}
 int SysFs::ReOpen(SortedFileIoRec* pRec,void* hif)
 {
 	int ret=0;
@@ -857,7 +870,7 @@ int SysFs::ReOpen(SortedFileIoRec* pRec,void* hif)
 	param.fsopen.flags=((pRec->get_flags()&~FILE_MASK)|FILE_OPEN_EXISTING);
 	param.fsopen.hFile=&pRec->hFile;
 	param.fsopen.path=&pRec->path;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -885,7 +898,7 @@ void* SysFs::Open(const char* pathname,dword flags,fs_if_path* ifp)
 	param.fsopen.flags=flags;
 	param.fsopen.hFile=&pRec->hFile;
 	param.fsopen.path=&path;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -932,7 +945,7 @@ int SysFs::CloseHandle(void* h,if_proc* pif)
 	fs_datagram_param param;
 	param.dbase=&dg;
 	param.fsclose.handle=h;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -1180,7 +1193,7 @@ int SysFs::IOBuf(if_cmd_code cmd,SortedFileIoRec* pRec,LinearBuffer* pLB)
 		param.fsrdwr.off.offhigh=off.high;
 		param.fsrdwr.len=&transfer_once;
 		param.fsrdwr.buf=bbuf;
-		if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		if(0!=(ret=fs_send_request(hif,&param)))
 			goto end;
 		ret=dg.ret;
 end:
@@ -1194,7 +1207,7 @@ end:
 			goto end2;
 		init_current_datagram_base(&dg,cmd);
 		param.fsrdwr.hFile=pRec->hFile;
-		if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		if(0!=(ret=fs_send_request(hif,&param)))
 			goto end2;
 		ret=dg.ret;
 end2:
@@ -1279,7 +1292,7 @@ int SysFs::GetSetFileSize(if_cmd_code cmd,SortedFileIoRec*pRec,uint* low,uint* h
 	void* hif;
 	if(0!=(ret=BeginTransfer(pRec->pif,&hif)))
 		return ret;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -1293,7 +1306,7 @@ end:
 		goto end2;
 	init_current_datagram_base(&dg,cmd);
 	ds.handle=pRec->hFile;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end2;
 	ret=dg.ret;
 end2:
@@ -1349,7 +1362,7 @@ int SysFs::MoveFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path*
 	param.dbase=&dg;
 	param.fsmove.src=&puresrc;
 	param.fsmove.dst=&puredst;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -1477,7 +1490,7 @@ int SysFs::DeleteFile(const char* pathname,fs_if_path* ifp)
 	fs_datagram_param param;
 	param.dbase=&dg;
 	param.fsdelete.path=&purepath;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -1533,7 +1546,7 @@ int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* fla
 	param.fsattr.mask=mask;
 	param.fsattr.flags=&tflags;
 	param.fsattr.date=tdate;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -1576,13 +1589,13 @@ int SysFs::ListFile(const char* path,vector<fsls_element>& files,fs_if_path* ifp
 	param.fslsfiles.files=&files;
 	param.fslsfiles.nfiles=&nfile;
 	param.fslsfiles.handle=&hls;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 	while(ret==0&&nfile>0)
 	{
 		init_current_datagram_base(&dg,CMD_LSFILES);
-		if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+		if(0!=(ret=fs_send_request(hif,&param)))
 			break;
 		ret=dg.ret;
 	}
@@ -1629,7 +1642,7 @@ int SysFs::GetDevInfo(const string& devname,fs_dev_info& devinfo)
 	param.dbase=&dg;
 	param.fsdevinfo.devname=&devname;
 	param.fsdevinfo.devinfo=&dinfo;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
@@ -1654,7 +1667,7 @@ int SysFs::MakeDir(const char* path,fs_if_path* ifp)
 	fs_datagram_param param;
 	param.dbase=&dg;
 	param.fsmkdir.path=&purepath;
-	if(0!=(ret=send_request_no_reset(hif,cb_fsc,&param)))
+	if(0!=(ret=fs_send_request(hif,&param)))
 		goto end;
 	ret=dg.ret;
 end:
