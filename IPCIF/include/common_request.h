@@ -24,7 +24,15 @@ DLLAPI(int) send_cmd_getid(uint* pid, void* hif, char* id=NULL, char* user=NULL)
 #ifdef __cplusplus
 }
 #endif
-inline int send_request_no_reset(void* h, if_callback cb, void* param)
+struct if_request_stat
+{
+	uint retry_count;
+};
+inline void init_if_request_stat(if_request_stat* if_stat)
+{
+	if_stat->retry_count=0;
+}
+inline int send_request_no_reset(void* h, if_callback cb, void* param, void (*reset)(void*)=NULL, if_request_stat* request_stat=NULL)
 {
 	int ret=0;
 	int count=0;
@@ -34,7 +42,11 @@ inline int send_request_no_reset(void* h, if_callback cb, void* param)
 		if(count>=10)
 			break;
 		sys_sleep(100);
+		if(reset!=NULL)
+			reset(param);
 	}
+	if(request_stat!=NULL)
+		request_stat->retry_count=count;
 	return ret;
 }
 #endif
