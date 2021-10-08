@@ -1258,7 +1258,12 @@ static int mkdir_handler(cmd_param_st* param)
 }
 DEF_SH_CMD(mkdir,mkdir_handler,
 	"create a new directory(or directories).",
-	""
+	"Format:\n\tmkdir (path1) (path2) ...\n"
+	"The mkdir command creates directories of the specified paths. "
+	"Each path is created respectively.\n"
+	"When a directory is created, its parent directories along its path will be created simultaneously.\n"
+	"If the specified path already exists and is a directory, the command will return success with no effects, "
+	"if it is a normal file, the command will fail.\n"
 );
 static int setlen_handler(cmd_param_st* param)
 {
@@ -1295,7 +1300,15 @@ end:
 }
 DEF_SH_CMD(setlen,setlen_handler,
 	"set file length.",
-	""
+	"Format:\n\tsetlen (file-path) (length)\n"
+	"The setlen command sets the length of the specified file.\n"
+	"The file-path must be an existing path and must indicate a normal file.\n"
+	"The length value must be within signed 64-bit binary integers, "
+	"and can be either decimal or heximal, with heximal values prefixed by \"0x\".\n"
+	"If the desired length is less than the original file length, "
+	"it will be truncated to the desired length.\n"
+	"If the desired length is more than the original file length, "
+	"the file will be extended to the desired length with the surplus filled with arbitrary bytes.\n"
 );
 static int touch_handler(cmd_param_st* param)
 {
@@ -1357,8 +1370,11 @@ static int touch_handler(cmd_param_st* param)
 	return ret;
 }
 DEF_SH_CMD(touch,touch_handler,
-	"update timestamp of a file or create a new empty file if it does not exist.",
-	""
+	"update timestamp of a file/files or create a new empty file if it does not exist.",
+	"Format:\n\ttouch (path1) (path2) ...\n"
+	"The touch command updates timestamp of the file in the path list to the current time "
+	"or creates a new empty file if it does not exist.\n"
+	"Each path is processed respectively.\n"
 );
 static int print_handler(cmd_param_st* param)
 {
