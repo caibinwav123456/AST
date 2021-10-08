@@ -13,8 +13,8 @@
 #define check_root(path) (strcmp((path),"/")==0)
 DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
-DEFINE_UINT_VAL(fsserver_backup_buf_num,4);
-DEFINE_UINT_VAL(fsserver_backup_sid_reserve,16);
+DEFINE_UINT_VAL(fsserver_backup_buf_num,8);
+DEFINE_UINT_VAL(fsserver_backup_sid_reserve,8);
 FssContainer g_fssrv;
 bool less_servrec_ptr::operator()(const FileServerKey& a, const FileServerKey& b) const
 {

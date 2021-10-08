@@ -1598,6 +1598,8 @@ int SysFs::ListFile(const char* path,vector<fsls_element>& files,fs_if_path* ifp
 	}
 end:
 	EndTransfer(&hif);
+	if(ret!=0)
+		files.clear();
 	if(ret!=0&&VALID(hls))
 	{
 		int retc;
