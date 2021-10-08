@@ -9,6 +9,8 @@
 #include "interface.h"
 #include <algorithm>
 #include <assert.h>
+#include <string.h>
+using namespace std;
 #define if_safe_release(hif) \
 	if(VALID(hif)) \
 	{ \
@@ -111,6 +113,10 @@ static int redir_pre_handler(cmd_param_st* param)
 	param->priv=ph;
 	return 0;
 }
+bool ShCmdTable::less_str(const char* a, const char* b)
+{
+	return strcmp(a,b)<0;
+}
 ShCmdTable* ShCmdTable::GetTable()
 {
 	static ShCmdTable table;
@@ -128,7 +134,10 @@ void ShCmdTable::AddCmd(const char* cmd,per_cmd_handler handler,per_cmd_handler 
 }
 int ShCmdTable::Init()
 {
-	sort(GetTable()->vstrdesc.begin(),GetTable()->vstrdesc.end());
+	ShCmdTable* ptable=GetTable();
+	for(int i=0;i<(int)ptable->vstrdesc.size();i++)
+		ptable->pstrdesc.push_back(ptable->vstrdesc[i].c_str());
+	sort(ptable->pstrdesc.begin(),ptable->pstrdesc.end(),less_str);
 	return 0;
 }
 static inline void link_cmd_param(cmd_param_st* param,sh_context* ctx)
@@ -336,9 +345,9 @@ void ShCmdTable::PrintDesc(cmd_param_st* pcmd)
 {
 	common_sh_args(pcmd);
 	ShCmdTable* ptable=GetTable();
-	for(int i=0;i<(int)ptable->vstrdesc.size();i++)
+	for(int i=0;i<(int)ptable->pstrdesc.size();i++)
 	{
-		ts_output(ptable->vstrdesc[i].c_str());
+		ts_output(ptable->pstrdesc[i]);
 	}
 }
 int ShCmdTable::PrintDetail(const string& dcmd,cmd_param_st* pcmd)

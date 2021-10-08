@@ -154,10 +154,12 @@ private:
 	};
 	ShCmdTable(){}
 	vector<string> vstrdesc;
+	vector<const char*> pstrdesc;
 	map<string,CmdItem> cmd_map;
 	static ShCmdTable* GetTable();
 	static bool find_cmd(const string& cmd,CmdItem* cmditem);
 	static void revoke_preprocess(cmd_param_st* param,const vector<CmdItem>& callback,cmd_param_st* end=NULL);
+	static bool less_str(const char* a,const char* b);
 };
 class CfgCmd
 {
