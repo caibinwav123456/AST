@@ -776,54 +776,20 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,bo
 		}
 		SILENT_RET(ret,no_output_msg,return_t_msg,"\'%s\':\n%s",path.c_str(),strret.c_str());
 	}
-	if(inner!=NULL&&FS_IS_DIR(*pflag))
+	if(inner!=NULL&&(FS_IS_DIR(*pflag)||inner->inner==fullpath))
 	{
 		string inner_path=inner->get_inner_path();
 		if(inner_path.empty())
 			SILENT_RET(ERR_GENERIC,no_output_msg,return_t_msg,"\'%s\': cannot move/copy/remove root directory\n",inner->inner);
 		inner->detect_outer=true;
-		fullpath+=inner_path;
+		if(fullpath!=inner->inner)
+			fullpath+=inner_path;
 	}
 	return 0;
 }
-static int mv_handler(cmd_param_st* param)
-{
-	common_sh_args(param);
-	if(args.size()!=3)
-		return_t_msg(ERR_INVALID_PARAM,"\'%s\': command must take 2 parameters\n",cmd.c_str());
-	for(int i=1;i<3;i++)
-	{
-		if(!args[i].second.empty())
-			return_t_msg(ERR_INVALID_PARAM,"\'%s=%s\': invalid command parameter\n",args[i].first.c_str(),args[i].second.c_str());
-	}
-	string src,dest;
-	int ret=0;
-	if(0!=(ret=check_path(param,args[1].first,src)))
-		return ret;
-	st_inner_path inner={false,src.c_str()};
-	if(0!=(ret=check_path(param,args[2].first,dest,false,NULL,&inner)))
-		return ret;
-	if(!inner.detect_outer)
-		return_t_msg(ERR_GENERIC,"the destination path \'%s\' already exists\n",args[2].first.c_str());
-	if(dest==src)
-		return 0;
-	if(dest.size()>src.size()&&dest.substr(0,src.size())==src)
-		return_t_msg(ERR_GENERIC,"cannot move a directory to its sub-directory\n");
-	if(0!=(ret=fs_move((char*)(src.c_str()),(char*)(dest.c_str()))))
-		return_t_msg(ret,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
-	return 0;
-}
-DEF_SH_CMD(mv,mv_handler,
-	"move a file or a directory to a new path.",
-	"Format:\n\tmv (source-path) (destination-path)\n"
-	"The mv command moves the file/directory of (source-path) to (destination-path).\n"
-	"The source path must exist and the destination path must not exist.\n"
-	"A directory can not be moved to its sub-path because it causes infinite recursion.\n"
-	"The root directory of any device can not be used as source or destination path.\n"
-	"A mv command that moves a path to its identical path will successfully return and cause no effects.\n"
-);
-#define CMD_ID_CP 0
-#define CMD_ID_RM 1
+#define CMD_ID_MV 0
+#define CMD_ID_CP 1
+#define CMD_ID_RM 2
 struct file_recurse_ret
 {
 	int ret;
@@ -905,6 +871,18 @@ static void output_fsrecur_errors(file_recurse_st* frecur,const char* msg)
 	}
 	ts_output(msg);
 }
+static int do_move(file_recurse_st& frecur)
+{
+	common_sh_args(frecur.param);
+	int ret=0;
+	if(frecur.fdest==frecur.fsrc)
+		return 0;
+	if(frecur.fdest.size()>frecur.fsrc.size()&&frecur.fdest.substr(0,frecur.fsrc.size())==frecur.fsrc)
+		return_t_msg(ERR_GENERIC,"cannot move a directory to its sub-directory\n");
+	if(0!=(ret=fs_move((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()))))
+		return_t_msg(ret,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
+	return 0;
+}
 static int do_copy(file_recurse_st& frecur)
 {
 	common_sh_args(frecur.param);
@@ -975,6 +953,10 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 	rec->ret.clear();
 	switch(rec->cmd_id)
 	{
+	case CMD_ID_MV:
+		rec->fdest=rec->dest+"/"+path;
+		do_move(*rec);
+		break;
 	case CMD_ID_CP:
 		rec->fdest=rec->dest+"/"+path;
 		do_copy(*rec);
@@ -985,6 +967,59 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 	}
 	return 0;
 }
+static int mv_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	if(args.size()!=3)
+		return_t_msg(ERR_INVALID_PARAM,"\'%s\': command must take 2 parameters\n",cmd.c_str());
+	for(int i=1;i<3;i++)
+	{
+		if(!args[i].second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"\'%s=%s\': invalid command parameter\n",args[i].first.c_str(),args[i].second.c_str());
+	}
+	file_recurse_st frecur(param,CMD_ID_MV);
+	frecur.src=args[1].first;
+	frecur.dest=args[2].first;
+	int ret=0;
+	string w_src;
+	bool wildcard=false;
+	if(frecur.src=="*")
+	{
+		wildcard=true;
+		frecur.src="";
+	}
+	else if(frecur.src.size()>=2&&frecur.src.substr(frecur.src.size()-2)=="/*")
+	{
+		wildcard=true;
+		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
+	}
+	if(0!=(ret=check_path(frecur.param,frecur.src,frecur.fsrc)))
+		return ret;
+	if(wildcard)
+		w_src=frecur.src=frecur.fsrc;
+	st_inner_path inner={false,frecur.fsrc.c_str()};
+	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,false,NULL,wildcard?NULL:&inner)))
+		return ret;
+	if((!wildcard)&&(!inner.detect_outer))
+		return_t_msg(ERR_GENERIC,"the destination path \'%s\' already exists\n",frecur.fdest.c_str());
+	if(wildcard)
+		frecur.dest=frecur.fdest;
+	return wildcard?fs_traverse((char*)w_src.c_str(),cb_fs_recurse_func,&frecur):do_move(frecur);
+}
+DEF_SH_CMD(mv,mv_handler,
+	"move a file or a directory to a new path.",
+	"Format:\n\tmv (source-path) (destination-path)\n"
+	"The mv command moves the file/directory of source-path to destination-path.\n"
+	"Wildcard symbol \'*\' can be used to replace any sub-path of one parent directory in source path "
+	"and move them all to the destination path.\n"
+	"The source path must exist.\n"
+	"If the destination path does not exist, the source path will be moved to that path.\n"
+	"If the destination path exists and is a directory, it will be moved with the same name as a sub-node of that path, "
+	"if it is a common file, this command will fail.\n"
+	"A directory can not be moved to its sub-path because it causes infinite recursion.\n"
+	"The root directory of any device can not be used as source or destination path.\n"
+	"A mv command that moves a path to its identical path will successfully return and cause no effects.\n"
+);
 static int cp_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
@@ -1070,7 +1105,27 @@ static int cp_handler(cmd_param_st* param)
 }
 DEF_SH_CMD(cp,cp_handler,
 	"copy a file(or files) or a directory(or directories) to a new path.",
-	""
+	"Format:\n\tcp [options] (source-path) (destination-path)\n"
+	"The cp command copies the file/directory of source-path to destination-path, multiple options are supported.\n"
+	"Wildcard symbol \'*\' can be used to replace any sub-path of one parent directory in source path "
+	"and copy them all to the destination path.\n"
+	"The source path must exist.\n"
+	"If the destination path does not exist, the source path will be copied to that path.\n"
+	"If the destination path exists and is a directory, it will be copied and merged with the same name as a sub-node of that path, "
+	"if it is a common file, this command will fail.\n"
+	"A directory can not be copied to its sub-path because it causes infinite recursion.\n"
+	"The root directory of any device can not be used as source path.\n"
+	"A cp command that copies a path to its identical path will successfully return and cause no effects.\n"
+	"Options:\n"
+	"-r, -R\n"
+	"\tRecursive copy of sub-dir. If the source path is a directory, this indicates the path and all its sub-paths will be recursively copied. "
+	"Without this option, only the directory itself will be copied. This option has no effects on common files.\n"
+	"-v\n"
+	"\tVerbose. Display detailed information of copy process and errors, overrides -f.\n"
+	"-f\n"
+	"\tForce. Ignore and do not display error information.\n"
+	"-s\n"
+	"\tStop at first error. With this option, copy process will stop immediately when it meets an error.\n"
 );
 static int rm_handler(cmd_param_st* param)
 {
@@ -1148,7 +1203,21 @@ static int rm_handler(cmd_param_st* param)
 }
 DEF_SH_CMD(rm,rm_handler,
 	"remove a file(or files) or a directory(or directories).",
-	""
+	"Format:\n\trm [options] (path1) (path2) ...\n"
+	"The rm command deletes the file/directory of paths listed in the path list, multiple options are supported.\n"
+	"Wildcard symbol \'*\' can be used to replace any sub-path of one parent directory in path list and delete them all.\n"
+	"If a path does not exist, the command will return with no effects.\n"
+	"The root directory of any device can not be deleted.\n"
+	"Options:\n"
+	"-r, -R\n"
+	"\tRecursive deletion of sub-dir. If the path is a directory, this indicates the path and all its sub-paths will be recursively deleted. "
+	"Without this option, the command will fail if the directory is not empty. This option has no effects on common files.\n"
+	"-v\n"
+	"\tVerbose. Display detailed information of deletion process and errors, overrides -f.\n"
+	"-f\n"
+	"\tForce. Ignore and do not display error information.\n"
+	"-s\n"
+	"\tStop at first error. With this option, deleting process will stop immediately when it meets an error.\n"
 );
 static int mkdir_handler(cmd_param_st* param)
 {
@@ -1189,7 +1258,12 @@ static int mkdir_handler(cmd_param_st* param)
 }
 DEF_SH_CMD(mkdir,mkdir_handler,
 	"create a new directory(or directories).",
-	""
+	"Format:\n\tmkdir (path1) (path2) ...\n"
+	"The mkdir command creates directories of the specified paths. "
+	"Each path is created respectively.\n"
+	"When a directory is created, its parent directories along its path will be created simultaneously.\n"
+	"If the specified path already exists and is a directory, the command will return success with no effects, "
+	"if it is a normal file, the command will fail.\n"
 );
 static int setlen_handler(cmd_param_st* param)
 {
@@ -1226,7 +1300,15 @@ end:
 }
 DEF_SH_CMD(setlen,setlen_handler,
 	"set file length.",
-	""
+	"Format:\n\tsetlen (file-path) (length)\n"
+	"The setlen command sets the length of the specified file.\n"
+	"The file-path must be an existing path and must indicate a normal file.\n"
+	"The length value must be within signed 64-bit binary integers, "
+	"and can be either decimal or heximal, with heximal values prefixed by \"0x\".\n"
+	"If the desired length is less than the original file length, "
+	"it will be truncated to the desired length.\n"
+	"If the desired length is more than the original file length, "
+	"the file will be extended to the desired length with the surplus filled with arbitrary bytes.\n"
 );
 static int touch_handler(cmd_param_st* param)
 {
@@ -1245,6 +1327,7 @@ static int touch_handler(cmd_param_st* param)
 		if(!args[i].second.empty())
 			return_t_msg(ERR_INVALID_PARAM,"the option \'%s=%s\' is invalid\n",args[i].first.c_str(),args[i].second.c_str());
 		int retc=0;
+		bool isdir=false;
 		const string& path=args[i].first;
 		if(0!=(retc=get_full_path(ctx->pwd,path,fullpath)))
 		{
@@ -1274,20 +1357,24 @@ static int touch_handler(cmd_param_st* param)
 		else if(FS_IS_DIR(flags))
 		{
 			ret=ERR_GENERIC;
-			t_output("\'%s\' is a directory\n",fullpath.c_str());
-			continue;
+			t_output("\'%s\': is a directory\n",fullpath.c_str());
+			isdir=true;
 		}
 		if(0!=(retc=fs_set_attr((char*)fullpath.c_str(),FS_ATTR_MODIFY_DATE|FS_ATTR_ACCESS_DATE,0,datetime)))
 		{
-			t_output("\'%s\': update timestamp failed: %s\n",fullpath.c_str(),get_error_desc(retc));
+			if(!isdir)
+				t_output("\'%s\': update timestamp failed: %s\n",fullpath.c_str(),get_error_desc(retc));
 			ret=retc;
 		}
 	}
 	return ret;
 }
 DEF_SH_CMD(touch,touch_handler,
-	"update timestamp of a file or create a new empty file if it does not exist.",
-	""
+	"update timestamp of a file/files or create a new empty file if it does not exist.",
+	"Format:\n\ttouch (path1) (path2) ...\n"
+	"The touch command updates timestamp of the file in the path list to the current time "
+	"or creates a new empty file if it does not exist.\n"
+	"Each path is processed respectively.\n"
 );
 static int print_handler(cmd_param_st* param)
 {
