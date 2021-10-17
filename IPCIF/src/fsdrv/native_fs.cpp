@@ -305,10 +305,10 @@ int fs_native_move(void* hdev,char* src,char* dst)
 	dword type=0;
 	int ret=sys_fstat((char*)fulldst.c_str(),&type);
 	if(ret==0)
-		return ERR_FILE_IO;
+		return ERR_PATH_ALREADY_EXIST;
 	ret=sys_fstat((char*)fullsrc.c_str(),&type);
 	if(ret!=0)
-		return ERR_FILE_IO;
+		return ERR_PATH_NOT_EXIST;
 	split_path(src,vpath,'/');
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 		return ERR_FS_FILE_DIR_LOCKED;
@@ -338,7 +338,7 @@ int fs_native_getattr(void* hdev,char* path,dword* attrflags)
 	dword type=0;
 	int ret=sys_fstat((char*)fullpath.c_str(),attrflags!=NULL?&type:NULL);
 	if(ret!=0)
-		return ERR_FS_FILE_NOT_EXIST;
+		return ERR_PATH_NOT_EXIST;
 	attrflags!=NULL?*attrflags=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0):0;
 	return 0;
 }

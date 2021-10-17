@@ -3,9 +3,9 @@
 #include "sh_cmd_fs.h"
 int main(int argc, char** argv)
 {
-	if(0!=mainly_initial())
-		return ERR_GENERIC;
 	int ret=0;
+	if(0!=(ret=mainly_initial()))
+		return ret;
 	if(0!=(ret=init_sh()))
 	{
 		printf("init failed\n");

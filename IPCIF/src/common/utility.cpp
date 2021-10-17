@@ -495,7 +495,7 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, fil
 {
 	dword type=0;
 	int ret=callback->_fstat_(pathname,&type);
-	if(ret==ERR_FS_FILE_NOT_EXIST)
+	if(ret==ERR_PATH_NOT_EXIST)
 		return 0;
 	if(ret!=0)
 		return ret;

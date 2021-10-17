@@ -36,7 +36,7 @@ void prepare_tp_buf(byte*& buf)
 int ban_pre_handler(cmd_param_st* param)
 {
 	if((!is_pre_revoke(param))&&param->stream!=NULL)
-		return_msg(ERR_GENERIC,"The command \"%s\" cannot be used with \"|\"\n",param->cmd.c_str());
+		return_msg(ERR_INVALID_CMD,"The command \'%s\' cannot be used with \'|\'\n",param->cmd.c_str());
 	return 0;
 }
 static int redir_handler(cmd_param_st* param)
@@ -51,7 +51,7 @@ static int redir_handler(cmd_param_st* param)
 	if(0!=(ret=fs_seek(ph->hfile,args[0].first==">"?SEEK_BEGIN:SEEK_END,
 		0,&dummy)))
 	{
-		t_output("seek for writing file \"%s\" error: %s\n",ph->path.c_str(),get_error_desc(ret));
+		t_output("\'%s\': seek for writing file error: %s\n",ph->path.c_str(),get_error_desc(ret));
 		goto end;
 	}
 	{
@@ -64,7 +64,7 @@ static int redir_handler(cmd_param_st* param)
 				||wrlen!=n)
 			{
 				ret==0?(ret=ERR_FILE_IO):0;
-				t_output("write file \"%s\" error: %s\n",ph->path.c_str(),get_error_desc(ret));
+				t_output("\'%s\': write file error: %s\n",ph->path.c_str(),get_error_desc(ret));
 				break;
 			}
 		}
@@ -99,7 +99,7 @@ static int redir_pre_handler(cmd_param_st* param)
 	if(0!=(ret=get_full_path(ctx->pwd,ph->path,fullpath)))
 	{
 		delete ph;
-		return_msg(ret,"invalid path: \"%s\"\n",args[1].first.c_str());
+		return_msg(ret,"invalid path: \'%s\'\n",args[1].first.c_str());
 	}
 	dword open_flag=(args[0].first==">"?
 		FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE|FILE_EXCLUSIVE_WRITE
@@ -108,7 +108,7 @@ static int redir_pre_handler(cmd_param_st* param)
 	if(!VALID(ph->hfile))
 	{
 		delete ph;
-		return_msg(ERR_FILE_IO,"can not open file: \"%s\" for writing\n",args[1].first.c_str());
+		return_msg(ERR_OPEN_FILE_FAILED,"\'%s\': can not open file for writing\n",args[1].first.c_str());
 	}
 	param->priv=ph;
 	return 0;
@@ -218,7 +218,7 @@ static int trace_errors(cmd_param_st* cmd_param)
 			ret=p->ret;
 			printf("Tracing errors:\n");
 		}
-		printf("\tIn \"%s\": %s.\n",p->cmd.c_str(),get_error_desc(p->ret));
+		printf("\tIn \'%s\': %s.\n",p->cmd.c_str(),get_error_desc(p->ret));
 	}
 	return ret;
 }
@@ -250,7 +250,7 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 			break;
 	}
 	if(irangle!=-1&&idbrangle!=-1)
-		return_msg(ERR_INVALID_CMD,"\">\" and \">>\" cannot be both present\n");
+		return_msg(ERR_INVALID_CMD,"\'>\' and \'>>\' cannot be both present\n");
 	int pos_angle=(irangle!=-1?irangle:idbrangle);
 	bool bdb=(idbrangle!=-1);
 	int itoken=args.size()-1,tail;
@@ -302,7 +302,7 @@ int ShCmdTable::ExecCmd(sh_context* ctx,const vector<pair<string,string>>& args)
 		if(!find_cmd(cur_cmd->cmd,&item))
 		{
 			revoke_preprocess(cur_cmd->next,callback);
-			return_msg(ERR_INVALID_CMD,"Command \"%s\" not found.\n",cur_cmd->cmd.c_str());
+			return_msg(ERR_INVALID_CMD,"Command \'%s\' not found.\n",cur_cmd->cmd.c_str());
 		}
 		if(item.pre_handler!=NULL)
 		{
@@ -680,10 +680,10 @@ int validate_path(const string& path,dword* flags,st_stat_file_time* date,UInteg
 		date->time=dt[date->ttype];
 	if(bret&&ret!=0)
 	{
-		if(ret!=ERR_FS_FILE_NOT_EXIST)
+		if(ret!=ERR_PATH_NOT_EXIST)
 			sprint_buf(*strret,strretbuf,"unexpected exception: %s\n",get_error_desc(ret));
 		else
-			sprint_buf(*strret,strretbuf,"%s: %s\n",path.c_str(),get_error_desc(ret));
+			sprint_buf(*strret,strretbuf,"\'%s\': %s\n",path.c_str(),get_error_desc(ret));
 	}
 	if(ret!=0)
 		return ret;
@@ -698,8 +698,8 @@ int validate_path(const string& path,dword* flags,st_stat_file_time* date,UInteg
 		if(!VALID(hFile))
 		{
 			if(bret)
-				sprint_buf(*strret,strretbuf,"File can not be opened.\n");
-			return ERR_FILE_IO;
+				sprint_buf(*strret,strretbuf,"\'%s\': file can not be opened.\n",path.c_str());
+			return ERR_OPEN_FILE_FAILED;
 		}
 		if(0!=(ret=fs_get_file_size(hFile,&size->low,&size->high)))
 		{
@@ -864,7 +864,7 @@ static int ls_handler(cmd_param_st* param)
 					else if(op.second=="a")
 						tmode=fs_attr_access_date;
 					else
-						return_t_msg(ERR_INVALID_PARAM,"invalid parameter \"%s\" for --date,\n"
+						return_t_msg(ERR_INVALID_PARAM,"\'%s\': invalid parameter for --date,\n"
 							"the available options are c|m|a, see help.\n",op.second.c_str());
 				}
 				continue;
@@ -919,8 +919,8 @@ DEF_SH_CMD(ls,ls_handler,
 	"The information of each directory will be shown respectively, each with a label.\n"
 	"The label will not be shown if the directory list contains only one directory.\n");
 DEF_SH_CMD(ll,ls_handler,
-	"the alias for command \"ls -l\".",
-	"This is an alias for command ls with option -l, see \"help ls\".\n");
+	"the alias for command \'ls -l\'.",
+	"This is an alias for command ls with option -l, see \'help ls\'.\n");
 static int cd_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
@@ -941,7 +941,7 @@ static int cd_handler(cmd_param_st* param)
 	}
 	if(!FS_IS_DIR(flags))
 	{
-		return_t_msg(0,"%s is a file.\n",quote_file(path).c_str());
+		return_t_msg(ERR_NOT_AVAIL_ON_FILE,"\'%s\': is a file.\n",path.c_str());
 	}
 	ctx->pwd=fullpath;
 	return 0;
@@ -966,7 +966,7 @@ static int help_handler(cmd_param_st* param)
 	if(argsize==1)
 	{
 		ShCmdTable::PrintDesc(param);
-		t_output("\nType \"help (command-name)\" to get detailed usage of each command.\n");
+		t_output("\nType \'help (command-name)\' to get detailed usage of each command.\n");
 		return 0;
 	}
 	if((int)args.size()!=2||!args[1].second.empty())
@@ -1030,7 +1030,7 @@ int init_sh()
 	if(0!=(ret=init_fs()))
 		return ret;
 	set_cmd_handler(_fs_cmd_handler);
-	printf("Type \"help\" to get a list of available commands.\n");
+	printf("Type \'help\' to get a list of available commands.\n");
 	return 0;
 }
 void exit_sh()
