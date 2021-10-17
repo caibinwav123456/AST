@@ -90,7 +90,7 @@ int main(int argc, char** argv)
 	if(!parse_args(argc, argv))
 	{
 		printf("bad format.\n");
-		ret=ERR_GENERIC;
+		ret=ERR_INVALID_PARAM;
 		goto end;
 	}
 	assert(sizeof(cmdcode)/sizeof(uint)==sizeof(cmdstr)/sizeof(string));

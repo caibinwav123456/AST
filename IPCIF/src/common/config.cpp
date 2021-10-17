@@ -165,7 +165,7 @@ int ConfigProfile::LoadConfigFile(const char* filename)
 {
 	void* hFile=sys_fopen(const_cast<char*>(filename),FILE_OPEN_EXISTING|FILE_READ);
 	if(!VALID(hFile))
-		return ERR_FILE_IO;
+		return ERR_OPEN_FILE_FAILED;
 	int ret=0;
 	dword filesize;
 	if(0!=(ret=sys_get_file_size(hFile,&filesize)))

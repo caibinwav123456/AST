@@ -142,7 +142,7 @@ bool check_exist(if_initial* init)
 DLLAPI(int) setup_if(if_initial* init, void** handle)
 {
 	if(check_exist(init))
-		return ERR_IF_ALREADY_EXISTED;
+		return ERR_IF_ALREADY_EXIST;
 	int ret=0;
 	if_data* h=new if_data;
 	char name[64];

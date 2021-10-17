@@ -1392,7 +1392,7 @@ int SysFs::CopyFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path*
 	if(ifsrc==ifdst&&puresrc==puredst)
 		return 0;
 	int dret=GetSetFileAttr(CMD_FSGETATTR,dst,FS_ATTR_FLAGS,&dflags,NULL,&dfp);
-	if(dret!=0&&dret!=ERR_FS_FILE_NOT_EXIST)
+	if(dret!=0&&dret!=ERR_PATH_NOT_EXIST)
 		return dret;
 	if(FS_IS_DIR(sflags))
 	{
@@ -1407,16 +1407,16 @@ int SysFs::CopyFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path*
 			return ret;
 		}
 		else if(!FS_IS_DIR(dflags))
-			return ERR_FILE_IO;
+			return ERR_PATH_ALREADY_EXIST;
 		return 0;
 	}
 	else if(dret==0&&FS_IS_DIR(dflags))
-		return ERR_FILE_IO;
+		return ERR_PATH_ALREADY_EXIST;
 	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE,&sfp);
 	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE,&dfp);
 	if(!VALID(hsrc)||!VALID(hdst))
 	{
-		ret=ERR_FILE_IO;
+		ret=ERR_OPEN_FILE_FAILED;
 		goto end;
 	}
 	byte* buf=new byte[bufsize];
@@ -1716,7 +1716,7 @@ int cb_fs_stat(char* pathname,dword* type)
 	for(int i=0;i<RETRY_TIMES;i++)
 	{
 		ret=g_sysfs.GetSetFileAttr(CMD_FSGETATTR,pathname,FS_ATTR_FLAGS,&flags);
-		if(ret==0||ret==ERR_FS_FILE_NOT_EXIST)
+		if(ret==0||ret==ERR_PATH_NOT_EXIST)
 			break;
 		sys_sleep(DELAY_MILLISEC);
 	}

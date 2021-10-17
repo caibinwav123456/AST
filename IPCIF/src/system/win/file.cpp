@@ -173,7 +173,7 @@ int sys_is_absolute_path(char* path, char dsym)
 int sys_fstat(char* pathname, dword* type)
 {
 	if(!PathFileExistsA(pathname))
-		return ERR_FS_FILE_NOT_EXIST;
+		return ERR_PATH_NOT_EXIST;
 	if(type!=NULL)
 		*type=(PathIsDirectoryA(pathname)?FILE_TYPE_DIR:FILE_TYPE_NORMAL);
 	return 0;
@@ -215,10 +215,10 @@ inline int make_inner_dir(char* path)
 	if(!PathFileExistsA(path))
 	{
 		if(!CreateDirectoryA(path,NULL))
-			return ERR_FILE_IO;
+			return ERR_CREATE_DIR_FAILED;
 	}
 	else if(!PathIsDirectoryA(path))
-		return ERR_FILE_IO;
+		return ERR_PATH_ALREADY_EXIST;
 	return 0;
 }
 inline void normalize_path(char* buf)
@@ -252,7 +252,7 @@ int sys_mkdir(char* path)
 			*ptr=0;
 			if(!PathFileExistsA(tmp))
 			if(!CreateDirectoryA(tmp,NULL))
-				return ERR_FILE_IO;
+				return ERR_CREATE_DIR_FAILED;
 			*ptr='\\';
 		}
 	}
@@ -265,16 +265,16 @@ int sys_fmove(char* from, char* to)
 int sys_fcopy(char* from, char* to)
 {
 	if(!PathFileExistsA(from))
-		return ERR_FILE_IO;
+		return ERR_PATH_NOT_EXIST;
 	if(PathIsDirectoryA(from))
 	{
 		if(!PathFileExistsA(to))
 		{
 			if(!CreateDirectoryA(to,NULL))
-				return ERR_FILE_IO;
+				return ERR_CREATE_DIR_FAILED;
 		}
 		else if(!PathIsDirectoryA(to))
-			return ERR_FILE_IO;
+			return ERR_PATH_ALREADY_EXIST;
 		return 0;
 	}
 	else

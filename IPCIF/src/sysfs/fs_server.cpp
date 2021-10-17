@@ -311,7 +311,7 @@ int FssContainer::Init(vector<if_proc>* pif,RequestResolver* resolver)
 		if(!VALID(vfs_mod[i].hMod))
 		{
 			Exit();
-			return ERR_GENERIC;
+			return ERR_LOAD_LIBRARY_FAILED;
 		}
 		vfs_mod[i].STO_GET_INTF_FUNC=(pintf_fsdrv(*)(char*))sys_get_lib_proc(vfs_mod[i].hMod,STO_GET_INTF_FUNC_NAME);
 		if(!VALID(vfs_mod[i].STO_GET_INTF_FUNC))
@@ -854,7 +854,7 @@ int FsServer::HandleOpen(dg_fsopen* fsopen)
 	int ret=0;
 	if(check_root(fsopen->open.path))
 	{
-		ret=ERR_FILE_IO;
+		ret=ERR_NOT_AVAIL_ON_ROOT_DIR;
 		goto end;
 	}
 	void* hfile=cdrvcall->open(chdev,fsopen->open.path,fsopen->open.flags);
@@ -867,7 +867,7 @@ int FsServer::HandleOpen(dg_fsopen* fsopen)
 	}
 	else
 	{
-		ret=ERR_FILE_IO;
+		ret=ERR_OPEN_FILE_FAILED;
 	}
 end:
 	fsopen->header.ret=ret;
@@ -951,7 +951,7 @@ int FsServer::HandleMove(dg_fsmove* fsmove)
 	int ret=0;
 	if(check_root(fsmove->move.src)||check_root(fsmove->move.dst))
 	{
-		ret=ERR_FILE_IO;
+		ret=ERR_NOT_AVAIL_ON_ROOT_DIR;
 		goto end;
 	}
 	ret=cdrvcall->move(chdev,fsmove->move.src,fsmove->move.dst);
@@ -964,7 +964,7 @@ int FsServer::HandleDelete(dg_fsdel* fsdel)
 	int ret=0;
 	if(check_root(fsdel->del.path))
 	{
-		ret=ERR_FILE_IO;
+		ret=ERR_NOT_AVAIL_ON_ROOT_DIR;
 		goto end;
 	}
 	ret=cdrvcall->del(chdev,fsdel->del.path);

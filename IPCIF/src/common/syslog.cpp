@@ -55,7 +55,7 @@ int LogSys::Log(const char*const* lognames,const char* file,int line,const strin
 		void* hfile=sys_fopen((char*)fulllogpath.c_str(),FILE_OPEN_ALWAYS|FILE_WRITE);
 		if(!VALID(hfile))
 		{
-			ret=ERR_FILE_IO;
+			ret=ERR_OPEN_FILE_FAILED;
 			goto final;
 		}
 		if(0!=(ret=sys_fseek(hfile,0,NULL,SEEK_END)))
