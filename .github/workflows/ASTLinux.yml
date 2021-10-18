@@ -1,6 +1,6 @@
 name: ASTLinux
 
-on:
+on: [workflow_dispatch, fork]
   workflow_dispatch:
     branches: ASTLinux
 
