@@ -1,8 +1,6 @@
 name: ASTLinux
 
 on: [workflow_dispatch, fork]
-  workflow_dispatch:
-    branches: ASTLinux
 
 jobs:
   build:
