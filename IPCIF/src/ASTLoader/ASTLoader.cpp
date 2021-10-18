@@ -79,6 +79,10 @@ int connect_mgr(void** handle)
 int main_entry(main_args)
 {
 	int ret=0;
+	void* hserver;
+	void* if_loader=NULL;
+	void* if_mgr=NULL;
+	void* hmgr=NULL;
 	if(0!=(ret=mainly_initial()))
 		return ret;
 	mutex=sys_create_sem(1,1,NULL);
@@ -92,9 +96,6 @@ int main_entry(main_args)
 	init.id=get_main_info()->loader_if0;
 	init.nthread=get_main_info()->loader_if0_cnt;
 	init.smem_size=sizeof(datagram_base);
-	void* if_loader=NULL;
-	void* if_mgr=NULL;
-	void* hmgr=NULL;
 	astloader_data data;
 	data.if_loader=&if_loader;
 	data.if_mgr=&if_mgr;
@@ -105,7 +106,7 @@ int main_entry(main_args)
 		sys_show_message("Create interface astloader failed!");
 		goto end2;
 	}
-	void* hserver=sys_create_thread(if_server, &data);
+	hserver = sys_create_thread(if_server, &data);
 	if(!VALID(hserver))
 	{
 		LOGFILE(0,log_ftype_error,"Create server thread failed, quitting...");

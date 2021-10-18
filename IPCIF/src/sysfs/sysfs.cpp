@@ -223,6 +223,7 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 		buflen<<=1;
 	nbuf=numbuf;
 	buf_len=buflen;
+	bool b;
 	if(pblk!=NULL)
 	{
 		mutex=&pblk->m;
@@ -250,7 +251,7 @@ int SysFs::Init(uint numbuf,uint buflen,if_control_block* pblk,RequestResolver* 
 	}
 	sem=sys_create_sem(sysfs_query_pass,sysfs_query_pass,NULL);
 	fmap_protect=sys_create_sem(1,1,NULL);
-	bool b=(mode==fsmode_semipermanent_if);
+	b=(mode==fsmode_semipermanent_if);
 	if(b)
 	{
 		sem_reconn=sys_create_sem(0,1,NULL);
@@ -881,6 +882,7 @@ void* SysFs::Open(const char* pathname,dword flags,fs_if_path* ifp)
 	if_proc* ifproc;
 	string path;
 	int ret=0;
+	void* h;
 	if(0!=(ret=fs_parse_path(&ifproc,path,string(pathname),ifp)))
 		return NULL;
 	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len,flags);
@@ -903,7 +905,7 @@ end:
 	EndTransfer(&hif);
 	if(ret!=0)
 		goto failed;
-	void* h=sysfs_get_handle();
+	h=sysfs_get_handle();
 	add_to_fmap(fmap,h,pRec,fmap_protect);
 	return h;
 failed:
@@ -1414,12 +1416,13 @@ int SysFs::CopyFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path*
 		return ERR_PATH_ALREADY_EXIST;
 	void* hsrc=Open(src,FILE_OPEN_EXISTING|FILE_READ|FILE_WRITE,&sfp);
 	void* hdst=Open(dst,FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE,&dfp);
+	byte* buf;
 	if(!VALID(hsrc)||!VALID(hdst))
 	{
 		ret=ERR_OPEN_FILE_FAILED;
 		goto end;
 	}
-	byte* buf=new byte[bufsize];
+	buf=new byte[bufsize];
 	if(0!=(ret=(GetSetFileSize(CMD_FSGETSIZE,hsrc,&srclen.low,&srclen.high))))
 		goto end2;
 	while(srclen>UInteger64(0))
