@@ -15,7 +15,7 @@ jobs:
 
     - name: Setup Install
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: cd .\IPCIF\bin;ren Release ASTBin;..\..\misc\tools\zip\zip -r -S ASTBin.zip ASTBin
+      run: cd .\IPCIF\bin;ren Release ASTBin;..\..\misc\tools\zip\zip -r -S ASTBin.zip ASTBin;rd /S /Q ASTBin
 
     - uses: actions/upload-artifact@v2
       with:
