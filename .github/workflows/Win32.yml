@@ -13,3 +13,30 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release .\IPCIF\src\project\win\win32.sln
 
+    - name: Setup Install
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: cd .\IPCIF\bin;ren Release ASTBin;..\..\misc\tools\zip\zip -r -S ASTBin.zip ASTBin
+
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ASTBin.zip
+        path: ${{env.GITHUB_WORKSPACE}}IPCIF\bin\
+        retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        name: ASTBin.zip
+        path: build
+
+    - name: Publish
+      uses: s0/git-publish-subdir-action@develop
+      env:
+        REPO: git@github.com:caibinwav123456/Pub.git
+        BRANCH: main
+        FOLDER: build
+        SSH_PRIVATE_KEY: ${{secrets.DEPLOY_PRIVATE_KEY}}
