@@ -1127,7 +1127,7 @@ DEF_SH_CMD(cp,cp_handler,
 	"-f\n"
 	"\tForce. Ignore and do not display error information.\n"
 	"-s\n"
-	"\tStop at first error. With this option, copy process will stop immediately when an error is encounterd.\n"
+	"\tStop at first error. With this option, copy process will stop immediately when an error is encountered.\n"
 );
 static int rm_handler(cmd_param_st* param)
 {
@@ -1219,7 +1219,7 @@ DEF_SH_CMD(rm,rm_handler,
 	"-f\n"
 	"\tForce. Ignore and do not display error information.\n"
 	"-s\n"
-	"\tStop at first error. With this option, deleting process will stop immediately when an error is encounterd.\n"
+	"\tStop at first error. With this option, deleting process will stop immediately when an error is encountered.\n"
 );
 static int mkdir_handler(cmd_param_st* param)
 {
@@ -1384,6 +1384,6 @@ static int print_handler(cmd_param_st* param)
 	return 0;
 }
 DEF_SH_CMD(print,print_handler,
-	"show specified/all environment variables.",
+	"show specified/all environment variable(s).",
 	""
 );
