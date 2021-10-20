@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\include\arch\win\key_def.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="complete.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -30,27 +27,30 @@
     <ClInclude Include="sh_cmd_fs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\include\arch\win\key_def.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\arch\win\get_char.cpp">
+    <ClCompile Include="complete.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="fs_shell.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sh_cmd_fs.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="complete.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="fscmdex.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="parse_cmd.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sh_cmd_fs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\arch\win\get_char.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="sh_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fscmdex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

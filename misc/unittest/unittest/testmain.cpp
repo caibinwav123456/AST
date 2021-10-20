@@ -305,7 +305,7 @@ int testDllDrv()
 	void* h=sys_load_library("fsdrv.dll");
 	dword err=get_last_error();
 	if(!VALID(h))
-		return ERR_GENERIC;
+		return ERR_LOAD_LIBRARY_FAILED;
 	void* addr=sys_get_lib_proc(h,"get_storage_drv_interface");
 	pintf_fsdrv(*get_storage_drv_interface)(char*)=(pintf_fsdrv(*)(char*))addr;
 	pintf_fsdrv pintf=get_storage_drv_interface("native_fs");
@@ -497,8 +497,9 @@ void test_fwrite()
 }
 int _tmain(int argc, TCHAR** argv)
 {
-	if(0!=mainly_initial())
-		return -1;
+	int ret=0;
+	if(0!=(ret=mainly_initial()))
+		return ret;
 	//printf("%d\n",ERR_GENERIC);
 	//test_fs();
 	//testfile();
