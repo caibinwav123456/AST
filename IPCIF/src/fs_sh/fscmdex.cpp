@@ -988,7 +988,7 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 	{
 	case CMD_ID_MV:
 		rec->fdest=rec->dest+"/"+path;
-		rec->option.recur=(FS_IS_DIR(flags)&&rec->none_identical_root);
+		rec->option.recur=(rec->none_identical_root&&FS_IS_DIR(flags));
 		do_move(*rec);
 		break;
 	case CMD_ID_CP:
@@ -1032,19 +1032,20 @@ static int mv_handler(cmd_param_st* param)
 		return ret;
 	if(wildcard)
 		w_src=frecur.src=frecur.fsrc;
+	if(wildcard&&!FS_IS_DIR(flags))
+		return_t_msg(ERR_NOT_AVAIL_ON_FILE,"\'%s\': can not use wildcard on none-directories\n",frecur.fsrc.c_str());
 	st_inner_path inner={false,true,frecur.fsrc.c_str()};
 	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,false,NULL,wildcard?NULL:&inner)))
 		return ret;
+	if(inner.none_identical_root&&(wildcard||FS_IS_DIR(flags)))
+		frecur.none_identical_root=true;
 	if(wildcard)
 		frecur.dest=frecur.fdest;
 	else
 	{
 		if(!inner.detect_outer)
-		{
 			return_t_msg(ERR_PATH_ALREADY_EXIST,"the destination path \'%s\' already exists\n",frecur.fdest.c_str());
-		}
-		else if(FS_IS_DIR(flags)&&inner.none_identical_root)
-			frecur.option.recur=frecur.none_identical_root=true;
+		frecur.option.recur=frecur.none_identical_root;
 	}
 	return wildcard?fs_traverse((char*)w_src.c_str(),cb_fs_recurse_func,&frecur):do_move(frecur);
 }
@@ -1134,10 +1135,13 @@ static int cp_handler(cmd_param_st* param)
 		wildcard=true;
 		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
 	}
-	if(0!=(ret=check_path(frecur.param,frecur.src,frecur.fsrc,frecur.option.force)))
+	dword flags=0;
+	if(0!=(ret=check_path(frecur.param,frecur.src,frecur.fsrc,frecur.option.force,&flags)))
 		return ret;
 	if(wildcard)
 		w_src=frecur.src=frecur.fsrc;
+	if(wildcard&&!FS_IS_DIR(flags))
+		return_t_msg(ERR_NOT_AVAIL_ON_FILE,"\'%s\': can not use wildcard on none-directories\n",frecur.fsrc.c_str());
 	st_inner_path inner={false,false,frecur.fsrc.c_str()};
 	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,frecur.option.force,NULL,wildcard?NULL:&inner)))
 		return ret;
