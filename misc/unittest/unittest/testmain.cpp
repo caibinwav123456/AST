@@ -203,6 +203,40 @@ Integer64 rand_int64(int neg)
 	int high=rand_uint32(neg);
 	return Integer64(low,&high);
 }
+void unused_int64_func()
+{
+	Integer64 int64_1,int64_2;
+	UInteger64 uint64_1,uint64_2;
+	Integer64 sum=int64_1+int64_2,
+		diff=int64_1-int64_2;
+	UInteger64 usum=uint64_1+uint64_2,
+		udiff=uint64_1-uint64_2;
+	int64_1+=int64_2;
+	int64_1-=int64_2;
+	uint64_1+=uint64_2;
+	uint64_1-=uint64_2;
+	string s;
+	if(int64_1==int64_2&&int64_1!=int64_2
+		&&int64_1<int64_2&&int64_1>int64_2)
+	{
+		printf("unuesd\n");
+	}
+	if(uint64_1==uint64_2&&uint64_1!=uint64_2
+		&&uint64_1<uint64_2&&uint64_1>uint64_2)
+	{
+		printf("unuesd\n");
+	}
+	Mul64(int64_1,int64_2);
+	Mul64(uint64_1,uint64_2);
+	FormatI64(int64_1);
+	FormatI64(uint64_1);
+	FormatI64Hex(int64_1);
+	FormatI64Hex(uint64_1);
+	I64FromDec(s,int64_1);
+	I64FromDec(s,uint64_1);
+	I64FromHex(s,int64_1);
+	I64FromHex(s,uint64_1);
+}
 void test_i64()
 {
 	UInteger64 uint1(-1);
@@ -210,8 +244,11 @@ void test_i64()
 	UInteger64 uhmul;
 	Integer64 hmul;
 	UInteger64 umul=Mul64(uint1,uint1,&uhmul);
+	Mul64(uint1,uint1);
 	Integer64 mul=Mul64(int1,int1,&hmul);
+	Mul64(int1,int1);
 	Integer64 mul2=Mul64(int1,int2,&hmul);
+	unused_int64_func();
 	srand((uint)time(NULL));
 	string s;
 	for(int i=0;i<16;i++)
