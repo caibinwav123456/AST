@@ -3,7 +3,6 @@
 #include "config.h"
 #include "config_val.h"
 #include "syslog.h"
-#include "dir_symbol.h"
 #include "mutex.h"
 #include <stdarg.h>
 #define IF_INFO_SIZE IF_USAGE_SIZE

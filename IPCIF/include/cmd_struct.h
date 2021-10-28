@@ -10,7 +10,7 @@
 #define ALIGN_4BYTES(M) (((M)+3)&~3)
 
 #define FS_ATTR_FLAGS_DIR     1
-#define FS_IS_DIR(flags)      ((flags&FS_ATTR_FLAGS_DIR)!=0)
+#define FS_IS_DIR(flags)      (((flags)&FS_ATTR_FLAGS_DIR)!=0)
 #define FS_ATTR_FLAGS         1
 #define FS_ATTR_CREATION_DATE 2
 #define FS_ATTR_MODIFY_DATE   4
