@@ -1,6 +1,8 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
+#ifndef NULL
 #define NULL 0
+#endif
 #define VALID(M) ((M)==0?false:((M)==(void*)-1?((M)=0,false):true))
 typedef unsigned int uint;
 typedef unsigned long ulong;
@@ -24,6 +26,8 @@ typedef unsigned long dword;
 #ifdef WIN32
 #pragma warning(disable:4996)
 #pragma warning(disable:4251)
+#pragma warning(disable:4244)
+#pragma warning(disable:4267)
 #ifndef DLL_IMPORT
 #define DLL __declspec(dllexport)
 #else
