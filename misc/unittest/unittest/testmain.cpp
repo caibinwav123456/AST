@@ -100,7 +100,7 @@ void test_read()
 }
 void testtime()
 {
-	printf("%d\n%d\n",sizeof(DateTime),sizeof(DateTimeWrap));
+	printf("%d\n%d\n",(int)sizeof(DateTime),(int)sizeof(DateTimeWrap));
 	DateTime dt;
 	sys_get_date_time(&dt);
 	CDateTime date(dt),date2;
