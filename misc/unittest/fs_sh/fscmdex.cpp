@@ -722,7 +722,11 @@ DEF_SH_PRED_CMD(fmt,fmt_handler,fmt_pred_handler,
 );
 struct st_inner_path
 {
-	bool detect_outer;
+	union
+	{
+		bool detect_outer;
+		bool outer;
+	};
 	union
 	{
 		bool detect_root;
@@ -768,9 +772,14 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,bo
 	string strret;
 	dword dummy=0;
 	dword* pflag=(flags!=NULL?flags:(inner!=NULL?&dummy:NULL));
+	bool detect_outer=false;
 	if(inner!=NULL)
 	{
-		inner->detect_outer=false;
+		if(inner->detect_outer)
+		{
+			detect_outer=true;
+			inner->outer=false;
+		}
 		if(inner->detect_root)
 		{
 			string root1=st_inner_path::get_root(inner->inner),
@@ -785,27 +794,27 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,bo
 	}
 	if(0!=(ret=validate_path(fullpath,pflag,NULL,NULL,&strret)))
 	{
-		if(ret==ERR_PATH_NOT_EXIST&&inner!=NULL)
+		if(ret==ERR_PATH_NOT_EXIST&&inner!=NULL&&detect_outer)
 		{
 			int pos=fullpath.rfind('/');
 			if(pos!=string::npos)
 			{
 				string fullpath_outer=fullpath.substr(0,pos);
-				if(0==(ret=validate_path(fullpath_outer,flags,NULL,NULL,&strret)))
+				if(0==(ret=validate_path(fullpath_outer,pflag,NULL,NULL,&strret)))
 				{
-					inner->detect_outer=true;
+					inner->outer=true;
 					return 0;
 				}
 			}
 		}
 		SILENT_RET(ret,no_output_msg,return_t_msg,"\'%s\':\n%s",path.c_str(),strret.c_str());
 	}
-	if(inner!=NULL&&(FS_IS_DIR(*pflag)||inner->inner==fullpath))
+	if(inner!=NULL&&detect_outer&&(FS_IS_DIR(*pflag)||inner->inner==fullpath))
 	{
 		string inner_path=inner->get_inner_path();
 		if(inner_path.empty())
 			SILENT_RET(ERR_NOT_AVAIL_ON_ROOT_DIR,no_output_msg,return_t_msg,"\'%s\': cannot move/copy/remove root directory\n",inner->inner);
-		inner->detect_outer=true;
+		inner->outer=true;
 		if(fullpath!=inner->inner)
 			fullpath+=inner_path;
 	}
@@ -988,7 +997,7 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 	{
 	case CMD_ID_MV:
 		rec->fdest=rec->dest+"/"+path;
-		rec->option.recur=(rec->none_identical_root&&FS_IS_DIR(flags));
+		rec->option.recur=(rec->none_identical_root&&flags==FILE_TYPE_DIR);
 		do_move(*rec);
 		break;
 	case CMD_ID_CP:
@@ -1034,8 +1043,8 @@ static int mv_handler(cmd_param_st* param)
 		w_src=frecur.src=frecur.fsrc;
 	if(wildcard&&!FS_IS_DIR(flags))
 		return_t_msg(ERR_NOT_AVAIL_ON_FILE,"\'%s\': can not use wildcard on none-directories\n",frecur.fsrc.c_str());
-	st_inner_path inner={false,true,frecur.fsrc.c_str()};
-	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,false,NULL,wildcard?NULL:&inner)))
+	st_inner_path inner={!wildcard,true,frecur.fsrc.c_str()};
+	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,false,NULL,&inner)))
 		return ret;
 	if(inner.none_identical_root&&(wildcard||FS_IS_DIR(flags)))
 		frecur.none_identical_root=true;
@@ -1043,7 +1052,7 @@ static int mv_handler(cmd_param_st* param)
 		frecur.dest=frecur.fdest;
 	else
 	{
-		if(!inner.detect_outer)
+		if(!inner.outer)
 			return_t_msg(ERR_PATH_ALREADY_EXIST,"the destination path \'%s\' already exists\n",frecur.fdest.c_str());
 		frecur.option.recur=frecur.none_identical_root;
 	}
@@ -1142,8 +1151,8 @@ static int cp_handler(cmd_param_st* param)
 		w_src=frecur.src=frecur.fsrc;
 	if(wildcard&&!FS_IS_DIR(flags))
 		return_t_msg(ERR_NOT_AVAIL_ON_FILE,"\'%s\': can not use wildcard on none-directories\n",frecur.fsrc.c_str());
-	st_inner_path inner={false,false,frecur.fsrc.c_str()};
-	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,frecur.option.force,NULL,wildcard?NULL:&inner)))
+	st_inner_path inner={!wildcard,false,frecur.fsrc.c_str()};
+	if(0!=(ret=check_path(frecur.param,frecur.dest,frecur.fdest,frecur.option.force,NULL,&inner)))
 		return ret;
 	if(wildcard)
 		frecur.dest=frecur.fdest;
