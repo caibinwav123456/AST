@@ -13,9 +13,17 @@ jobs:
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release .\IPCIF\src\project\win\win32.sln
 
-    - name: Setup Install
+    - name: Build x64
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: cd .\IPCIF\bin;ren Release ASTBin;..\..\misc\tools\zip\zip -r -S ASTBin.zip ASTBin;rd -recurse ASTBin
+      run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release -p:Platform=x64 .\IPCIF\src\project\win\win32.sln
+
+    - name: Setup Install x86
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: cd .\IPCIF\bin;ren Release ASTBin_x86;..\..\misc\tools\zip\zip -r -S ASTBin_x86.zip ASTBin_x86;rd -recurse ASTBin_x86
+
+    - name: Setup Install x64
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: cd .\IPCIF\bin\x64;ren Release ASTBin_x64;..\..\..\misc\tools\zip\zip -r -S ASTBin_x64.zip ASTBin_x64;cd ..;move x64\ASTBin_x64.zip .\;rd -recurse x64
 
     - uses: actions/upload-artifact@v2
       with:
