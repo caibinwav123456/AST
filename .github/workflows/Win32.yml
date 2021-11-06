@@ -9,9 +9,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Build
+    - name: Build x86
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release .\IPCIF\src\project\win\win32.sln
+      run: $env:PATH="$env:PATH;C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release -p:Platform=Win32 .\IPCIF\src\project\win\win32.sln
 
     - name: Build x64
       working-directory: ${{env.GITHUB_WORKSPACE}}
