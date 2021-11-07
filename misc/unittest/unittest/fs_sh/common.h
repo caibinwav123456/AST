@@ -11,6 +11,13 @@ typedef unsigned char uchar;
 typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
+#ifdef CONFIG_X64
+#define ptr_to_uint(ptr) ((uint)(unsigned long long)(ptr))
+#define uint_to_ptr(n) ((void*)(unsigned long long)(n))
+#else
+#define ptr_to_uint(ptr) ((uint)(ptr))
+#define uint_to_ptr(n) ((void*)(n))
+#endif
 #if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
 #define verify(m) assert(m)
 #else
@@ -19,6 +26,8 @@ typedef unsigned long dword;
 #ifdef WIN32
 #pragma warning(disable:4996)
 #pragma warning(disable:4251)
+#pragma warning(disable:4244)
+#pragma warning(disable:4267)
 #ifndef DLL_IMPORT
 #define DLL __declspec(dllexport)
 #else
