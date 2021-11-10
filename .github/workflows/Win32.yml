@@ -19,11 +19,11 @@ jobs:
 
     - name: Setup Install x86
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: cd .\IPCIF\bin;ren Release ASTBin_x86;..\..\misc\tools\zip\zip -r -S ASTBin_x86.zip ASTBin_x86;rd -recurse ASTBin_x86
+      run: cd .\IPCIF\bin;ren Release ASTBin_Win_x86;..\..\misc\tools\zip\zip -r -S ASTBin_Win_x86.zip ASTBin_Win_x86;rd -recurse ASTBin_Win_x86
 
     - name: Setup Install x64
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: cd .\IPCIF\bin\x64;ren Release ASTBin_x64;..\..\..\misc\tools\zip\zip -r -S ASTBin_x64.zip ASTBin_x64;cd ..;move x64\ASTBin_x64.zip .\;rd -recurse x64
+      run: cd .\IPCIF\bin\x64;ren Release ASTBin_Win_x64;..\..\..\misc\tools\zip\zip -r -S ASTBin_Win_x64.zip ASTBin_Win_x64;cd ..;move x64\ASTBin_Win_x64.zip .\;rd -recurse x64
 
     - uses: actions/upload-artifact@v2
       with:
