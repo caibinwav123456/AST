@@ -46,5 +46,6 @@ jobs:
       env:
         REPO: git@github.com:caibinwav123456/Pub.git
         BRANCH: main
-        FOLDER: build
+        FOLDER: AST_Release
+        CLEAR_GLOBS_FILE: .clear-target-files
         SSH_PRIVATE_KEY: ${{secrets.DEPLOY_PRIVATE_KEY}}
