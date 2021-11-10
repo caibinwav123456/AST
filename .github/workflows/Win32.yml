@@ -41,6 +41,9 @@ jobs:
         name: ASTBin.zip
         path: build
 
+    - name: Create clear file
+      run: touch .clear-target-files
+
     - name: Publish
       uses: s0/git-publish-subdir-action@develop
       env:
