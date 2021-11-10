@@ -39,7 +39,7 @@ jobs:
     - uses: actions/download-artifact@v2
       with:
         name: ASTBin.zip
-        path: build
+        path: AST_Release
 
     - name: Create clear file
       run: touch .clear-target-files
