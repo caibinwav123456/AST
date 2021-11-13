@@ -18,13 +18,13 @@ struct st_stat_file_time
 	DateTime time;
 };
 #define return_msg(code,msg,...) \
-	{printf(msg,##__VA_ARGS__); \
+	{printf((msg),##__VA_ARGS__); \
 	return code;}
-#define t_output(msg,...) tprintf(pipe_next,__tp_buf__,msg,##__VA_ARGS__)
+#define t_output(msg,...) tprintf(pipe_next,__tp_buf__,(msg),##__VA_ARGS__)
 #define tb_output(ptr,len) tputs(pipe_next,ptr,len)
 #define ts_output(ptr) tputs(pipe_next,ptr,0,true)
 #define return_t_msg(code,msg,...) \
-	{t_output(msg,##__VA_ARGS__); \
+	{t_output((msg),##__VA_ARGS__); \
 	return code;}
 #define t_clean_files(files) tclean_hfiles(files,pipe_next,__tp_buf__)
 #define t_clean_file(file) tclean_hfile(file,pipe_next,__tp_buf__)

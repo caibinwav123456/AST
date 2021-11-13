@@ -9,9 +9,9 @@
 #define NATIVEFS_BASE_PATH "base"
 #define fsrec(ptr) ((NativeFsRec*)(ptr))
 #define decl_rec(rec,ptr) NativeFsRec* rec=fsrec(ptr)
-#define decl_dev(dev,ptr) NativeFsDev* dev=(NativeFsDev*)ptr
-#define nt_path(fullpath,dev,path) string fullpath=dev->GetFullPath(path)
-#define nt_rec(node) ((NativeFsRec*)(node->t.priv))
+#define decl_dev(dev,ptr) NativeFsDev* dev=(NativeFsDev*)(ptr)
+#define nt_path(fullpath,dev,path) string fullpath=(dev)->GetFullPath(path)
+#define nt_rec(node) ((NativeFsRec*)(node)->t.priv)
 class NativeFsTree : public INodeTree
 {
 public:
