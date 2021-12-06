@@ -134,10 +134,17 @@ int sys_get_file_size(void* fd, dword* sizelow, dword* sizehigh)
 int sys_set_file_size(void* fd, dword sizelow, dword* sizehigh)
 {
 	SetLastError(NO_ERROR);
+	LONG orig_high=0;
+	LONG orig_low=SetFilePointer((HANDLE)fd, (LONG)0, (PLONG)&orig_high, FILE_CURRENT);
+	if(GetLastError()!=NO_ERROR)
+		return ERR_FILE_IO;
 	SetFilePointer((HANDLE)fd, (LONG)sizelow, (PLONG)sizehigh, FILE_BEGIN);
 	if(GetLastError()!=NO_ERROR)
 		return ERR_FILE_IO;
 	if(!SetEndOfFile((HANDLE)fd))
+		return ERR_FILE_IO;
+	SetFilePointer((HANDLE)fd, (LONG)orig_low, (PLONG)&orig_high, FILE_BEGIN);
+	if(GetLastError()!=NO_ERROR)
 		return ERR_FILE_IO;
 	return 0;
 }

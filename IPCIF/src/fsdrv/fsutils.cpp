@@ -1,3 +1,4 @@
+#define DLL_IMPORT
 #include "fsutils.h"
 #include "utility.h"
 #include <string.h>
@@ -5,25 +6,8 @@
 #define token_buf_size 256
 #define LOCKFILE_SUFFIX ".lck"
 #define TAG_USER_ID "user_id"
-const byte seps[]={' ','\t','\r','\n'};
-struct token_set
-{
-	bool alphabet[256];
-	token_set()
-	{
-		memset(alphabet,0,256*sizeof(bool));
-		for(int i=(int)'a';i<=(int)'z';i++)
-			alphabet[i]=true;
-		for(int i=(int)'A';i<=(int)'Z';i++)
-			alphabet[i]=true;
-		for(int i=(int)'0';i<=(int)'9';i++)
-			alphabet[i]=true;
-		alphabet['_']=true;
-		alphabet['-']=true;
-		alphabet['.']=true;
-		alphabet['/']=true;
-	}
-};
+static const byte seps[]={' ','\t','\r','\n'};
+static const byte spec_token_ch[]={'_','-','.','/',};
 bool trim_space(byte c)
 {
 	for(int i=0;i<sizeof(seps)/sizeof(byte);i++)
@@ -37,8 +21,8 @@ bool trim_space(byte c)
 }
 bool trim_token(byte c)
 {
-	static token_set ts;
-	return ts.alphabet[(int)c];
+	static spec_char_verifier ts(spec_token_ch,sizeof(spec_token_ch)/sizeof(byte),true);
+	return ts.is_spec(c);
 }
 bool trim_string(byte c)
 {
@@ -122,6 +106,8 @@ int parse_cmd(const byte* buf,int size,
 					buf++,size--;
 					if(size>0)
 					{
+						if((ptoken-token_buf)+1>token_buf_size)
+							return ERR_BUFFER_OVERFLOW;
 						*ptoken=*buf;
 						ptoken++;
 						buf++,size--;
