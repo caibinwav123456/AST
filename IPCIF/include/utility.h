@@ -99,6 +99,7 @@ DLLAPI(int) recurse_fdelete(char* pathname,file_recurse_callback* callback,file_
 DLLAPI(char*) get_error_desc(int errcode);
 DLLAPI(int) sys_recurse_fcopy(char* from,char* to,file_recurse_cbdata* cbdata);
 DLLAPI(int) sys_recurse_fdelete(char* pathname,file_recurse_cbdata* cbdata);
+DLL void reset_datagram_base(void* data);
 #ifdef __cplusplus
 }
 #endif
@@ -109,7 +110,6 @@ inline void init_datagram_base(datagram_base* data, uint cmd, void* caller, dwor
 	data->caller=caller;
 	data->sid=sid;
 }
-DLL void reset_datagram_base(void* data);
 inline void init_process_stat(process_stat* pstat, char* name)
 {
 	memset(pstat,0,sizeof(process_stat));
@@ -117,6 +117,15 @@ inline void init_process_stat(process_stat* pstat, char* name)
 }
 #define init_current_datagram_base(data, cmd) init_datagram_base(data, cmd, get_current_executable_id(), get_session_id())
 #ifdef __cplusplus
+class DLL spec_char_verifier
+{
+public:
+	spec_char_verifier(const byte* ch,uint nch,bool balphanum=false,bool _etc_spec=false);
+	bool is_spec(char c);
+private:
+	bool alphabet[128];
+	bool etc_spec;
+};
 struct AstError
 {
 	char* file;

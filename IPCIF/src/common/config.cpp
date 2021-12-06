@@ -1,8 +1,10 @@
 #include "config.h"
+#include "utility.h"
 #include <string.h>
 #include <assert.h>
 #define token_buf_size 1024
-const byte seps[]={' ','\t','\r','\n'};
+static const byte seps[]={' ','\t','\r','\n'};
+static const byte spec_token_ch[]={'_','-','.','/',};
 struct token_set
 {
 	bool alphabet[256];
@@ -34,8 +36,8 @@ bool trim_space(byte c)
 }
 bool trim_token(byte c)
 {
-	static token_set ts;
-	return ts.alphabet[(int)c];
+	static spec_char_verifier ts(spec_token_ch,sizeof(spec_token_ch)/sizeof(byte),true);
+	return ts.is_spec(c);
 }
 bool trim_string(byte c)
 {
@@ -139,6 +141,8 @@ static int parse_config_text(const byte* buf,int size,
 					buf++,size--;
 					if(size>0)
 					{
+						if((ptoken-token_buf)+1>token_buf_size)
+							return ERR_BUFFER_OVERFLOW;
 						*ptoken=*buf;
 						ptoken++;
 						buf++,size--;

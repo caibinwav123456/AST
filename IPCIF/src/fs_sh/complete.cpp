@@ -11,26 +11,8 @@
 #define MAX_FLIST_CHAR 80
 #define MAX_NUM_FLIST 8
 
-static const char spec_file_char[]={' ',';','@','|','<','>','`','^','!','?','\"','\'',
+static const byte spec_file_char[]={' ',';','@','|','<','>','`','^','!','?','\"','\'',
 	'(',')','[',']','$','\\','&'};
-struct spec_fchar_verifier
-{
-	bool alphabet[128];
-	spec_fchar_verifier()
-	{
-		memset(alphabet,0,128*sizeof(bool));
-		for(int i=0;i<(int)(sizeof(spec_file_char)/sizeof(char));i++)
-			alphabet[(uint)(uchar)spec_file_char[i]]=true;
-	}
-	bool is_spec(char c)
-	{
-		int i=(int)c;
-		if(i<0||i>=128)
-			return true;
-		else
-			return alphabet[i];
-	}
-};
 struct sort_rec
 {
 	string* file;
@@ -41,7 +23,7 @@ static bool less_rec(const sort_rec& a,const sort_rec& b)
 }
 char need_quote(const string& file)
 {
-	static spec_fchar_verifier vrf;
+	static spec_char_verifier vrf(spec_file_char,sizeof(spec_file_char)/sizeof(byte),false,true);
 	bool need=false;
 	for(const char* p=file.c_str();*p!=0;p++)
 	{

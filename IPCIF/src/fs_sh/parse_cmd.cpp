@@ -6,33 +6,6 @@
 static const byte seps[]={' ','\t','\r','\n'};
 static const byte spec_char[]={'_','-','+','.',',','/','{','}','~',':','#','%','*','@'};
 static const byte spec_sym[]={'|','<','>'};
-struct token_set
-{
-	bool alphabet[256];
-	token_set(const byte* ch,uint nch,bool balphanum=false)
-	{
-		memset(alphabet,0,256*sizeof(bool));
-		if(balphanum)
-		{
-			for(int i=(int)'a';i<=(int)'z';i++)
-				alphabet[i]=true;
-			for(int i=(int)'A';i<=(int)'Z';i++)
-				alphabet[i]=true;
-			for(int i=(int)'0';i<=(int)'9';i++)
-				alphabet[i]=true;
-		}
-		for(int i=0;i<(int)nch;i++)
-			alphabet[(int)ch[i]]=true;
-	}
-	bool is_ch_token(byte c)
-	{
-		int i=(int)c;
-		if(i<0||i>=128)
-			return true;
-		else
-			return alphabet[i];
-	}
-};
 struct quote_data
 {
 	byte quote;
@@ -50,14 +23,14 @@ static bool trim_space(byte c,void* param)
 }
 static bool trim_token(byte c,void* param)
 {
-	static token_set ts(spec_char,sizeof(spec_char)/sizeof(byte),true);
-	return ts.is_ch_token(c);
+	static spec_char_verifier ts(spec_char,sizeof(spec_char)/sizeof(byte),true,true);
+	return ts.is_spec(c);
 }
 #define is_spec_sym(c) trim_sym(c,NULL)
 static bool trim_sym(byte c,void* param)
 {
-	static token_set ts(spec_sym,sizeof(spec_sym)/sizeof(byte));
-	return ts.is_ch_token(c);
+	static spec_char_verifier ts(spec_sym,sizeof(spec_sym)/sizeof(byte),false,true);
+	return ts.is_spec(c);
 }
 static bool trim_string(byte c,void* param)
 {
@@ -122,8 +95,23 @@ static int parse_string(const byte* &buf,int& size,byte* token_buf,byte quote,st
 			buf++,size--;
 			if(size>0)
 			{
-				*ptoken=*buf;
-				ptoken++;
+				byte esc_sym[2];
+				int esc_size;
+				if(*buf==quote)
+				{
+					esc_sym[0]=quote;
+					esc_size=1;
+				}
+				else
+				{
+					esc_sym[0]='\\';
+					esc_sym[1]=*buf;
+					esc_size=2;
+				}
+				if((ptoken-token_buf)+esc_size>token_buf_size)
+					return ERR_BUFFER_OVERFLOW;
+				memcpy(ptoken,esc_sym,esc_size);
+				ptoken+=esc_size;
 				buf++,size--;
 				pbuf=buf,psize=size;
 			}
