@@ -20,6 +20,13 @@ DEFINE_FLOAT_VAL(eg_fl,0);
 DEFINE_DOUBLE_VAL(eg_db,0);
 DEFINE_STRING_VAL(eg_str,"my");
 DEFINE_SIZE_VAL(eg_size,0);
+DEFINE_SIZE_VAL(min_test_file_size,1024*1024);
+DEFINE_SIZE_VAL(max_test_file_size,5*1024*1024);
+DEFINE_STRING_VAL(test_src_raw_path,"");
+DEFINE_STRING_VAL(test_dst_raw_path,"");
+DEFINE_STRING_VAL(test_src_fs_path,"");
+DEFINE_STRING_VAL(test_dst_fs_path,"");
+DEFINE_UINT_VAL(test_copy_seg,1024);
 void testfile()
 {
 	int ret=sys_mkdir("D:\\unit_test\\");
@@ -85,6 +92,248 @@ void test_fs()
 	ret=fs_delete("sto0:");
 	handle=fs_open("/",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
 	handle=fs_open("sto1:",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
+	fsc_exit();
+}
+bool load_uint(uint& t)
+{
+	void* h=sys_fopen("seed.bin",FILE_OPEN_EXISTING|FILE_READ);
+	if(!VALID(h))
+		return false;
+	uint rdlen=0;
+	if(0!=sys_fread(h,&t,4,&rdlen)||rdlen!=4)
+	{
+		sys_fclose(h);
+		return false;
+	}
+	sys_fclose(h);
+	return true;
+}
+void save_uint(uint t)
+{
+	void* h=sys_fopen("seed.bin",FILE_CREATE_ALWAYS|FILE_WRITE);
+	if(!VALID(h))
+		return;
+	uint wrlen=0;
+	if(0!=sys_fwrite(h,&t,4,&wrlen)||wrlen!=4)
+	{
+		sys_fclose(h);
+		return;
+	}
+	sys_fclose(h);
+}
+#define get_rand_range(r) ((uint)(((float)rand()/(RAND_MAX+1))*(r)))
+bool generate_test_file(uint& test_size)
+{
+	if(min_test_file_size<1024)
+		min_test_file_size=1024;
+	if(max_test_file_size>10*1024*1024)
+		max_test_file_size=10*1024*1024;
+	bool ret=true;
+	uint test_file_size=min_test_file_size
+		+get_rand_range(max_test_file_size-min_test_file_size);
+	uint wrlen=0;
+	byte* buf=new byte[test_file_size];
+	for(int i=0;i<(int)test_file_size;i++)
+	{
+		byte bt=(byte)(rand()&0xff);
+		buf[i]=bt;
+	}
+	void* h=sys_fopen((char*)test_src_raw_path.c_str(),FILE_CREATE_ALWAYS|FILE_WRITE);
+	if(!VALID(h))
+	{
+		ret=false;
+		goto end;
+	}
+	if(0!=sys_fwrite(h,buf,test_file_size,&wrlen)||wrlen!=test_file_size)
+	{
+		ret=false;
+		goto end2;
+	}
+end2:
+	sys_fclose(h);
+end:
+	delete[] buf;
+	if(ret)
+		test_size=test_file_size;
+	return ret;
+}
+#define safe_close_fs_file(h) if(VALID(h))fs_perm_close(h);
+template<class T>
+void shuffle(T* arr, int n)
+{
+	for(int i=0;i<n-1;i++)
+	{
+		uint pos=get_rand_range(n-i);
+		if(pos>0)
+			swap(arr[i],arr[i+pos]);
+	}
+}
+struct seg_rec
+{
+	uint off;
+	uint len;
+};
+int comp_seg(void const* p1,void const* p2)
+{
+	seg_rec* s1=(seg_rec*)p1;
+	seg_rec* s2=(seg_rec*)p2;
+	if(s1->off<s2->off)
+		return -1;
+	else if(s1->off==s2->off)
+		return 0;
+	else
+		return 1;
+}
+bool copy_test_file(uint test_size)
+{
+	if(test_copy_seg<test_size/32)
+		test_copy_seg=test_size/32;
+	if(test_copy_seg>test_size)
+		test_copy_seg=test_size;
+	bool ret=true;
+	uint* offs=new uint[test_size];
+	for(int i=0;i<(int)test_size;i++)
+	{
+		offs[i]=i;
+	}
+	seg_rec* rec=new seg_rec[test_copy_seg];
+	int n=test_size;
+	for(int i=0;i<(int)test_copy_seg;i++)
+	{
+		uint pos;
+		pos=(i==0?0:get_rand_range(n));
+		rec[i].off=offs[pos];
+		if(pos!=n-1)
+			offs[pos]=offs[n-1];
+		n--;
+	}
+	qsort(rec,test_copy_seg,sizeof(seg_rec),comp_seg);
+	for(int i=0;i<(int)test_copy_seg;i++)
+	{
+		if(i==test_copy_seg-1)
+		{
+			rec[i].len=test_size-rec[i].off;
+			break;
+		}
+		rec[i].len=rec[i+1].off-rec[i].off;
+	}
+	uint buf_len=0,rdlen=0,wrlen=0;
+	shuffle(rec,test_copy_seg);
+	for(int i=0;i<(int)test_copy_seg;i++)
+	{
+		if(buf_len<rec[i].len)
+			buf_len=rec[i].len;
+	}
+	byte* buf=new byte[buf_len];
+	void* hfile=fs_open((char*)test_src_fs_path.c_str(),FILE_OPEN_EXISTING|FILE_READ);
+	void* hfiled=fs_open((char*)test_dst_fs_path.c_str(),FILE_CREATE_ALWAYS|FILE_WRITE);
+	if(!VALID(hfile)||!VALID(hfiled))
+	{
+		ret=false;
+		goto end;
+	}
+	for(int i=0;i<(int)test_copy_seg;i++)
+	{
+		fs_seek(hfile,SEEK_BEGIN,rec[i].off);
+		if(0!=fs_read(hfile,buf,rec[i].len,&rdlen)||rdlen!=rec[i].len)
+		{
+			ret=false;
+			goto end;
+		}
+		fs_seek(hfiled,SEEK_BEGIN,rec[i].off);
+		if(0!=fs_write(hfiled,buf,rec[i].len,&wrlen)||wrlen!=rec[i].len)
+		{
+			ret=false;
+			goto end;
+		}
+	}
+end:
+	safe_close_fs_file(hfile);
+	safe_close_fs_file(hfiled);
+	delete[] buf;
+	delete[] rec;
+	return ret;
+}
+bool compare_raw_file()
+{
+	bool ret=true;
+	void* hsrc=sys_fopen((char*)test_src_raw_path.c_str(),FILE_OPEN_EXISTING|FILE_READ);
+	void* hdst=sys_fopen((char*)test_dst_raw_path.c_str(),FILE_OPEN_EXISTING|FILE_READ);
+	if(!VALID(hsrc)||!VALID(hdst))
+	{
+		ret=false;
+		goto end;
+	}
+	uint rdlen=0;
+	dword lsrc=0,ldst=0;
+	if(0!=sys_get_file_size(hsrc,&lsrc)||0!=sys_get_file_size(hdst,&ldst))
+	{
+		ret=false;
+		goto end;
+	}
+	if(lsrc!=ldst)
+	{
+		ret=false;
+		goto end;
+	}
+	uint fs_size=lsrc;
+	byte* bufsrc=new byte[fs_size];
+	byte* bufdst=new byte[fs_size];
+	if((0!=sys_fread(hsrc,bufsrc,fs_size,&rdlen)||rdlen!=fs_size)
+		||(0!=sys_fread(hdst,bufdst,fs_size,&rdlen)||rdlen!=fs_size))
+	{
+		ret=false;
+		goto end2;
+	}
+	if(memcmp(bufsrc,bufdst,fs_size)!=0)
+	{
+		ret=false;
+		goto end2;
+	}
+end2:
+	delete[] bufsrc;
+	delete[] bufdst;
+end:
+	if(VALID(hsrc))
+		sys_fclose(hsrc);
+	if(VALID(hdst))
+		sys_fclose(hdst);
+	return ret;
+}
+void test_fs_io()
+{
+	int ret=0;
+	void* handle=0;
+	if(!check_instance_exist())
+		return;
+	if(0!=(ret=fsc_init(4,2048,NULL,&reqrslvr)))
+		return;
+	uint seed=0;
+	bool bloaded=load_uint(seed);
+	if(!bloaded)
+		seed=(uint)time(NULL);
+	srand(seed);
+	uint test_file_size=0;
+	if(!generate_test_file(test_file_size))
+	{
+		ret=ERR_GENERIC;
+		sys_show_message("generate_test_file failed!");
+		goto end;
+	}
+	if(!copy_test_file(test_file_size))
+	{
+		ret=ERR_GENERIC;
+		sys_show_message("copy_test_file failed!");
+		goto end;
+	}
+	if(!compare_raw_file())
+	{
+		sys_show_message("test_fs_io failed!");
+		ret=ERR_GENERIC;
+	}
+end:
+	if(ret!=0&&!bloaded)
+		save_uint(seed);
 	fsc_exit();
 }
 void test_read()
@@ -539,6 +788,7 @@ int _tmain(int argc, TCHAR** argv)
 		return ret;
 	//printf("%d\n",ERR_GENERIC);
 	//test_fs();
+	//test_fs_io();
 	//testfile();
 	//test_read();
 	//testtime();
