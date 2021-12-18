@@ -207,6 +207,7 @@ bool copy_test_file(uint test_size)
 			offs[pos]=offs[n-1];
 		n--;
 	}
+	delete[] offs;
 	qsort(rec,test_copy_seg,sizeof(seg_rec),comp_seg);
 	for(int i=0;i<(int)test_copy_seg;i++)
 	{
