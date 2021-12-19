@@ -1,0 +1,16 @@
+1.独立出fs_sh_test                                                                  :ok
+2.request_if_no_reset增加reset_callback和stat_return，返回retry count信息           :ok
+3.完成cmd注释帮助                                                                   :ok
+
+4.更新ERR_GENERIC/ERR_FILE_IO，细化错误分类                                         :ok
+5.git合并master/ASTLinux分支，通过pull request                                      :ok
+6.测试fs随机读写                                                                    :ok
+(可选)增加traverse目录树遍历，不限于copy和delete功能
+(可选)sys_set_file_size回撤文件指针                                                 :ok
+(可选)增加windows下获取同名进程的命令行参数以区分进程的功能
+(可选)增加通配符全面配置功能(?代表一个字符，*代表0个或任意个字符)
+(可选)把alphabet归并到common:utility中                                              :ok
+
+7.环境变量:固实整体/非固实整体，内部无跳脱，边缘密接
+8.测试应用新的path_cache
+9.ipcif_note上的两部分记载更新
