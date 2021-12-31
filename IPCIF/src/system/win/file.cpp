@@ -6,7 +6,7 @@ using namespace std;
 
 void* sys_fopen(char* pathname, dword flags)
 {
-	dword rdwr=0,dispose=0,attr=0,share=FILE_SHARE_READ;
+	DWORD rdwr=0,dispose=0,attr=0,share=FILE_SHARE_READ;
 	if(flags&FILE_READ)
 	{
 		rdwr|=GENERIC_READ;
