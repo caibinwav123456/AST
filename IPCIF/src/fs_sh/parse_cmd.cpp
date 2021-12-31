@@ -119,6 +119,23 @@ static int parse_string(const byte* &buf,int& size,byte* token_buf,byte quote,st
 	}
 	if(size==0)
 		return ERR_INVALID_CMD;
+	//handle the case '\\' is the last character of the string.
+	//in that case, a '+' is appended to the letter '\\'.
+	//for strings ending with "\\+[n]",the last trailing letter '+' will be eliminated.
+	uint l=strlen((const char*)token_buf);
+	bool plus=false;
+	for(const byte* p=token_buf+l-1;p>=token_buf;p--)
+	{
+		if(*p=='+')
+			plus=true;
+		else if(plus&&*p=='\\')
+		{
+			token_buf[l-1]=0;
+			break;
+		}
+		else
+			break;
+	}
 	str=(char*)token_buf;
 	buf++,size--;
 	return 0;

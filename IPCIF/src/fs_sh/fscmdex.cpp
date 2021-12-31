@@ -1,6 +1,7 @@
 #include "sh_cmd_fs.h"
 #include "sysfs.h"
 #include "path.h"
+#include "match.h"
 #include <string.h>
 #include <assert.h>
 #define t_cat_clean_priv(st_priv) cat_clean_priv(st_priv,__tp_buf__)
@@ -835,17 +836,22 @@ struct file_recurse_option
 	bool verbose;
 	bool force;
 	bool stop_at_error;
+	bool handle_dir;
+	bool handle_file;
 	file_recurse_option()
 	{
 		recur=false;
 		verbose=false;
 		force=false;
 		stop_at_error=false;
+		handle_dir=true;
+		handle_file=true;
 	}
 };
 struct file_recurse_st
 {
 	cmd_param_st* param;
+	CMatch* pmatch;
 	file_recurse_option option;
 	bool none_identical_root;
 	string src;
@@ -854,7 +860,7 @@ struct file_recurse_st
 	string fdest;
 	vector<file_recurse_ret> ret;
 	uint cmd_id;
-	file_recurse_st(cmd_param_st* _param,uint _cmd_id):param(_param),cmd_id(_cmd_id),none_identical_root(false){}
+	file_recurse_st(cmd_param_st* _param,uint _cmd_id):param(_param),pmatch(NULL),cmd_id(_cmd_id),none_identical_root(false){}
 };
 static int cb_fs_recurse_data(int recret,char* path,dword flags,void* rparam,char dsym)
 {
@@ -910,18 +916,39 @@ static int do_move(file_recurse_st& frecur)
 	if(frecur.fdest==frecur.fsrc)
 		return 0;
 	if(is_subpath(frecur.fdest,frecur.fsrc))
-		return_t_msg(ERR_NOT_AVAIL_ON_SUB_DIR,"cannot move a directory to its sub-directory\n");
+		SILENT_RET(ERR_NOT_AVAIL_ON_SUB_DIR,frecur.option.force,return_t_msg,"\'%s\': cannot move a directory to its sub-directory\n",frecur.fsrc.c_str());
 	if(!frecur.option.recur)
 	{
 		if(0!=(ret=fs_move((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()))))
-			return_t_msg(ret,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
+			SILENT_RET(ret,frecur.option.force,return_t_msg,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
 	}
 	else
 	{
-		if(0!=(ret=fs_recurse_copy((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()),NULL)))
-			return_t_msg(ret,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
-		if(0!=(ret=fs_recurse_delete((char*)(frecur.fsrc.c_str()),NULL)))
-			return_t_msg(ret,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
+		file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
+		if(frecur.option.verbose)
+		{
+			t_output("moving \'%s\' to non-identical device.\n",frecur.fsrc.c_str());
+			t_output("firstly, copy files to destination.\n");
+		}
+		frecur.cmd_id=CMD_ID_CP;
+		if(0!=(ret=fs_recurse_copy((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()),&cbdata)))
+		{
+			if(!frecur.option.force)
+				output_fsrecur_errors(&frecur,"\nError occured while copying files!\n\n");
+			frecur.cmd_id=CMD_ID_MV;
+			return ret;
+		}
+		if(frecur.option.verbose)
+			t_output("secondly, delete source files.\n");
+		frecur.cmd_id=CMD_ID_RM;
+		if(0!=(ret=fs_recurse_delete((char*)(frecur.fsrc.c_str()),&cbdata)))
+		{
+			if(!frecur.option.force)
+				output_fsrecur_errors(&frecur,"\nError occured while deleting files!\n\n");
+			frecur.cmd_id=CMD_ID_MV;
+			return ret;
+		}
+		frecur.cmd_id=CMD_ID_MV;
 	}
 	return 0;
 }
@@ -993,6 +1020,10 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 	file_recurse_st* rec=(file_recurse_st*)rparam;
 	rec->fsrc=rec->src+"/"+path;
 	rec->ret.clear();
+	if((rec->pmatch!=NULL&&!rec->pmatch->Match(path))
+		||((!rec->option.handle_dir)&&flags==FILE_TYPE_DIR)
+		||((!rec->option.handle_file)&&flags==FILE_TYPE_NORMAL))
+		return 0;
 	switch(rec->cmd_id)
 	{
 	case CMD_ID_MV:
@@ -1010,32 +1041,87 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 	}
 	return 0;
 }
+static inline int init_match(CMatch& match,string& path,bool& wildcard)
+{
+	int ret=0;
+	int pos=path.rfind("/");
+	if(0!=(ret=match.Compile(pos==string::npos?path:path.substr(pos+1),&wildcard)))
+		return ret;
+	if(wildcard)
+		path=(pos==string::npos?"":path.substr(0,pos));
+	return 0;
+}
 static int mv_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
-	if(args.size()!=3)
-		return_t_msg(ERR_INVALID_PARAM,"\'%s\': command must take 2 parameters\n",cmd.c_str());
-	for(int i=1;i<3;i++)
-	{
-		if(!args[i].second.empty())
-			return_t_msg(ERR_INVALID_PARAM,"\'%s=%s\': invalid command parameter\n",args[i].first.c_str(),args[i].second.c_str());
-	}
+	int pcnt=0;
+	bool error=false;
 	file_recurse_st frecur(param,CMD_ID_MV);
-	frecur.src=args[1].first;
-	frecur.dest=args[2].first;
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(arg.first.empty())
+			continue;
+		if(!arg.second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"the option \'%s=%s\' is invalid\n",arg.first.c_str(),arg.second.c_str());
+		if(arg.first[0]=='-')
+		{
+			for(int i=1;i<(int)arg.first.size();i++)
+			{
+				switch(arg.first[i])
+				{
+				case 'v':
+					frecur.option.verbose=true;
+					frecur.option.force=false;
+					break;
+				case 'f':
+					if(!frecur.option.verbose)
+						frecur.option.force=true;
+					break;
+				case 's':
+					frecur.option.stop_at_error=true;
+					break;
+				case 'd':
+					frecur.option.handle_file=false;
+					break;
+				case 'n':
+					frecur.option.handle_dir=false;
+					break;
+				default:
+					return_t_msg(ERR_INVALID_PARAM,"the option \'%s\' is invalid\n",arg.first.c_str());
+				}
+			}
+			continue;
+		}
+		pcnt++;
+		switch(pcnt)
+		{
+		case 1:
+			frecur.src=arg.first;
+			break;
+		case 2:
+			frecur.dest=arg.first;
+			break;
+		default:
+			error=true;
+			break;
+		}
+		if(error)
+			break;
+	}
+	pcnt!=2?error=true:0;
+	if(error)
+		return_t_msg(ERR_INVALID_PARAM,"path count not equal to 2\n");
+	if(!(frecur.option.handle_dir||frecur.option.handle_file))
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used together\n");
 	int ret=0;
 	string w_src;
 	bool wildcard=false;
-	if(frecur.src=="*")
-	{
-		wildcard=true;
-		frecur.src="";
-	}
-	else if(frecur.src.size()>=2&&frecur.src.substr(frecur.src.size()-2)=="/*")
-	{
-		wildcard=true;
-		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
-	}
+	CMatch match;
+	if(0!=(ret=init_match(match,frecur.src,wildcard)))
+		return_t_msg(ret,"\'%s\': %s\n",frecur.src.c_str(),get_error_desc(ret));
+	if(wildcard)
+		frecur.pmatch=&match;
 	dword flags=0;
 	if(0!=(ret=check_path(frecur.param,frecur.src,frecur.fsrc,false,&flags)))
 		return ret;
@@ -1060,9 +1146,10 @@ static int mv_handler(cmd_param_st* param)
 }
 DEF_SH_CMD(mv,mv_handler,
 	"move a file or a directory to a new path.",
-	"Format:\n\tmv (source-path) (destination-path)\n"
+	"Format:\n\tmv [options] (source-path) (destination-path)\n"
 	"The mv command moves the file/directory of source-path to destination-path.\n"
-	"Wildcard symbol \'*\' can be used to replace any sub-path of one parent directory in source path "
+	"Wildcard symbol \'*\' can be used as placeholder for 0~any character(s), "
+	"\'?\' can be used as placeholder for exactly 1 character in the last section of source path "
 	"and move them all to the destination path.\n"
 	"The source path must exist.\n"
 	"If the destination path does not exist, the source path will be moved to that path.\n"
@@ -1071,6 +1158,17 @@ DEF_SH_CMD(mv,mv_handler,
 	"A directory can not be moved to its sub-path because it causes infinite recursion.\n"
 	"The root directory of any device can not be used as source or destination path.\n"
 	"A mv command that moves a path to its identical path will successfully return and cause no effects.\n"
+	"Options:\n"
+	"-v\n"
+	"\tVerbose. Display detailed information of copy process and errors, overrides -f.\n"
+	"-f\n"
+	"\tForce. Ignore and do not display error information.\n"
+	"-s\n"
+	"\tStop at first error. With this option, copy process will stop immediately when an error is encountered.\n"
+	"-d\n"
+	"\tOnly process directories, for path with wildcard symbols.\n"
+	"-n\n"
+	"\tOnly process normal files, for path with wildcard symbols.\n"
 );
 static int cp_handler(cmd_param_st* param)
 {
@@ -1106,6 +1204,12 @@ static int cp_handler(cmd_param_st* param)
 				case 's':
 					frecur.option.stop_at_error=true;
 					break;
+				case 'd':
+					frecur.option.handle_file=false;
+					break;
+				case 'n':
+					frecur.option.handle_dir=false;
+					break;
 				default:
 					return_t_msg(ERR_INVALID_PARAM,"the option \'%s\' is invalid\n",arg.first.c_str());
 				}
@@ -1131,19 +1235,16 @@ static int cp_handler(cmd_param_st* param)
 	pcnt!=2?error=true:0;
 	if(error)
 		return_t_msg(ERR_INVALID_PARAM,"path count not equal to 2\n");
+	if(!(frecur.option.handle_dir||frecur.option.handle_file))
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used together\n");
 	int ret=0;
 	string w_src;
 	bool wildcard=false;
-	if(frecur.src=="*")
-	{
-		wildcard=true;
-		frecur.src="";
-	}
-	else if(frecur.src.size()>=2&&frecur.src.substr(frecur.src.size()-2)=="/*")
-	{
-		wildcard=true;
-		frecur.src=frecur.src.substr(0,frecur.src.size()-2);
-	}
+	CMatch match;
+	if(0!=(ret=init_match(match,frecur.src,wildcard)))
+		return_t_msg(ret,"\'%s\': %s\n",frecur.src.c_str(),get_error_desc(ret));
+	if(wildcard)
+		frecur.pmatch=&match;
 	dword flags=0;
 	if(0!=(ret=check_path(frecur.param,frecur.src,frecur.fsrc,frecur.option.force,&flags)))
 		return ret;
@@ -1162,7 +1263,8 @@ DEF_SH_CMD(cp,cp_handler,
 	"copy a file(or files) or a directory(or directories) to a new path.",
 	"Format:\n\tcp [options] (source-path) (destination-path)\n"
 	"The cp command copies the file/directory of source-path to destination-path, multiple options are supported.\n"
-	"Wildcard symbol \'*\' can be used to replace any sub-path of one parent directory in source path "
+	"Wildcard symbol \'*\' can be used as placeholder for 0~any character(s), "
+	"\'?\' can be used as placeholder for exactly 1 character in the last section of source path "
 	"and copy them all to the destination path.\n"
 	"The source path must exist.\n"
 	"If the destination path does not exist, the source path will be copied to that path.\n"
@@ -1181,6 +1283,10 @@ DEF_SH_CMD(cp,cp_handler,
 	"\tForce. Ignore and do not display error information.\n"
 	"-s\n"
 	"\tStop at first error. With this option, copy process will stop immediately when an error is encountered.\n"
+	"-d\n"
+	"\tOnly process directories, for path with wildcard symbols.\n"
+	"-n\n"
+	"\tOnly process normal files, for path with wildcard symbols.\n"
 );
 static int rm_handler(cmd_param_st* param)
 {
@@ -1215,6 +1321,12 @@ static int rm_handler(cmd_param_st* param)
 				case 's':
 					frecur.option.stop_at_error=true;
 					break;
+				case 'd':
+					frecur.option.handle_file=false;
+					break;
+				case 'n':
+					frecur.option.handle_dir=false;
+					break;
 				default:
 					return_t_msg(ERR_INVALID_PARAM,"the option \'%s\' is invalid\n",arg.first.c_str());
 				}
@@ -1225,6 +1337,8 @@ static int rm_handler(cmd_param_st* param)
 			vfiles.push_back(arg.first);
 		}
 	}
+	if(!(frecur.option.handle_dir||frecur.option.handle_file))
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used together\n");
 	int ret=0;
 	for(int i=0;i<(int)vfiles.size();i++)
 	{
@@ -1232,16 +1346,11 @@ static int rm_handler(cmd_param_st* param)
 		string w_path;
 		bool wildcard=false;
 		string& curfile=vfiles[i];
-		if(curfile=="*")
-		{
-			wildcard=true;
-			curfile="";
-		}
-		else if(curfile.size()>=2&&curfile.substr(curfile.size()-2)=="/*")
-		{
-			wildcard=true;
-			curfile=curfile.substr(0,curfile.size()-2);
-		}
+		CMatch match;
+		if(0!=(ret=init_match(match,curfile,wildcard)))
+			return_t_msg(ret,"\'%s\': %s\n",curfile.c_str(),get_error_desc(ret));
+		if(wildcard)
+			frecur.pmatch=&match;
 		if(0!=(retc=check_path(frecur.param,curfile,frecur.fsrc,frecur.option.force)))
 		{
 			ret=retc;
@@ -1260,7 +1369,9 @@ DEF_SH_CMD(rm,rm_handler,
 	"remove a file(or files) or a directory(or directories).",
 	"Format:\n\trm [options] (path1) (path2) ...\n"
 	"The rm command deletes the file/directory of paths listed in the path list, multiple options are supported.\n"
-	"Wildcard symbol \'*\' can be used to replace any sub-path of one parent directory in path list and delete them all.\n"
+	"Wildcard symbol \'*\' can be used as placeholder for 0~any character(s), "
+	"\'?\' can be used as placeholder for exactly 1 character in the last section of source path "
+	"and delete them all.\n"
 	"If a path does not exist, the command will return with no effects.\n"
 	"The root directory of any device can not be deleted.\n"
 	"Options:\n"
@@ -1273,6 +1384,10 @@ DEF_SH_CMD(rm,rm_handler,
 	"\tForce. Ignore and do not display error information.\n"
 	"-s\n"
 	"\tStop at first error. With this option, deleting process will stop immediately when an error is encountered.\n"
+	"-d\n"
+	"\tOnly process directories, for path with wildcard symbols.\n"
+	"-n\n"
+	"\tOnly process normal files, for path with wildcard symbols.\n"
 );
 static int mkdir_handler(cmd_param_st* param)
 {
