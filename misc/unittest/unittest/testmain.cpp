@@ -15,6 +15,7 @@
 #include "mutex.h"
 #include "pipe.h"
 #include "sysfs.h"
+#include "match.h"
 using namespace std;
 DEFINE_FLOAT_VAL(eg_fl,0);
 DEFINE_DOUBLE_VAL(eg_db,0);
@@ -336,6 +337,14 @@ end:
 	if(ret!=0&&!bloaded)
 		save_uint(seed);
 	fsc_exit();
+}
+void test_match()
+{
+	int ret=0;
+	CMatch match;
+	if(0!=(ret=match.Compile("\\*.?op*.k\\??")))
+		return;
+	bool b=match.Match("*.so1p.k?");
 }
 void test_read()
 {
@@ -790,6 +799,7 @@ int _tmain(int argc, TCHAR** argv)
 	//printf("%d\n",ERR_GENERIC);
 	//test_fs();
 	//test_fs_io();
+	//test_match();
 	//testfile();
 	//test_read();
 	//testtime();

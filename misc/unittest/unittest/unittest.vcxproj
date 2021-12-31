@@ -100,7 +100,7 @@
       <AdditionalDependencies>syswin.lib;interface.lib;common.lib;sysfs.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(ProjectDir)config_test.cfg $(SolutionDir)..\..\..\bin\$(Configuration)\config.cfg /Y</Command>
+      <Command>copy $(ProjectDir)config_$(Configuration)\config_test.cfg $(SolutionDir)..\..\..\bin\$(Configuration)\config.cfg /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -119,7 +119,7 @@
       <AdditionalDependencies>syswin.lib;interface.lib;common.lib;sysfs.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(ProjectDir)config_test.cfg $(SolutionDir)..\..\..\bin\$(Platform)\$(Configuration)\config.cfg /Y</Command>
+      <Command>copy $(ProjectDir)config_$(Platform)\$(Configuration)\config_test.cfg $(SolutionDir)..\..\..\bin\$(Platform)\$(Configuration)\config.cfg /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -142,7 +142,7 @@
       <AdditionalDependencies>syswin.lib;interface.lib;common.lib;sysfs.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(ProjectDir)config_test.cfg $(SolutionDir)..\..\..\bin\$(Configuration)\config.cfg /Y</Command>
+      <Command>copy $(ProjectDir)config_$(Configuration)\config_test.cfg $(SolutionDir)..\..\..\bin\$(Configuration)\config.cfg /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -165,7 +165,7 @@
       <AdditionalDependencies>syswin.lib;interface.lib;common.lib;sysfs.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(ProjectDir)config_test.cfg $(SolutionDir)..\..\..\bin\$(Platform)\$(Configuration)\config.cfg /Y</Command>
+      <Command>copy $(ProjectDir)config_$(Platform)\$(Configuration)\config_test.cfg $(SolutionDir)..\..\..\bin\$(Platform)\$(Configuration)\config.cfg /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
