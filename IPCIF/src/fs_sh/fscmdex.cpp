@@ -927,8 +927,10 @@ static int do_move(file_recurse_st& frecur)
 		file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 		if(frecur.option.verbose)
 		{
-			t_output("moving \'%s\' to non-identical device.\n",frecur.fsrc.c_str());
-			t_output("firstly, copy files to destination.\n");
+			ts_output("\nmoving \'");
+			ts_output(frecur.fsrc.c_str());
+			ts_output("\' to non-identical device:\n\n");
+			ts_output("firstly, copy files to destination.\n");
 		}
 		frecur.cmd_id=CMD_ID_CP;
 		if(0!=(ret=fs_recurse_copy((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()),&cbdata)))
@@ -939,7 +941,7 @@ static int do_move(file_recurse_st& frecur)
 			return ret;
 		}
 		if(frecur.option.verbose)
-			t_output("secondly, delete source files.\n");
+			ts_output("secondly, delete source files.\n");
 		frecur.cmd_id=CMD_ID_RM;
 		if(0!=(ret=fs_recurse_delete((char*)(frecur.fsrc.c_str()),&cbdata)))
 		{
