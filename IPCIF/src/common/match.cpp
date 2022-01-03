@@ -70,16 +70,27 @@ bool CMatch::Match(const string& str_for_match)
 	for(int i=0;i<=(int)compiled_array.size();i++)
 	{
 		bool last=(i==(int)compiled_array.size());
+		uint offset;
 		const MatchItem& item=(last?dummy:compiled_array[i]);
+		switch(prev_sym)
+		{
+		case WC_NONE:
+		case WC_ANY_CHAR:
+			offset=0;
+			break;
+		case WC_ONE_CHAR:
+			offset=1;
+			break;
+		default:
+			return false;
+		}
+		pos+=offset;
 		uint next_pos=(last?str_for_match.size():str_for_match.find(item.str_seg,pos));
 		switch(prev_sym)
 		{
 		case WC_NONE:
-			if(next_pos!=pos)
-				return false;
-			break;
 		case WC_ONE_CHAR:
-			if(next_pos!=pos+1)
+			if(next_pos!=pos)
 				return false;
 			break;
 		case WC_ANY_CHAR:
