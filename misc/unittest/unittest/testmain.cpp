@@ -342,9 +342,19 @@ void test_match()
 {
 	int ret=0;
 	CMatch match;
+	bool b=false;
 	if(0!=(ret=match.Compile("\\*.?op*.k\\??")))
 		return;
-	bool b=match.Match("*.so1p.k?");
+	b=match.Match("*.so1p.k?");
+	if(0!=(ret=match.Compile("\\*.?op*.k??")))
+		return;
+	b=match.Match("*.sop.k?:");
+	if(0!=(ret=match.Compile("opk")))
+		return;
+	b=match.Match("opk");
+	if(0!=(ret=match.Compile("opk??")))
+		return;
+	b=match.Match("opk");
 }
 void test_read()
 {
