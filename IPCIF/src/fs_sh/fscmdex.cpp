@@ -251,7 +251,7 @@ DEF_SH_PRED_CMD(cat,cat_handler,cat_pred_handler,
 	"--sec=[start]:[length]\n"
 	"\tThis option specifies the content range in count of bytes to output, "
 	"the start and length values must be both within signed 64-bit binary integers, "
-	"and can be either decimal or heximal, with heximal values prefixed by \'0x\'.\n"
+	"and can be either decimal or hexadecimal, with hexadecimal values prefixed by \'0x\'.\n"
 	"The start and length values may be ignored, when ignored, start defaults to 0, "
 	"and the output length defaults to extend to the end of the file.\n"
 	"-e\n"
@@ -412,10 +412,10 @@ DEF_SH_PRED_CMD(write,write_handler,write_pred_handler,
 	"--off=[start-offset]\n"
 	"\tThis option specifies the offset in count of bytes to start writing. "
 	"The start-offset value must be within a signed 64-bit binary integer, "
-	"and can be either decimal or heximal, when using a heximal value, it should be prefixed by \'0x\'.\n"
+	"and can be either decimal or hexadecimal, when using a hexadecimal value, it should be prefixed by \'0x\'.\n"
 	"The start-offset value may be ignored, when ignored, it defaults to 0.\n"
 	"-n\n"
-	"\tUse this option to prohibit report after a successfull write of data.\n"
+	"\tUse this option to prohibit report after a successful write of data.\n"
 );
 static int hex_pred_handler(cmd_param_st* param)
 {
@@ -742,13 +742,13 @@ struct st_inner_path
 	static string get_root(const char* path)
 	{
 		const char* pstr=strchr(path,'/');
-		return pstr==NULL?"":string(path).substr(0,pstr-path);
+		return pstr==NULL?path:string(path).substr(0,pstr-path);
 	}
 };
-#define SILENT_RET(ret,bsilent,R,...) \
+#define SILENT_RET(ret,bsilent,R,msg,...) \
 	{if(!(bsilent)) \
 	{ \
-		R(ret,##__VA_ARGS__); \
+		R(ret,(msg),##__VA_ARGS__); \
 	} \
 	else \
 	{ \
@@ -785,11 +785,6 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,bo
 		{
 			string root1=st_inner_path::get_root(inner->inner),
 				root2=st_inner_path::get_root(fullpath.c_str());
-			if(root1.empty()||root2.empty())
-			{
-				ret=ERR_NOT_AVAIL_ON_ROOT_DIR;
-				SILENT_RET(ret,no_output_msg,return_t_msg,"%s\n",get_error_desc(ret));
-			}
 			inner->none_identical_root=(root1!=root2);
 		}
 	}
@@ -919,8 +914,21 @@ static int do_move(file_recurse_st& frecur)
 		SILENT_RET(ERR_NOT_AVAIL_ON_SUB_DIR,frecur.option.force,return_t_msg,"\'%s\': cannot move a directory to its sub-directory\n",frecur.fsrc.c_str());
 	if(!frecur.option.recur)
 	{
+		if(frecur.option.verbose)
+		{
+			ts_output("\nmoving \'");
+			ts_output(frecur.fsrc.c_str());
+			ts_output("\' to \'");
+			ts_output(frecur.fdest.c_str());
+			ts_output("\'");
+		}
 		if(0!=(ret=fs_move((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()))))
+		{
+			if(frecur.option.verbose)
+				ts_output(" failed\n");
 			SILENT_RET(ret,frecur.option.force,return_t_msg,"\'%s\': %s\n",cmd.c_str(),get_error_desc(ret));
+		}
+		ts_output(" ok\n");
 	}
 	else
 	{
@@ -936,7 +944,7 @@ static int do_move(file_recurse_st& frecur)
 		if(0!=(ret=fs_recurse_copy((char*)(frecur.fsrc.c_str()),(char*)(frecur.fdest.c_str()),&cbdata)))
 		{
 			if(!frecur.option.force)
-				output_fsrecur_errors(&frecur,"\nError occured while copying files!\n\n");
+				output_fsrecur_errors(&frecur,"\nError occurred while copying files!\n\n");
 			frecur.cmd_id=CMD_ID_MV;
 			return ret;
 		}
@@ -946,7 +954,7 @@ static int do_move(file_recurse_st& frecur)
 		if(0!=(ret=fs_recurse_delete((char*)(frecur.fsrc.c_str()),&cbdata)))
 		{
 			if(!frecur.option.force)
-				output_fsrecur_errors(&frecur,"\nError occured while deleting files!\n\n");
+				output_fsrecur_errors(&frecur,"\nError occurred while deleting files!\n\n");
 			frecur.cmd_id=CMD_ID_MV;
 			return ret;
 		}
@@ -962,7 +970,6 @@ static int do_copy(file_recurse_st& frecur)
 		return 0;
 	if(is_subpath(frecur.fdest,frecur.fsrc))
 		SILENT_RET(ERR_NOT_AVAIL_ON_SUB_DIR,frecur.option.force,return_t_msg,"cannot copy a directory to its sub-directory\n");
-	file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 	if(!frecur.option.recur)
 	{
 		if(frecur.option.verbose)
@@ -982,9 +989,10 @@ static int do_copy(file_recurse_st& frecur)
 	}
 	else
 	{
+		file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 		ret=fs_recurse_copy((char*)frecur.fsrc.c_str(),(char*)frecur.fdest.c_str(),&cbdata);
 		if(!frecur.option.force)
-			output_fsrecur_errors(&frecur,"\nError occured while copying files!\n\n");
+			output_fsrecur_errors(&frecur,"\nError occurred while copying files!\n\n");
 	}
 	return ret;
 }
@@ -992,7 +1000,6 @@ static int do_delete(file_recurse_st& frecur)
 {
 	common_sh_args(frecur.param);
 	int ret=0;
-	file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 	if(!frecur.option.recur)
 	{
 		if(frecur.option.verbose)
@@ -1011,9 +1018,10 @@ static int do_delete(file_recurse_st& frecur)
 	}
 	else
 	{
+		file_recurse_cbdata cbdata={cb_fs_recurse_data,&frecur};
 		ret=fs_recurse_delete((char*)frecur.fsrc.c_str(),&cbdata);
 		if(!frecur.option.force)
-			output_fsrecur_errors(&frecur,"\nError occured while deleting files!\n\n");
+			output_fsrecur_errors(&frecur,"\nError occurred while deleting files!\n\n");
 	}
 	return ret;
 }
@@ -1115,7 +1123,7 @@ static int mv_handler(cmd_param_st* param)
 	if(error)
 		return_t_msg(ERR_INVALID_PARAM,"path count not equal to 2\n");
 	if(!(frecur.option.handle_dir||frecur.option.handle_file))
-		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used together\n");
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used simultaneously\n");
 	int ret=0;
 	string w_src;
 	bool wildcard=false;
@@ -1238,7 +1246,7 @@ static int cp_handler(cmd_param_st* param)
 	if(error)
 		return_t_msg(ERR_INVALID_PARAM,"path count not equal to 2\n");
 	if(!(frecur.option.handle_dir||frecur.option.handle_file))
-		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used together\n");
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used simultaneously\n");
 	int ret=0;
 	string w_src;
 	bool wildcard=false;
@@ -1340,7 +1348,7 @@ static int rm_handler(cmd_param_st* param)
 		}
 	}
 	if(!(frecur.option.handle_dir||frecur.option.handle_file))
-		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used together\n");
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used simultaneously\n");
 	int ret=0;
 	for(int i=0;i<(int)vfiles.size();i++)
 	{

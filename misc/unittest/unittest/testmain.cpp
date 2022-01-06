@@ -28,7 +28,23 @@ DEFINE_STRING_VAL(test_dst_raw_path,"");
 DEFINE_STRING_VAL(test_src_fs_path,"");
 DEFINE_STRING_VAL(test_dst_fs_path,"");
 DEFINE_UINT_VAL(test_copy_seg,1024);
-void testfile()
+
+DEFINE_BOOL_VAL(config_testfile,false);
+DEFINE_BOOL_VAL(config_test_fs,false);
+DEFINE_BOOL_VAL(config_test_fs_io,false);
+DEFINE_BOOL_VAL(config_test_match,false);
+DEFINE_BOOL_VAL(config_test_read,false);
+DEFINE_BOOL_VAL(config_testtime,false);
+DEFINE_BOOL_VAL(config_test_int64,false);
+DEFINE_BOOL_VAL(config_test_i64,false);
+DEFINE_BOOL_VAL(config_testBiRing,false);
+DEFINE_BOOL_VAL(config_testKeyTree,false);
+DEFINE_BOOL_VAL(config_testDllDrv,false);
+DEFINE_BOOL_VAL(config_test_gate,false);
+DEFINE_BOOL_VAL(config_testPipe,false);
+DEFINE_BOOL_VAL(config_test_fwrite,false);
+
+int testfile()
 {
 	int ret=sys_mkdir("D:\\unit_test\\");
 	ret=sys_mkdir("D:\\unit_test\\test1\\test2\\");
@@ -70,6 +86,8 @@ void testfile()
 
 	ret=sys_recurse_fcopy("D:\\unit_test\\","D:\\unit_test2\\",NULL);
 	ret=sys_recurse_fdelete("D:\\unit_test\\",NULL);
+
+	return 0;
 }
 static bool check_instance_exist()
 {
@@ -80,20 +98,21 @@ static bool check_instance_exist()
 	return true;
 }
 static RequestResolver reqrslvr;
-void test_fs()
+int test_fs()
 {
 	int ret=0;
 	void* handle=0;
 	if(!check_instance_exist())
-		return;
+		return ERR_GENERIC;
 	if(0!=(ret=fsc_init(4,2048,NULL,&reqrslvr)))
-		return;
+		return ret;
 	ret=fs_move("sto0:/","sto0:/xyz");
 	ret=fs_move("sto1:/disk1/","sto1:");
 	ret=fs_delete("sto0:");
 	handle=fs_open("/",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
 	handle=fs_open("sto1:",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
 	fsc_exit();
+	return 0;
 }
 bool load_uint(uint& t)
 {
@@ -302,14 +321,14 @@ end:
 		sys_fclose(hdst);
 	return ret;
 }
-void test_fs_io()
+int test_fs_io()
 {
 	int ret=0;
 	void* handle=0;
 	if(!check_instance_exist())
-		return;
+		return ERR_GENERIC;
 	if(0!=(ret=fsc_init(4,2048,NULL,&reqrslvr)))
-		return;
+		return ret;
 	uint seed=0;
 	bool bloaded=load_uint(seed);
 	if(!bloaded)
@@ -337,37 +356,40 @@ end:
 	if(ret!=0&&!bloaded)
 		save_uint(seed);
 	fsc_exit();
+	return ret;
 }
-void test_match()
+int test_match()
 {
 	int ret=0;
 	CMatch match;
 	bool b=false;
 	if(0!=(ret=match.Compile("\\*.?op*.k\\??")))
-		return;
+		return ret;
 	b=match.Match("*.so1p.k?");
 	if(0!=(ret=match.Compile("\\*.?op*.k??")))
-		return;
+		return ret;
 	b=match.Match("*.sop.k?:");
 	if(0!=(ret=match.Compile("opk")))
-		return;
+		return ret;
 	b=match.Match("opk");
 	if(0!=(ret=match.Compile("opk??")))
-		return;
+		return ret;
 	b=match.Match("opk");
+	return 0;
 }
-void test_read()
+int test_read()
 {
 	void* hFile=sys_fopen("test_read.txt",FILE_READ|FILE_OPEN_EXISTING);
 	if(!VALID(hFile))
-		return;
+		return ERR_OPEN_FILE_FAILED;
 	char buf[16];
 	memset(buf,0,sizeof(buf));
 	uint rdlen=0;
 	int ret=sys_fread(hFile,buf,9,&rdlen);
 	sys_fclose(hFile);
+	return ret;
 }
-void testtime()
+int testtime()
 {
 	printf("%d\n%d\n",(int)sizeof(DateTime),(int)sizeof(DateTimeWrap));
 	DateTime dt;
@@ -417,8 +439,9 @@ void testtime()
 			assert(sp==span);
 		}
 	}
+	return 0;
 }
-void test_int64(int k)
+int test_int64(int k)
 {
 	Integer64 int64_1(3*k),int64_2(-5*k);
 	UInteger64 uint64_1(2*k),uint64_2(-4*k);
@@ -444,6 +467,7 @@ void test_int64(int k)
 	u64.high=0x80f0a070;
 	u64.low=0xff789abc;
 	string str4=FormatI64(u64);
+	return 0;
 }
 uint rand_uint32(int neg)
 {
@@ -506,7 +530,7 @@ void unused_int64_func()
 	I64FromHex(s,int64_1);
 	I64FromHex(s,uint64_1);
 }
-void test_i64()
+int test_i64()
 {
 	UInteger64 uint1(-1);
 	Integer64 int1(-1),int2(1);
@@ -537,8 +561,9 @@ void test_i64()
 		assert(I64FromHex(s,is2));
 		assert(is==is2);
 	}
+	return 0;
 }
-void testBiRing()
+int testBiRing()
 {
 	BiRingNode<int> node;
 	BiRing<int> ring;
@@ -551,8 +576,9 @@ void testBiRing()
 	}
 	BiRingNode<int>* ptr=ring.GetNodeFromTail();
 	ptr=ring.GetNodeFromTail();
+	return 0;
 }
-void testKeyTree()
+int testKeyTree()
 {
 	KeyTree<string,char*> ktree("head");
 	ktree.get_t_ref()="head";
@@ -578,6 +604,7 @@ void testKeyTree()
 	{
 		printf("%s\n",it->t);
 	}
+	return 0;
 }
 int MountDev(pintf_fsdrv pintf,char* base,void** dev)
 {
@@ -706,7 +733,7 @@ int cb_thrd_msg_quit(void* param)
 	*(bool*)param=true;
 	return 0;
 }
-void test_gate()
+int test_gate()
 {
 	const uint nthrd=10;
 	bool quit=false;
@@ -737,6 +764,7 @@ void test_gate()
 		sys_wait_thread(st[i].hthrd);
 		sys_close_thread(st[i].hthrd);
 	}
+	return 0;
 }
 class TPipe
 {
@@ -781,7 +809,7 @@ int TPipe::thrd_func(void* param)
 	}
 	return 0;
 }
-void testPipe()
+int testPipe()
 {
 	Pipe pipe;
 	TPipe t(pipe);
@@ -791,8 +819,9 @@ void testPipe()
 	t.Feed("isa");
 	t.Feed("fool");
 	t.Term();
+	return 0;
 }
-void test_fwrite()
+int test_fwrite()
 {
 	char alpha[256];
 	for(int i=0;i<256;i++)
@@ -800,32 +829,32 @@ void test_fwrite()
 		alpha[i]=(char)i;
 	}
 	fwrite(alpha,256,1,stdout);
+	return 0;
 }
 int _tmain(int argc, TCHAR** argv)
 {
 	int ret=0;
 	if(0!=(ret=mainly_initial()))
 		return ret;
-	//printf("%d\n",ERR_GENERIC);
-	//test_fs();
-	//test_fs_io();
-	//test_match();
-	//testfile();
-	//test_read();
-	//testtime();
-	//test_int64(1);
-	//test_int64(-1);
-	//test_i64();
+	printf("%d\n",ERR_GENERIC);
 	//sys_create_process("notepad");
-	//testBiRing();
-	//testKeyTree();
-	//testDllDrv();
-	//test_gate();
-	//testPipe();
-	//test_fwrite();
+	config_testfile&&testfile();
+	config_test_fs&&test_fs();
+	config_test_fs_io&&test_fs_io();
+	config_test_match&&test_match();
+	config_test_read&&test_read();
+	config_testtime&&testtime();
+	config_test_int64&&(test_int64(1),test_int64(-1));
+	config_test_i64&&test_i64();
+	config_testBiRing&&testBiRing();
+	config_testKeyTree&&testKeyTree();
+	config_testDllDrv&&testDllDrv();
+	config_test_gate&&test_gate();
+	config_testPipe&&testPipe();
+	config_test_fwrite&&test_fwrite();
 	LOGFILE(0,log_ftype_info,"%s start OK",get_current_executable_name());
 	process_stat pstat;
-	init_process_stat(&pstat,"AstManager.exe");
+	init_process_stat(&pstat,"ASTManager.exe");
 	if_ids ifs;
 	pstat.ifs=&ifs;
 	get_executable_info(&pstat);
