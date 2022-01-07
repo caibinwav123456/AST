@@ -518,7 +518,7 @@ static int init_fs()
 	for(;;)
 	{
 #ifdef CMD_TEST
-		uint c='2';
+		volatile uint c='2';
 #else
 		uint c=get_char();
 #endif

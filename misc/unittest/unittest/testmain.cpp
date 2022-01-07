@@ -838,6 +838,7 @@ int _tmain(int argc, TCHAR** argv)
 		return ret;
 	printf("%d\n",ERR_GENERIC);
 	//sys_create_process("notepad");
+	//sys_create_process("pythonw D:\\AST2\\IPCIF\\src\\project\\unittest\\unittest\\hello.py");
 	config_testfile&&testfile();
 	config_test_fs&&test_fs();
 	config_test_fs_io&&test_fs_io();
