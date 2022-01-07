@@ -12,8 +12,8 @@ typedef unsigned char byte;
 typedef unsigned short word;
 typedef unsigned long dword;
 #ifdef CONFIG_X64
-#define ptr_to_uint(ptr) ((uint)(unsigned long long)(ptr))
-#define uint_to_ptr(n) ((void*)(unsigned long long)(n))
+#define ptr_to_uint(ptr) ((uint)(signed int)(signed long long)(ptr))
+#define uint_to_ptr(n) ((void*)(signed long long)(signed int)(n))
 #else
 #define ptr_to_uint(ptr) ((uint)(ptr))
 #define uint_to_ptr(n) ((void*)(n))
