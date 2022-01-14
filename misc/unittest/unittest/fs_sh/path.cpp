@@ -94,7 +94,9 @@ DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge
 	path_array1.insert(path_array1.end(),path_array2.begin(),path_array2.end());
 	merge_path(merge, path_array1,dsym);
 }
-DLLAPI(bool) is_subpath(const string& relative_path1, const string& relative_path2)
+DLLAPI(bool) is_subpath(const string& relative_path1, const string& relative_path2, char dsym)
 {
-	return relative_path1.size()>relative_path2.size()&&relative_path1.substr(0,relative_path2.size())==relative_path2;
+	return relative_path1.size()>relative_path2.size()
+		&&relative_path1.substr(0,relative_path2.size())==relative_path2
+		&&relative_path1[relative_path2.size()]==dsym;
 }
