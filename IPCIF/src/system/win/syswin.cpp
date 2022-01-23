@@ -123,9 +123,7 @@ int GetRunningProcessID(char* name,DWORD* lastid)
 {
 	HANDLE hSnap=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
 	if(!VALID(hSnap))
-	{
 		return -1;
-	}
 	int count=0;
 	DWORD id=0;
 	PROCESSENTRY32 pe;
