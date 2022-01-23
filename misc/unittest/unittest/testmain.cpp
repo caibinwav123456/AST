@@ -7,6 +7,7 @@
 #include "common.h"
 #include "win.h"
 #include "utility.h"
+#include "arch.h"
 #include "config_val_extern.h"
 #include "datetime.h"
 #include "Integer64.h"
@@ -28,6 +29,7 @@ DEFINE_STRING_VAL(test_dst_raw_path,"");
 DEFINE_STRING_VAL(test_src_fs_path,"");
 DEFINE_STRING_VAL(test_dst_fs_path,"");
 DEFINE_UINT_VAL(test_copy_seg,1024);
+DEFINE_STRING_VAL(test_arch_proc_cmd,"");
 
 DEFINE_BOOL_VAL(config_testfile,false);
 DEFINE_BOOL_VAL(config_test_fs,false);
@@ -43,6 +45,7 @@ DEFINE_BOOL_VAL(config_testDllDrv,false);
 DEFINE_BOOL_VAL(config_test_gate,false);
 DEFINE_BOOL_VAL(config_testPipe,false);
 DEFINE_BOOL_VAL(config_test_fwrite,false);
+DEFINE_BOOL_VAL(config_test_arch_get_process,false);
 
 int testfile()
 {
@@ -831,6 +834,28 @@ int test_fwrite()
 	fwrite(alpha,256,1,stdout);
 	return 0;
 }
+inline bool init_proc_data(proc_data& data)
+{
+	data.id=NULL;
+	data.ambiguous=false;
+	data.hproc=NULL;
+	data.hthrd_shelter=NULL;
+	return true;
+}
+int test_arch_get_process()
+{
+	proc_data pdata;
+	init_proc_data(pdata);
+	pdata.cmdline=test_arch_proc_cmd;
+	void* hproc=arch_get_process(pdata);
+	if(VALID(hproc))
+	{
+		sys_close_process(hproc);
+		hproc=NULL;
+		return 0;
+	}
+	return ERR_GENERIC;
+}
 int _tmain(int argc, TCHAR** argv)
 {
 	int ret=0;
@@ -853,6 +878,7 @@ int _tmain(int argc, TCHAR** argv)
 	config_test_gate&&test_gate();
 	config_testPipe&&testPipe();
 	config_test_fwrite&&test_fwrite();
+	config_test_arch_get_process&&test_arch_get_process();
 	LOGFILE(0,log_ftype_info,"%s start OK",get_current_executable_name());
 	process_stat pstat;
 	init_process_stat(&pstat,"ASTManager.exe");
