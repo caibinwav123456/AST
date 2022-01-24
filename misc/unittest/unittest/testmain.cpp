@@ -17,6 +17,7 @@
 #include "pipe.h"
 #include "sysfs.h"
 #include "match.h"
+#include "arch.h"
 using namespace std;
 DEFINE_FLOAT_VAL(eg_fl,0);
 DEFINE_DOUBLE_VAL(eg_db,0);
@@ -94,7 +95,10 @@ int testfile()
 }
 static bool check_instance_exist()
 {
-	void* hproc=sys_get_process(get_main_info()->manager_exe_file);
+	proc_data manager_exe_data;
+	__insert_proc_data__(manager_exe_data,get_main_info()->manager_exe_info);
+	init_proc_data_cmdline(&manager_exe_data);
+	void* hproc=arch_get_process(manager_exe_data);
 	if(!VALID(hproc))
 		return false;
 	sys_close_process(hproc);
@@ -834,18 +838,10 @@ int test_fwrite()
 	fwrite(alpha,256,1,stdout);
 	return 0;
 }
-inline bool init_proc_data(proc_data& data)
-{
-	data.id=NULL;
-	data.ambiguous=false;
-	data.hproc=NULL;
-	data.hthrd_shelter=NULL;
-	return true;
-}
 int test_arch_get_process()
 {
 	proc_data pdata;
-	init_proc_data(pdata);
+	init_proc_data(&pdata);
 	pdata.cmdline=test_arch_proc_cmd;
 	void* hproc=arch_get_process(pdata);
 	if(VALID(hproc))

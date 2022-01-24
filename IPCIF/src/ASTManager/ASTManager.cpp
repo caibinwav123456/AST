@@ -5,7 +5,10 @@
 #include "common_request.h"
 #include "ProcessTracker.h"
 #include "sysfs.h"
+#include "arch.h"
 
+static proc_data loader_exe_data;
+static proc_data manager_exe_data;
 process_tracker g_ptracker;
 struct astmgr_data
 {
@@ -15,6 +18,10 @@ struct astmgr_data
 	bool ready_quit;
 	bool quit;
 };
+inline const string& get_proc_start_cmd(const proc_data& data)
+{
+	return data.cmdline.empty()?data.name:data.cmdline;
+}
 int loader_shelter(void* param)
 {
 	astmgr_data* data=(astmgr_data*)param;
@@ -23,11 +30,11 @@ int loader_shelter(void* param)
 	{
 		if(!VALID(hloader))
 		{
-			hloader=sys_get_process(get_main_info()->loader_exe_file);
+			hloader=arch_get_process(loader_exe_data);
 		}
 		if(!VALID(hloader))
 		{
-			hloader=sys_create_process(get_main_info()->loader_exe_file);
+			hloader=sys_create_process((char*)get_proc_start_cmd(loader_exe_data).c_str());
 		}
 		if(VALID(hloader))
 		{
@@ -43,7 +50,7 @@ int loader_shelter(void* param)
 		if(data->quit)
 			break;
 		else
-			LOGFILE(0,log_ftype_error,"%s not started or erroneously terminated, restarting...",get_main_info()->loader_exe_file);
+			LOGFILE(0,log_ftype_error,"%s not started or erroneously terminated, restarting...",loader_exe_data.name.c_str());
 	}
 	return 0;
 }
@@ -99,10 +106,14 @@ int main_entry(main_args)
 	int ret=0;
 	if(0!=(ret=mainly_initial()))
 		return ret;
+	__insert_proc_data__(loader_exe_data,get_main_info()->loader_exe_info);
+	__insert_proc_data__(manager_exe_data,get_main_info()->manager_exe_info);
+	init_proc_data_cmdline(&loader_exe_data);
+	init_proc_data_cmdline(&manager_exe_data);
 	if_initial init;
 	init.user=get_if_user();
-	init.id=get_main_info()->manager_if0;
-	init.nthread=get_main_info()->manager_if0_cnt;
+	init.id=(char*)manager_exe_data.ifproc[0].id.c_str();
+	init.nthread=manager_exe_data.ifproc[0].cnt;
 	init.smem_size=SIZE_IF_MANAGER;
 	void* if_mgr=NULL;
 	astmgr_data data;
@@ -116,10 +127,10 @@ int main_entry(main_args)
 		LOGFILE(0,log_ftype_error,"Create interfafe %s failed, quitting...",init.id);
 		goto end2;
 	}
-	data.hloader=sys_get_process(get_main_info()->loader_exe_file);
+	data.hloader=arch_get_process(loader_exe_data);
 	if(!VALID(data.hloader))
 	{
-		LOGFILE(0,log_ftype_error,"Detected %s not started, quitting...",get_main_info()->loader_exe_file);
+		LOGFILE(0,log_ftype_error,"Detected %s not started, quitting...",loader_exe_data.name.c_str());
 		sys_show_message("Start loader first!");
 		data.quit=true;
 		ret=ERR_PROCESS_FAILED;

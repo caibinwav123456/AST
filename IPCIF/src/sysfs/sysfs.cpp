@@ -517,23 +517,16 @@ bool less_if(const if_proc* i1,const if_proc* i2)
 {
 	return i1->prior<i2->prior;
 }
-inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat,vector<pair<int,int>>& index)
+static inline bool insert_proc_data(vector<proc_data>& pdata,const process_stat& pstat,vector<pair<int,int>>& index)
 {
 	if(!pstat.is_managed)
 		return false;
 	proc_data data;
+	__insert_proc_data__(data,pstat);
 	bool found=false;
-	for(int i=0;i<pstat.ifs->count;i++)
+	for(int i=0;i<(int)data.ifproc.size();i++)
 	{
-		if_proc ifproc;
-		ifproc.hif=NULL;
-		ifproc.id=pstat.ifs->if_id[i].if_name;
-		ifproc.usage=pstat.ifs->if_id[i].usage;
-		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
-		ifproc.prior=pstat.ifs->if_id[i].prior;
-		ifproc.pdata=NULL;
-		data.ifproc.push_back(ifproc);
-		if(i>0&&ifproc.usage==CFG_IF_USAGE_STORAGE)
+		if(i>0&&data.ifproc[i].usage==CFG_IF_USAGE_STORAGE)
 		{
 			found=true;
 			index.push_back(pair<int,int>((int)pdata.size(),i));
@@ -541,12 +534,6 @@ inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& ps
 	}
 	if(!found)
 		return false;
-	data.name=pstat.file;
-	data.cmdline=pstat.cmdline;
-	data.id=pstat.id;
-	data.ambiguous=!!pstat.ambiguous;
-	data.hproc=NULL;
-	data.hthrd_shelter=NULL;
 	pdata.push_back(data);
 	return true;
 }
@@ -560,12 +547,13 @@ int SysFs::ListStorageModule(vector<pair<int,int>>& index)
 	void* h=find_first_exe(&pstat);
 	if(!VALID(h))
 		return ERR_MODULE_NOT_FOUND;
-	__insert_proc_data__(pvdata,pstat,index);
+	insert_proc_data(pvdata,pstat,index);
 	while(find_next_exe(h,&pstat))
-		__insert_proc_data__(pvdata,pstat,index);
+		insert_proc_data(pvdata,pstat,index);
 	find_exe_close(h);
 	for(int i=0;i<(int)pvdata.size();i++)
 	{
+		init_proc_data_cmdline(&pvdata[i]);
 		for(int j=0;j<(int)pvdata[i].ifproc.size();j++)
 		{
 			pvdata[i].ifproc[j].pdata=&pvdata[i];

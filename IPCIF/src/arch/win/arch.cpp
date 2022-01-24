@@ -13,10 +13,20 @@ class SystemArch
 public:
 	SystemArch()
 	{
+		arch = 64;
+		HMODULE hKernel32Dll = LoadLibraryA("kernel32.dll");
+		if (hKernel32Dll == NULL)
+			return;
 		SYSTEM_INFO si;
-		lpfnGetNativeSystemInfo fnGetNativeSystemInfo = (lpfnGetNativeSystemInfo)GetProcAddress(GetModuleHandle(_T("kernel32")), "GetNativeSystemInfo");
+		lpfnGetNativeSystemInfo fnGetNativeSystemInfo = (lpfnGetNativeSystemInfo)GetProcAddress(hKernel32Dll, "GetNativeSystemInfo");
+		if (fnGetNativeSystemInfo == NULL)
+		{
+			FreeLibrary(hKernel32Dll);
+			return;
+		}
 		//GetSystemInfo(&si);
 		fnGetNativeSystemInfo(&si);
+		FreeLibrary(hKernel32Dll);
 		arch=(si.wProcessorArchitecture==MS_PROCESSOR_ARCHITECTURE_IA64
 			||si.wProcessorArchitecture==MS_PROCESSOR_ARCHITECTURE_AMD64?64:32);
 	}
@@ -195,7 +205,7 @@ failed:
 	CloseHandle(hproc);
 	return NULL;
 }
-void* arch_get_process_informal(const proc_data& data)
+void* arch_get_process_informal(const char* cmdline)
 {
 	HANDLE hSnap=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
 	if(!VALID(hSnap))
@@ -205,14 +215,14 @@ void* arch_get_process_informal(const proc_data& data)
 	void* h=NULL;
 	char exe[256],args[512];
 	const char* p;
-	if(!parse_cmdline(data.cmdline.c_str(),exe,args))
+	if(!parse_cmdline(cmdline,exe,args))
 		goto end;
 	p=find_exe_file(exe);
 	pe.dwSize=sizeof(pe);
 	bMore=Process32First(hSnap, &pe);
 	if(bMore)
 	{
-		h=match_process(&pe,data.cmdline.c_str(),p,args);
+		h=match_process(&pe,cmdline,p,args);
 		if(VALID(h))
 			goto end;
 	}
@@ -220,7 +230,7 @@ void* arch_get_process_informal(const proc_data& data)
 	{
 		if(bMore=Process32Next(hSnap,&pe))
 		{
-			h=match_process(&pe,data.cmdline.c_str(),p,args);
+			h=match_process(&pe,cmdline,p,args);
 			if(VALID(h))
 				goto end;
 		}
@@ -240,8 +250,10 @@ void* arch_get_process_normal(const proc_data& data)
 }
 DLLAPI(void*) arch_get_process(const proc_data& data)
 {
+	if(data.cmdline.empty())
+		return sys_get_process((char*)data.name.c_str());
 #ifndef USE_IF_AS_ARCH_GET_PROC_METHOD
-	return arch_get_process_informal(data);
+	return arch_get_process_informal(data.cmdline.c_str());
 #else
 	return arch_get_process_normal(data);
 #endif

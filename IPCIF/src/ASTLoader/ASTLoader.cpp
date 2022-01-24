@@ -2,9 +2,13 @@
 #include "interface.h"
 #include "utility.h"
 #include "common_request.h"
+#include "process_data.h"
+#include "arch.h"
 #include "syswin.h"
 #define MAX_CONNECT_TIMES 10
 void* mutex=NULL;
+static proc_data loader_exe_data;
+static proc_data manager_exe_data;
 struct astloader_data
 {
 	void** if_loader;
@@ -12,6 +16,10 @@ struct astloader_data
 	bool ready_quit;
 	bool quit;
 };
+inline const string& get_proc_start_cmd(const proc_data& data)
+{
+	return data.cmdline.empty()?data.name:data.cmdline;
+}
 int ast_shutdown(astloader_data* data)
 {
 	sys_wait_sem(mutex);
@@ -61,7 +69,7 @@ int connect_mgr(void** handle)
 {
 	if_initial init;
 	init.user=get_if_user();
-	init.id=get_main_info()->manager_if0;
+	init.id=(char*)manager_exe_data.ifproc[0].id.c_str();
 	init.nthread=0;
 	init.smem_size=0;
 	for(int i=0;i<MAX_CONNECT_TIMES;i++)
@@ -85,6 +93,10 @@ int main_entry(main_args)
 	void* hmgr=NULL;
 	if(0!=(ret=mainly_initial()))
 		return ret;
+	__insert_proc_data__(loader_exe_data,get_main_info()->loader_exe_info);
+	__insert_proc_data__(manager_exe_data,get_main_info()->manager_exe_info);
+	init_proc_data_cmdline(&loader_exe_data);
+	init_proc_data_cmdline(&manager_exe_data);
 	mutex=sys_create_sem(1,1,NULL);
 	if(!VALID(mutex))
 	{
@@ -93,8 +105,8 @@ int main_entry(main_args)
 	}
 	if_initial init;
 	init.user=get_if_user();
-	init.id=get_main_info()->loader_if0;
-	init.nthread=get_main_info()->loader_if0_cnt;
+	init.id=(char*)loader_exe_data.ifproc[0].id.c_str();
+	init.nthread=loader_exe_data.ifproc[0].cnt;
 	init.smem_size=sizeof(datagram_base);
 	astloader_data data;
 	data.if_loader=&if_loader;
@@ -117,9 +129,9 @@ int main_entry(main_args)
 	LOGFILE(0,log_ftype_info,"Start %s OK!",get_current_executable_name());
 	while(true)
 	{
-		hmgr=sys_get_process(get_main_info()->manager_exe_file);
+		hmgr=arch_get_process(manager_exe_data);
 		if(!VALID(hmgr))
-			hmgr=sys_create_process(get_main_info()->manager_exe_file);
+			hmgr=sys_create_process((char*)get_proc_start_cmd(manager_exe_data).c_str());
 		if(VALID(hmgr))
 		{
 			sys_wait_sem(mutex);
@@ -144,7 +156,7 @@ int main_entry(main_args)
 		if(data.quit)
 			break;
 		else
-			LOGFILE(0,log_ftype_error,"%s not started or erroneously terminated, restarting...",get_main_info()->manager_exe_file);
+			LOGFILE(0,log_ftype_error,"%s not started or erroneously terminated, restarting...",manager_exe_data.name.c_str());
 	}
 	LOGFILE(0,log_ftype_info,"Ending %s.",get_current_executable_name());
 	stop_if(if_loader);

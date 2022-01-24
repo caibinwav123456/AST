@@ -13,26 +13,12 @@ struct storage_data
 	bool ready_quit;
 	bool quit;
 };
-inline void __insert_proc_data__(proc_data& data)
+static inline void insert_proc_data(proc_data& data)
 {
 	process_stat& pstat=*get_current_executable_stat();
-	data.name=pstat.file;
-	data.cmdline=pstat.cmdline;
-	data.id=pstat.id;
-	data.ambiguous=!!pstat.ambiguous;
-	data.hproc=NULL;
-	data.hthrd_shelter=NULL;
-	for(int i=0;i<pstat.ifs->count;i++)
-	{
-		if_proc ifproc;
-		ifproc.hif=NULL;
-		ifproc.id=pstat.ifs->if_id[i].if_name;
-		ifproc.usage=pstat.ifs->if_id[i].usage;
-		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
-		ifproc.prior=pstat.ifs->if_id[i].prior;
-		ifproc.pdata=&data;
-		data.ifproc.push_back(ifproc);
-	}
+	__insert_proc_data__(data,pstat);
+	for(int i=0;i<(int)data.ifproc.size();i++)
+		data.ifproc[i].pdata=&data;
 }
 int cb_server(void* addr,void* param,int op)
 {
@@ -93,7 +79,8 @@ int main_entry(main_args)
 	data.ready_quit=data.quit=data.reset=false;
 	data.hif_sto=&hif_storage;
 	data.req_resolv=&req_rslvr;
-	__insert_proc_data__(pdata);
+	insert_proc_data(pdata);
+	init_proc_data_cmdline(&pdata);
 	if(pdata.ifproc.size()==0)
 		goto end;
 	init.user=get_if_user();
