@@ -16,15 +16,6 @@ enum log_ftype
 	log_ftype_info=0,
 	log_ftype_error,
 };
-struct main_process_info
-{
-	char loader_exe_file[FILE_NAME_SIZE];
-	char manager_exe_file[FILE_NAME_SIZE];
-	char loader_if0[IF_ID_SIZE];
-	char manager_if0[IF_ID_SIZE];
-	uint loader_if0_cnt;
-	uint manager_if0_cnt;
-};
 struct if_id_info
 {
 	char if_name[IF_ID_SIZE];
@@ -44,6 +35,7 @@ struct if_ids
 	int count;
 	if_id_info if_id[MAX_IF_COUNT];
 };
+struct main_process_info;
 struct process_stat
 {
 	char file[FILE_NAME_SIZE];
@@ -58,6 +50,11 @@ struct process_stat
 	int ambiguous;
 	main_process_info* main_info;
 	if_ids* ifs;
+};
+struct main_process_info
+{
+	process_stat loader_exe_info;
+	process_stat manager_exe_info;
 };
 struct file_recurse_cbdata
 {

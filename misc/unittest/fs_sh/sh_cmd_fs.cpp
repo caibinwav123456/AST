@@ -7,6 +7,7 @@
 #include "mutex.h"
 #include "config_val_extern.h"
 #include "interface.h"
+#include "arch.h"
 #include <algorithm>
 #include <assert.h>
 #include <string.h>
@@ -425,28 +426,12 @@ failed:
 	pdata.clear();
 	return ret;
 }
-static inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
+static inline bool insert_proc_data(vector<proc_data>& pdata,const process_stat& pstat)
 {
 	if(!pstat.is_managed)
 		return false;
 	proc_data data;
-	data.name=pstat.file;
-	data.cmdline=pstat.cmdline;
-	data.id=pstat.id;
-	data.ambiguous=!!pstat.ambiguous;
-	data.hproc=NULL;
-	data.hthrd_shelter=NULL;
-	for(int i=0;i<pstat.ifs->count;i++)
-	{
-		if_proc ifproc;
-		ifproc.hif=NULL;
-		ifproc.id=pstat.ifs->if_id[i].if_name;
-		ifproc.usage=pstat.ifs->if_id[i].usage;
-		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
-		ifproc.prior=pstat.ifs->if_id[i].prior;
-		ifproc.pdata=NULL;
-		data.ifproc.push_back(ifproc);
-	}
+	__insert_proc_data__(data,pstat);
 	pdata.push_back(data);
 	return true;
 }
@@ -465,15 +450,16 @@ static int prmnt_init(uint numbuf,uint buflen)
 	void* h=find_first_exe(&pstat);
 	if(!VALID(h))
 		return ERR_GENERIC;
-	__insert_proc_data__(pdata,pstat);
+	insert_proc_data(pdata,pstat);
 	while(find_next_exe(h,&pstat))
-		__insert_proc_data__(pdata,pstat);
+		insert_proc_data(pdata,pstat);
 	find_exe_close(h);
 	if(pdata.empty())
 		return ERR_GENERIC;
 	sort(pdata.begin(),pdata.end(),less_id);
 	for(int i=0;i<(int)pdata.size();i++)
 	{
+		init_proc_data_cmdline(&pdata[i]);
 		for(int j=0;j<(int)pdata[i].ifproc.size();j++)
 		{
 			pdata[i].ifproc[j].pdata=&pdata[i];
@@ -486,7 +472,10 @@ static int prmnt_init(uint numbuf,uint buflen)
 #endif
 static bool check_instance_exist()
 {
-	void* hproc=sys_get_process(get_main_info()->manager_exe_file);
+	proc_data manager_exe_data;
+	__insert_proc_data__(manager_exe_data,get_main_info()->manager_exe_info);
+	init_proc_data_cmdline(&manager_exe_data);
+	void* hproc=arch_get_process(manager_exe_data);
 	if(!VALID(hproc))
 		return false;
 	sys_close_process(hproc);

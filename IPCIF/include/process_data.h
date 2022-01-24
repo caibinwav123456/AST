@@ -3,6 +3,7 @@
 #include "common.h"
 #include "mutex.h"
 #include "fsdrv_interface.h"
+#include "utility.h"
 #include <vector>
 #include <string>
 using namespace std;
@@ -81,6 +82,31 @@ inline void init_proc_data(proc_data* pdata)
 	pdata->hthrd_shelter=NULL;
 	pdata->id=NULL;
 	pdata->ambiguous=false;
+}
+inline void init_proc_data_cmdline(proc_data* pdata)
+{
+	if(pdata->ambiguous&&pdata->cmdline.empty())
+		pdata->cmdline=pdata->name+" user="+get_if_user();
+}
+inline void __insert_proc_data__(proc_data& data,const process_stat& pstat)
+{
+	data.name=pstat.file;
+	data.cmdline=pstat.cmdline;
+	data.id=pstat.id;
+	data.ambiguous=!!pstat.ambiguous;
+	data.hproc=NULL;
+	data.hthrd_shelter=NULL;
+	for(int i=0;i<pstat.ifs->count;i++)
+	{
+		if_proc ifproc;
+		ifproc.hif=NULL;
+		ifproc.id=pstat.ifs->if_id[i].if_name;
+		ifproc.usage=pstat.ifs->if_id[i].usage;
+		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
+		ifproc.prior=pstat.ifs->if_id[i].prior;
+		ifproc.pdata=NULL;
+		data.ifproc.push_back(ifproc);
+	}
 }
 inline void init_if_info_storage(if_info_storage* if_sto)
 {

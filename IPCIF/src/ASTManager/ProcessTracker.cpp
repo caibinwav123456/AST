@@ -33,28 +33,16 @@ struct pt_param
 process_tracker::process_tracker():quit(false),cblk(if_mutex,pdata)
 {
 }
-inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
+static const inline string& get_proc_start_cmd(const proc_data& data)
+{
+	return data.cmdline.empty()?data.name:data.cmdline;
+}
+static inline bool insert_proc_data(vector<proc_data>& pdata,const process_stat& pstat)
 {
 	if(!pstat.is_managed)
 		return false;
 	proc_data data;
-	data.name=pstat.file;
-	data.cmdline=pstat.cmdline;
-	data.id=pstat.id;
-	data.ambiguous=!!pstat.ambiguous;
-	data.hproc=NULL;
-	data.hthrd_shelter=NULL;
-	for(int i=0;i<pstat.ifs->count;i++)
-	{
-		if_proc ifproc;
-		ifproc.hif=NULL;
-		ifproc.id=pstat.ifs->if_id[i].if_name;
-		ifproc.usage=pstat.ifs->if_id[i].usage;
-		ifproc.cnt=pstat.ifs->if_id[i].thrdcnt;
-		ifproc.prior=pstat.ifs->if_id[i].prior;
-		ifproc.pdata=NULL;
-		data.ifproc.push_back(ifproc);
-	}
+	__insert_proc_data__(data,pstat);
 	pdata.push_back(data);
 	return true;
 }
@@ -73,13 +61,14 @@ int process_tracker::init()
 	void* h=find_first_exe(&pstat);
 	if(!VALID(h))
 		return 0;
-	__insert_proc_data__(pdata,pstat);
+	insert_proc_data(pdata,pstat);
 	while(find_next_exe(h,&pstat))
-		__insert_proc_data__(pdata,pstat);
+		insert_proc_data(pdata,pstat);
 	find_exe_close(h);
 	sort(pdata.begin(),pdata.end(),less_id);
 	for(int i=0;i<(int)pdata.size();i++)
 	{
+		init_proc_data_cmdline(&pdata[i]);
 		for(int j=0;j<(int)pdata[i].ifproc.size();j++)
 		{
 			pdata[i].ifproc[j].pdata=&pdata[i];
@@ -100,13 +89,8 @@ int process_tracker::init()
 			ret=ERR_SEM_CREATE_FAILED;
 			goto fail;
 		}
-		if(pdata[i].ambiguous)
-		{
-			//Need not lock since we blocked shelter threads here.
-			pdata[i].hproc=arch_get_process(pdata[i]);
-		}
-		else
-			pdata[i].hproc=sys_get_process((char*)pdata[i].name.c_str());
+		//Need not lock since we blocked shelter threads here.
+		pdata[i].hproc=arch_get_process(pdata[i]);
 		pt_param* param=new pt_param(&vs[i],this,i);
 		pdata[i].hthrd_shelter=sys_create_thread(threadfunc,param);
 		if(!VALID(pdata[i].hthrd_shelter))
@@ -195,16 +179,11 @@ int process_tracker::threadfunc(void* param)
 	{
 		if(!VALID(data.hproc))
 		{
-			if(data.ambiguous)
-			{
-				lock_track();
-				data.hproc=arch_get_process(data);
-			}
-			else
-				data.hproc=sys_get_process((char*)data.name.c_str());
+			lock_track();
+			data.hproc=arch_get_process(data);
 		}
 		if(!VALID(data.hproc))
-			data.hproc=sys_create_process((char*)(data.cmdline.empty()?data.name:data.cmdline).c_str());
+			data.hproc=sys_create_process((char*)get_proc_start_cmd(data).c_str());
 		if(VALID(data.hproc))
 		{
 			bool conn_failed;
@@ -253,7 +232,7 @@ int process_tracker::threadfunc(void* param)
 			break;
 		else
 			LOGFILE(0,log_ftype_error,"The managed program %s not started or erroneously terminated, restarting...",(char*)data.name.c_str());
-		send_cmd_clear(data.id,NULL,get_main_info()->manager_if0);
+		send_cmd_clear(data.id,NULL,get_main_info()->manager_exe_info.ifs->if_id[0].if_name);
 		for(int i=(int)vdata.size()-1;i>=0;i--)
 		{
 			if(i==index)
