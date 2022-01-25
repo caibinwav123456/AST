@@ -36,8 +36,10 @@ public:
 	char cur_dir[MAX_DIR_SIZE];
 	char exe_dir[MAX_DIR_SIZE];
 	process_stat proc_stat;
-	main_process_info main_info;
 	if_ids ifs;
+	main_process_info main_info;
+	if_ids loader_ifs;
+	if_ids manager_ifs;
 	ConfigProfile config;
 	LogSys log_sys;
 	int init_error;
@@ -156,6 +158,10 @@ process_identifier::process_identifier()
 	memset(name,0,FILE_NAME_SIZE);
 	sys_get_current_process_name(name, FILE_NAME_SIZE);
 	init_process_stat(&proc_stat,name);
+	init_process_stat(&main_info.loader_exe_info,"");
+	init_process_stat(&main_info.manager_exe_info,"");
+	main_info.loader_exe_info.ifs=&loader_ifs;
+	main_info.manager_exe_info.ifs=&manager_ifs;
 	proc_stat.main_info=&main_info;
 	proc_stat.ifs=&ifs;
 	if(0!=(init_error=GetProcStat(&proc_stat)))
@@ -169,17 +175,6 @@ process_identifier::process_identifier()
 	{
 		if(0!=(init_error=sys_set_current_dir(exe_dir)))
 			return;
-	}
-	if(proc_stat.unique_instance)
-	{
-		proc_data this_proc;
-		insert_proc_data(this_proc,proc_stat);
-		init_proc_data_cmdline(&this_proc);
-		if(arch_has_dup_process(this_proc))
-		{
-			init_error=ERR_DUP_PROCESS;
-			return;
-		}
 	}
 }
 inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& config)
@@ -280,14 +275,14 @@ int process_identifier::GetProcStat(process_stat* pstat)
 						if(!launcher_found&&str==CFG_TAG_EXEC_TYPE_LAUNCHER)
 						{
 							launcher_found=true;
-							strcpy(pstat->file,file.c_str());
+							strcpy(pstat->main_info->loader_exe_info.file,file.c_str());
 							if(0!=(ret=__get_stat__(&pstat->main_info->loader_exe_info,s,config)))
 								return ret;
 						}
 						if(!manager_found&&str==CFG_TAG_EXEC_TYPE_MANAGER)
 						{
 							manager_found=true;
-							strcpy(pstat->file,file.c_str());
+							strcpy(pstat->main_info->manager_exe_info.file,file.c_str());
 							if(0!=(ret=__get_stat__(&pstat->main_info->manager_exe_info,s,config)))
 								return ret;
 						}
@@ -330,6 +325,17 @@ int process_identifier::Init()
 		return init_error;
 	if(0!=(init_error=config_val_container::get_val_container()->config_value(&config)))
 		return init_error;
+	if(proc_stat.unique_instance)
+	{
+		proc_data this_proc;
+		insert_proc_data(this_proc,proc_stat);
+		init_proc_data_cmdline(&this_proc);
+		if(arch_has_dup_process(this_proc))
+		{
+			init_error=ERR_DUP_PROCESS;
+			return init_error;
+		}
+	}
 	if(_hCurrentProc.proc_stat.log)
 	if(0!=(init_error=log_sys.Init()))
 		return init_error;

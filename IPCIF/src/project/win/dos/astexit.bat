@@ -1,1 +1,1 @@
-@sendcmd ASTLoader exit
+@sendcmd.exe ASTLoader exit

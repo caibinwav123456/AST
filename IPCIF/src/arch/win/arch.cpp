@@ -88,7 +88,7 @@ static HANDLE GetProcessCmdLine(DWORD PID, WCHAR* szCmdLine, DWORD Size)
 {
 	if ((PID <= 0) || (szCmdLine == NULL) || (Size == 0))
 		return 0;
-	HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, PID);
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PID);
 	if (!VALID(hProcess))
 		return 0;
 	BOOL isX64Proc=FALSE;
@@ -206,13 +206,17 @@ failed:
 	return NULL;
 }
 #define final_find(h,cnt,end_tag) \
-	if(VALID(h)&&(--cnt)==0) \
+	if(VALID(h)) \
 	{ \
-		goto end_tag; \
-	} \
-	else \
-	{ \
-		sys_close_process(h); \
+		if((--cnt)==0) \
+		{ \
+			goto end_tag; \
+		} \
+		else \
+		{ \
+			sys_close_process(h); \
+			h=0; \
+		} \
 	}
 void* arch_get_process_native(const char* cmdline,bool find_dup)
 {

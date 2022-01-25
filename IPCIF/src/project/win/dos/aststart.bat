@@ -1,1 +1,1 @@
-@start ASTLoader user=CaiBin
+@start ASTLoader.exe user=CaiBin
