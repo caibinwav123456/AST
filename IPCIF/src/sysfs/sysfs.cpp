@@ -517,12 +517,12 @@ bool less_if(const if_proc* i1,const if_proc* i2)
 {
 	return i1->prior<i2->prior;
 }
-static inline bool insert_proc_data(vector<proc_data>& pdata,const process_stat& pstat,vector<pair<int,int>>& index)
+static inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat,vector<pair<int,int>>& index)
 {
-	if(!pstat.is_managed)
+	if(pstat.type!=E_PROCTYPE_MANAGED)
 		return false;
 	proc_data data;
-	__insert_proc_data__(data,pstat);
+	insert_proc_data(data,pstat);
 	bool found=false;
 	for(int i=0;i<(int)data.ifproc.size();i++)
 	{
@@ -547,9 +547,9 @@ int SysFs::ListStorageModule(vector<pair<int,int>>& index)
 	void* h=find_first_exe(&pstat);
 	if(!VALID(h))
 		return ERR_MODULE_NOT_FOUND;
-	insert_proc_data(pvdata,pstat,index);
+	__insert_proc_data__(pvdata,pstat,index);
 	while(find_next_exe(h,&pstat))
-		insert_proc_data(pvdata,pstat,index);
+		__insert_proc_data__(pvdata,pstat,index);
 	find_exe_close(h);
 	for(int i=0;i<(int)pvdata.size();i++)
 	{

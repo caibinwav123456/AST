@@ -13,10 +13,10 @@ struct storage_data
 	bool ready_quit;
 	bool quit;
 };
-static inline void insert_proc_data(proc_data& data)
+static inline void __insert_proc_data__(proc_data& data)
 {
 	process_stat& pstat=*get_current_executable_stat();
-	__insert_proc_data__(data,pstat);
+	insert_proc_data(data,pstat);
 	for(int i=0;i<(int)data.ifproc.size();i++)
 		data.ifproc[i].pdata=&data;
 }
@@ -79,7 +79,7 @@ int main_entry(main_args)
 	data.ready_quit=data.quit=data.reset=false;
 	data.hif_sto=&hif_storage;
 	data.req_resolv=&req_rslvr;
-	insert_proc_data(pdata);
+	__insert_proc_data__(pdata);
 	init_proc_data_cmdline(&pdata);
 	if(pdata.ifproc.size()==0)
 		goto end;

@@ -16,6 +16,14 @@ enum log_ftype
 	log_ftype_info=0,
 	log_ftype_error,
 };
+enum proc_type
+{
+	E_PROCTYPE_NONE=0,
+	E_PROCTYPE_TOOL,
+	E_PROCTYPE_LAUNCHER,
+	E_PROCTYPE_MANAGER,
+	E_PROCTYPE_MANAGED,
+};
 struct if_id_info
 {
 	char if_name[IF_ID_SIZE];
@@ -44,10 +52,8 @@ struct process_stat
 	int unique_instance;
 	int local_cur_dir;
 	int log;
-	int is_launcher;
-	int is_manager;
-	int is_managed;
 	int ambiguous;
+	proc_type type;
 	main_process_info* main_info;
 	if_ids* ifs;
 };
@@ -81,6 +87,8 @@ DLLAPI(char*) get_current_directory();
 DLLAPI(char*) get_current_executable_path();
 DLLAPI(int) is_launcher();
 DLLAPI(int) is_manager();
+DLLAPI(int) is_managed();
+DLLAPI(int) is_tool();
 DLLAPI(char*) get_if_user();
 DLLAPI(uint) get_num_sysfs_buffer_blocks();
 DLLAPI(uint) get_sysfs_buffer_size();

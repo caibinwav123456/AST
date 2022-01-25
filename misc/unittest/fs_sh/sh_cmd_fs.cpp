@@ -426,12 +426,12 @@ failed:
 	pdata.clear();
 	return ret;
 }
-static inline bool insert_proc_data(vector<proc_data>& pdata,const process_stat& pstat)
+static inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
 {
-	if(!pstat.is_managed)
+	if(pstat.type!=E_PROCTYPE_MANAGED)
 		return false;
 	proc_data data;
-	__insert_proc_data__(data,pstat);
+	insert_proc_data(data,pstat);
 	pdata.push_back(data);
 	return true;
 }
@@ -450,9 +450,9 @@ static int prmnt_init(uint numbuf,uint buflen)
 	void* h=find_first_exe(&pstat);
 	if(!VALID(h))
 		return ERR_GENERIC;
-	insert_proc_data(pdata,pstat);
+	__insert_proc_data__(pdata,pstat);
 	while(find_next_exe(h,&pstat))
-		insert_proc_data(pdata,pstat);
+		__insert_proc_data__(pdata,pstat);
 	find_exe_close(h);
 	if(pdata.empty())
 		return ERR_GENERIC;
@@ -473,7 +473,7 @@ static int prmnt_init(uint numbuf,uint buflen)
 static bool check_instance_exist()
 {
 	proc_data manager_exe_data;
-	__insert_proc_data__(manager_exe_data,get_main_info()->manager_exe_info);
+	insert_proc_data(manager_exe_data,get_main_info()->manager_exe_info);
 	init_proc_data_cmdline(&manager_exe_data);
 	void* hproc=arch_get_process(manager_exe_data);
 	if(!VALID(hproc))

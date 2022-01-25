@@ -37,12 +37,12 @@ static const inline string& get_proc_start_cmd(const proc_data& data)
 {
 	return data.cmdline.empty()?data.name:data.cmdline;
 }
-static inline bool insert_proc_data(vector<proc_data>& pdata,const process_stat& pstat)
+static inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
 {
-	if(!pstat.is_managed)
+	if(pstat.type!=E_PROCTYPE_MANAGED)
 		return false;
 	proc_data data;
-	__insert_proc_data__(data,pstat);
+	insert_proc_data(data,pstat);
 	pdata.push_back(data);
 	return true;
 }
@@ -61,9 +61,9 @@ int process_tracker::init()
 	void* h=find_first_exe(&pstat);
 	if(!VALID(h))
 		return 0;
-	insert_proc_data(pdata,pstat);
+	__insert_proc_data__(pdata,pstat);
 	while(find_next_exe(h,&pstat))
-		insert_proc_data(pdata,pstat);
+		__insert_proc_data__(pdata,pstat);
 	find_exe_close(h);
 	sort(pdata.begin(),pdata.end(),less_id);
 	for(int i=0;i<(int)pdata.size();i++)

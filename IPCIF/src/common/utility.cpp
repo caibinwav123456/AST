@@ -4,6 +4,8 @@
 #include "config_val.h"
 #include "syslog.h"
 #include "mutex.h"
+#include "process_data.h"
+#include "arch.h"
 #include <stdarg.h>
 #define IF_INFO_SIZE IF_USAGE_SIZE
 #define IF_INFO_TAG_SIZE 41
@@ -71,11 +73,19 @@ DLLAPI(char*) get_current_executable_path()
 }
 DLLAPI(int) is_launcher()
 {
-	return _hCurrentProc.proc_stat.is_launcher;
+	return _hCurrentProc.proc_stat.type==E_PROCTYPE_LAUNCHER;
 }
 DLLAPI(int) is_manager()
 {
-	return _hCurrentProc.proc_stat.is_manager;
+	return _hCurrentProc.proc_stat.type==E_PROCTYPE_MANAGER;
+}
+DLLAPI(int) is_managed()
+{
+	return _hCurrentProc.proc_stat.type==E_PROCTYPE_MANAGED;
+}
+DLLAPI(int) is_tool()
+{
+	return _hCurrentProc.proc_stat.type==E_PROCTYPE_TOOL;
 }
 DLLAPI(char*) get_if_user()
 {
@@ -160,10 +170,16 @@ process_identifier::process_identifier()
 		if(0!=(init_error=sys_set_current_dir(exe_dir)))
 			return;
 	}
-	if(proc_stat.unique_instance&&sys_has_dup_process(name))
+	if(proc_stat.unique_instance)
 	{
-		init_error=ERR_DUP_PROCESS;
-		return;
+		proc_data this_proc;
+		insert_proc_data(this_proc,proc_stat);
+		init_proc_data_cmdline(&this_proc);
+		if(arch_has_dup_process(this_proc))
+		{
+			init_error=ERR_DUP_PROCESS;
+			return;
+		}
 	}
 }
 inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& config)
@@ -175,7 +191,7 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->id=uint_to_ptr(id);
 	if(!VALID(pstat->id))
 		return ERR_EXEC_INFO_NOT_VALID;
-	bool uniq,ld,launcher=false,manager=false,managed=false,log=true,ambiguous=true;
+	bool uniq,ld,log=true,ambiguous=true;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_UNIQUE,uniq))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_LDIR,ld))
@@ -186,12 +202,22 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 		*pstat->cmdline=0;
 	pstat->unique_instance=(uniq?1:0);
 	pstat->local_cur_dir=ld?1:0;
-	config.GetCongfigItem(exec,CFG_TAG_EXEC_LAUNCHER,launcher);
-	pstat->is_launcher=launcher?1:0;
-	config.GetCongfigItem(exec,CFG_TAG_EXEC_MANAGER,manager);
-	pstat->is_manager=manager?1:0;
-	config.GetCongfigItem(exec,CFG_TAG_EXEC_MANAGED,managed);
-	pstat->is_managed=managed?1:0;
+	proc_type type=E_PROCTYPE_NONE;
+	string strtype;
+	if(config.GetCongfigItem(exec,CFG_TAG_EXEC_TYPE,strtype))
+	{
+		if(strtype==CFG_TAG_EXEC_TYPE_LAUNCHER)
+			type=E_PROCTYPE_LAUNCHER;
+		else if(strtype==CFG_TAG_EXEC_TYPE_MANAGER)
+			type=E_PROCTYPE_MANAGER;
+		else if(strtype==CFG_TAG_EXEC_TYPE_MANAGED)
+			type=E_PROCTYPE_MANAGED;
+		else if(strtype==CFG_TAG_EXEC_TYPE_TOOL)
+			type=E_PROCTYPE_TOOL;
+		else
+			return ERR_EXEC_INFO_NOT_VALID;
+	}
+	pstat->type=type;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_LOG,log);
 	pstat->log=log?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_AMBIG,ambiguous);
@@ -246,21 +272,26 @@ int process_identifier::GetProcStat(process_stat* pstat)
 					if(0!=(ret=__get_stat__(pstat,s,config)))
 						return ret;
 				}
-				bool b=false;
-				string str;
-				if(!launcher_found&&config.GetCongfigItem(s,CFG_TAG_EXEC_LAUNCHER,b)&&b)
+				if(!(launcher_found&&manager_found))
 				{
-					launcher_found=true;
-					strcpy(pstat->file,file.c_str());
-					if(0!=(ret=__get_stat__(&pstat->main_info->loader_exe_info,s,config)))
-						return ret;
-				}
-				if(!manager_found&&config.GetCongfigItem(s,CFG_TAG_EXEC_MANAGER,b)&&b)
-				{
-					manager_found=true;
-					strcpy(pstat->file,file.c_str());
-					if(0!=(ret=__get_stat__(&pstat->main_info->manager_exe_info,s,config)))
-						return ret;
+					string str;
+					if(config.GetCongfigItem(s,CFG_TAG_EXEC_TYPE,str))
+					{
+						if(!launcher_found&&str==CFG_TAG_EXEC_TYPE_LAUNCHER)
+						{
+							launcher_found=true;
+							strcpy(pstat->file,file.c_str());
+							if(0!=(ret=__get_stat__(&pstat->main_info->loader_exe_info,s,config)))
+								return ret;
+						}
+						if(!manager_found&&str==CFG_TAG_EXEC_TYPE_MANAGER)
+						{
+							manager_found=true;
+							strcpy(pstat->file,file.c_str());
+							if(0!=(ret=__get_stat__(&pstat->main_info->manager_exe_info,s,config)))
+								return ret;
+						}
+					}
 				}
 				if(found&&launcher_found&&manager_found)
 					return 0;
