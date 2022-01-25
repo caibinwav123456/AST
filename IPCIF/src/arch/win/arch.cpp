@@ -205,7 +205,16 @@ failed:
 	CloseHandle(hproc);
 	return NULL;
 }
-void* arch_get_process_informal(const char* cmdline)
+#define final_find(h,cnt,end_tag) \
+	if(VALID(h)&&(--cnt)==0) \
+	{ \
+		goto end_tag; \
+	} \
+	else \
+	{ \
+		sys_close_process(h); \
+	}
+void* arch_get_process_native(const char* cmdline,bool find_dup)
 {
 	HANDLE hSnap=CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
 	if(!VALID(hSnap))
@@ -215,6 +224,7 @@ void* arch_get_process_informal(const char* cmdline)
 	void* h=NULL;
 	char exe[256],args[512];
 	const char* p;
+	int cnt_left=find_dup?2:1;
 	if(!parse_cmdline(cmdline,exe,args))
 		goto end;
 	p=find_exe_file(exe);
@@ -223,23 +233,21 @@ void* arch_get_process_informal(const char* cmdline)
 	if(bMore)
 	{
 		h=match_process(&pe,cmdline,p,args);
-		if(VALID(h))
-			goto end;
+		final_find(h,cnt_left,end);
 	}
 	while(bMore)
 	{
 		if(bMore=Process32Next(hSnap,&pe))
 		{
 			h=match_process(&pe,cmdline,p,args);
-			if(VALID(h))
-				goto end;
+			final_find(h,cnt_left,end);
 		}
 	}
 end:
 	CloseHandle(hSnap);
 	return h;
 }
-void* arch_get_process_normal(const proc_data& data)
+void* arch_get_process_if(const proc_data& data)
 {
 	if(data.ifproc.empty())
 		return NULL;
@@ -252,9 +260,24 @@ DLLAPI(void*) arch_get_process(const proc_data& data)
 {
 	if(data.cmdline.empty())
 		return sys_get_process((char*)data.name.c_str());
-#ifndef USE_IF_AS_ARCH_GET_PROC_METHOD
-	return arch_get_process_informal(data.cmdline.c_str());
-#else
-	return arch_get_process_normal(data);
-#endif
+	if(data.type==E_PROCTYPE_TOOL)
+		return arch_get_process_if(data);
+	else
+		return arch_get_process_native(data.cmdline.c_str(),false);
+}
+DLLAPI(bool) arch_has_dup_process(const proc_data& data)
+{
+	if(data.cmdline.empty())
+		return sys_has_dup_process((char*)data.name.c_str());
+	void* hproc;
+	if(data.type==E_PROCTYPE_TOOL)
+		hproc=arch_get_process_if(data);
+	else
+		hproc=arch_get_process_native(data.cmdline.c_str(),true);
+	if(VALID(hproc))
+	{
+		sys_close_process(hproc);
+		return true;
+	}
+	return false;
 }

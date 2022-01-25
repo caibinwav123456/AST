@@ -106,8 +106,8 @@ int main_entry(main_args)
 	int ret=0;
 	if(0!=(ret=mainly_initial()))
 		return ret;
-	__insert_proc_data__(loader_exe_data,get_main_info()->loader_exe_info);
-	__insert_proc_data__(manager_exe_data,get_main_info()->manager_exe_info);
+	insert_proc_data(loader_exe_data,get_main_info()->loader_exe_info);
+	insert_proc_data(manager_exe_data,get_main_info()->manager_exe_info);
 	init_proc_data_cmdline(&loader_exe_data);
 	init_proc_data_cmdline(&manager_exe_data);
 	if_initial init;
