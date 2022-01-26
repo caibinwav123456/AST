@@ -111,6 +111,11 @@ inline void insert_proc_data(proc_data& data,const process_stat& pstat)
 		data.ifproc.push_back(ifproc);
 	}
 }
+inline void insert_proc_data_cmdline(proc_data& data,const process_stat& pstat)
+{
+	insert_proc_data(data,pstat);
+	init_proc_data_cmdline(&data);
+}
 inline void init_if_info_storage(if_info_storage* if_sto)
 {
 	if_sto->hdev=NULL;

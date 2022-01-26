@@ -93,10 +93,8 @@ int main_entry(main_args)
 	void* hmgr=NULL;
 	if(0!=(ret=mainly_initial()))
 		return ret;
-	insert_proc_data(loader_exe_data,get_main_info()->loader_exe_info);
-	insert_proc_data(manager_exe_data,get_main_info()->manager_exe_info);
-	init_proc_data_cmdline(&loader_exe_data);
-	init_proc_data_cmdline(&manager_exe_data);
+	insert_proc_data_cmdline(loader_exe_data,get_main_info()->loader_exe_info);
+	insert_proc_data_cmdline(manager_exe_data,get_main_info()->manager_exe_info);
 	mutex=sys_create_sem(1,1,NULL);
 	if(!VALID(mutex))
 	{

@@ -328,8 +328,7 @@ int process_identifier::Init()
 	if(proc_stat.unique_instance)
 	{
 		proc_data this_proc;
-		insert_proc_data(this_proc,proc_stat);
-		init_proc_data_cmdline(&this_proc);
+		insert_proc_data_cmdline(this_proc,proc_stat);
 		if(arch_has_dup_process(this_proc))
 		{
 			init_error=ERR_DUP_PROCESS;
