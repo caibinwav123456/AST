@@ -15,8 +15,7 @@ struct storage_data
 };
 static inline void __insert_proc_data__(proc_data& data)
 {
-	process_stat& pstat=*get_current_executable_stat();
-	insert_proc_data(data,pstat);
+	insert_proc_data_cmdline(data,*get_current_executable_stat());
 	for(int i=0;i<(int)data.ifproc.size();i++)
 		data.ifproc[i].pdata=&data;
 }
@@ -80,7 +79,6 @@ int main_entry(main_args)
 	data.hif_sto=&hif_storage;
 	data.req_resolv=&req_rslvr;
 	__insert_proc_data__(pdata);
-	init_proc_data_cmdline(&pdata);
 	if(pdata.ifproc.size()==0)
 		goto end;
 	init.user=get_if_user();

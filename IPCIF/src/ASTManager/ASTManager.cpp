@@ -106,10 +106,8 @@ int main_entry(main_args)
 	int ret=0;
 	if(0!=(ret=mainly_initial()))
 		return ret;
-	insert_proc_data(loader_exe_data,get_main_info()->loader_exe_info);
-	insert_proc_data(manager_exe_data,get_main_info()->manager_exe_info);
-	init_proc_data_cmdline(&loader_exe_data);
-	init_proc_data_cmdline(&manager_exe_data);
+	insert_proc_data_cmdline(loader_exe_data,get_main_info()->loader_exe_info);
+	insert_proc_data_cmdline(manager_exe_data,get_main_info()->manager_exe_info);
 	if_initial init;
 	init.user=get_if_user();
 	init.id=(char*)manager_exe_data.ifproc[0].id.c_str();

@@ -473,8 +473,7 @@ static int prmnt_init(uint numbuf,uint buflen)
 static bool check_instance_exist()
 {
 	proc_data manager_exe_data;
-	insert_proc_data(manager_exe_data,get_main_info()->manager_exe_info);
-	init_proc_data_cmdline(&manager_exe_data);
+	insert_proc_data_cmdline(manager_exe_data,get_main_info()->manager_exe_info);
 	void* hproc=arch_get_process(manager_exe_data);
 	if(!VALID(hproc))
 		return false;
