@@ -200,7 +200,7 @@ static inline void* match_process(PROCESSENTRY32* pe,
 		goto failed;
 	if(strcmp(args,Args)!=0)
 		goto failed;
-	return hproc;
+	return (void*)hproc;
 failed:
 	CloseHandle(hproc);
 	return NULL;
