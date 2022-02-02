@@ -63,8 +63,8 @@ jobs:
     #    uses a compiled language
 
     - run:
-       cd IPCIF
-       ./Configure
+       cd IPCIF;
+       ./Configure;
        make
 
     - name: Perform CodeQL Analysis
