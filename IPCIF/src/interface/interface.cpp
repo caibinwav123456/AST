@@ -91,7 +91,7 @@ void get_smem_name(char* buf, char* user, char* usage)
 }
 uint get_smem_size(uint unit, uint n)
 {
-	return (n+2)*sizeof(ring_node)+n*unit+sizeof(if_init_data);
+	return (n+2)*(uint)sizeof(ring_node)+n*unit+(uint)sizeof(if_init_data);
 }
 void init_ring(if_data* data)
 {
@@ -102,7 +102,7 @@ void init_ring(if_data* data)
 	for(int i=0;i<data->n;i++)
 	{
 		node=(ring_node*)(ptr+(i+2)*sizeof(ring_node));
-		node->buf=(data->n+2)*sizeof(ring_node)+i*data->memsize;
+		node->buf=(data->n+2)*(uint)sizeof(ring_node)+i*data->memsize;
 		node->next=(i==data->n-1?0:(i+2+1)*sizeof(ring_node));
 		node->prev=(i==0?0:(i+2-1)*sizeof(ring_node));
 		node->id=i;
