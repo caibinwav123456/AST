@@ -33,10 +33,6 @@ struct pt_param
 process_tracker::process_tracker():quit(false),cblk(if_mutex,pdata)
 {
 }
-static const inline string& get_proc_start_cmd(const proc_data& data)
-{
-	return data.cmdline.empty()?data.name:data.cmdline;
-}
 static inline bool __insert_proc_data__(vector<proc_data>& pdata,const process_stat& pstat)
 {
 	if(pstat.type!=E_PROCTYPE_MANAGED)
@@ -183,7 +179,7 @@ int process_tracker::threadfunc(void* param)
 			data.hproc=arch_get_process(data);
 		}
 		if(!VALID(data.hproc))
-			data.hproc=sys_create_process((char*)get_proc_start_cmd(data).c_str());
+			data.hproc=sys_create_process((char*)data.cmdline.c_str());
 		if(VALID(data.hproc))
 		{
 			bool conn_failed;

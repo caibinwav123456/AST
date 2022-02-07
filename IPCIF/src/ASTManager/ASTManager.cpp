@@ -18,10 +18,6 @@ struct astmgr_data
 	bool ready_quit;
 	bool quit;
 };
-inline const string& get_proc_start_cmd(const proc_data& data)
-{
-	return data.cmdline.empty()?data.name:data.cmdline;
-}
 int loader_shelter(void* param)
 {
 	astmgr_data* data=(astmgr_data*)param;
@@ -34,7 +30,7 @@ int loader_shelter(void* param)
 		}
 		if(!VALID(hloader))
 		{
-			hloader=sys_create_process((char*)get_proc_start_cmd(loader_exe_data).c_str());
+			hloader=sys_create_process((char*)loader_exe_data.cmdline.c_str());
 		}
 		if(VALID(hloader))
 		{
