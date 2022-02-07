@@ -16,10 +16,6 @@ struct astloader_data
 	bool ready_quit;
 	bool quit;
 };
-inline const string& get_proc_start_cmd(const proc_data& data)
-{
-	return data.cmdline.empty()?data.name:data.cmdline;
-}
 int ast_shutdown(astloader_data* data)
 {
 	sys_wait_sem(mutex);
@@ -129,7 +125,7 @@ int main_entry(main_args)
 	{
 		hmgr=arch_get_process(manager_exe_data);
 		if(!VALID(hmgr))
-			hmgr=sys_create_process((char*)get_proc_start_cmd(manager_exe_data).c_str());
+			hmgr=sys_create_process((char*)manager_exe_data.cmdline.c_str());
 		if(VALID(hmgr))
 		{
 			sys_wait_sem(mutex);

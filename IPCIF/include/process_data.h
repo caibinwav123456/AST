@@ -60,6 +60,7 @@ struct proc_data
 	void* id;
 	bool ambiguous;
 	proc_type type;
+	bool cmd_calced;
 	vector<if_proc> ifproc;
 };
 struct if_control_block
@@ -84,11 +85,19 @@ inline void init_proc_data(proc_data* pdata)
 	pdata->id=NULL;
 	pdata->ambiguous=false;
 	pdata->type=E_PROCTYPE_NONE;
+	pdata->cmd_calced=false;
 }
 inline void init_proc_data_cmdline(proc_data* pdata)
 {
-	if(pdata->ambiguous&&pdata->cmdline.empty())
-		pdata->cmdline=pdata->name+" user="+get_if_user();
+	if(!pdata->cmd_calced)
+	{
+		string cmd(pdata->cmdline.empty()?"":" "+pdata->cmdline);
+		if(pdata->ambiguous)
+			pdata->cmdline=pdata->name+" user="+get_if_user()+cmd;
+		else
+			pdata->cmdline=pdata->name+cmd;
+		pdata->cmd_calced=true;
+	}
 }
 inline void insert_proc_data(proc_data& data,const process_stat& pstat)
 {
@@ -97,6 +106,7 @@ inline void insert_proc_data(proc_data& data,const process_stat& pstat)
 	data.id=pstat.id;
 	data.ambiguous=!!pstat.ambiguous;
 	data.type=pstat.type;
+	data.cmd_calced=false;
 	data.hproc=NULL;
 	data.hthrd_shelter=NULL;
 	for(int i=0;i<pstat.ifs->count;i++)
