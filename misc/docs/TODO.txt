@@ -6,6 +6,7 @@
 5.git合并master/ASTLinux分支，通过pull request                                      :ok
 6.测试fs随机读写                                                                    :ok
 (可选)增加traverse目录树遍历，不限于copy和delete功能
+(可选)区分一般tool和external tool，不需要写入config.cfg                             :ok
 (可选)sys_set_file_size回撤文件指针                                                 :ok
 (可选)增加windows下获取同名进程的命令行参数以区分进程的功能                         :ok
 (可选)增加通配符全面配置功能(?代表一个字符，*代表0个或任意个字符)                   :ok

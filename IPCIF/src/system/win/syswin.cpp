@@ -170,7 +170,7 @@ void* sys_get_process(char* name)
 	}
 	return (void*)OpenProcess(PROCESS_ALL_ACCESS, TRUE, id);
 }
-void sys_get_current_process_name(char* name, int len)
+int sys_get_current_process_name(char* name, int len)
 {
 	char path[1024];
 	GetModuleFileNameA(NULL, path, 1024);
@@ -179,9 +179,12 @@ void sys_get_current_process_name(char* name, int len)
 		file=path;
 	else
 		file++;
-	strcpy_s(name, len-1, file);
+	if((int)strlen(file)>len-1)
+		return ERR_BUFFER_OVERFLOW;
+	strcpy(name, file);
+	return 0;
 }
-void sys_get_current_process_path(char* path, int len)
+int sys_get_current_process_path(char* path, int len)
 {
 	char fullpath[1024];
 	GetModuleFileNameA(NULL, fullpath, 1024);
@@ -190,7 +193,10 @@ void sys_get_current_process_path(char* path, int len)
 		*fullpath=0;
 	else
 		*file=0;
-	strcpy_s(path, len-1, fullpath);
+	if((int)strlen(fullpath)>len-1)
+		return ERR_BUFFER_OVERFLOW;
+	strcpy(path, fullpath);
+	return 0;
 }
 struct thread_data
 {

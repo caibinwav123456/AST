@@ -36,12 +36,14 @@ public:
 	char cur_dir[MAX_DIR_SIZE];
 	char exe_dir[MAX_DIR_SIZE];
 	process_stat proc_stat;
+	process_stat* cur_stat;
 	if_ids ifs;
 	main_process_info main_info;
 	if_ids loader_ifs;
 	if_ids manager_ifs;
 	ConfigProfile config;
 	LogSys log_sys;
+	bool is_external;
 	int init_error;
 };
 process_identifier _hCurrentProc;
@@ -55,7 +57,7 @@ DLLAPI(dword) get_session_id()
 }
 DLLAPI(process_stat*) get_current_executable_stat()
 {
-	return &_hCurrentProc.proc_stat;
+	return _hCurrentProc.cur_stat;
 }
 DLLAPI(char*) get_current_executable_name()
 {
@@ -149,14 +151,18 @@ DLLAPI(void*) get_executable_id(char* name)
 process_identifier::process_identifier()
 {
 	init_error=0;
-	sys_get_current_process_path(exe_dir,MAX_DIR_SIZE);
+	is_external=false;
+	cur_stat=NULL;
+	if(0!=(init_error=sys_get_current_process_path(exe_dir,MAX_DIR_SIZE)))
+		return;
 	string absolute_path;
 	if(0!=(init_error=get_absolute_path(string(exe_dir),string(CFG_FILE_PATH),absolute_path,sys_is_absolute_path)))
 		return;
 	if(0!=(init_error=config.LoadConfigFile(absolute_path.c_str())))
 		return;
-	memset(name,0,FILE_NAME_SIZE);
-	sys_get_current_process_name(name, FILE_NAME_SIZE);
+	memset(name,0,sizeof(name));
+	if(0!=(init_error=sys_get_current_process_name(name,sizeof(name))))
+		return;
 	init_process_stat(&proc_stat,name);
 	init_process_stat(&main_info.loader_exe_info,"");
 	init_process_stat(&main_info.manager_exe_info,"");
@@ -166,11 +172,12 @@ process_identifier::process_identifier()
 	proc_stat.ifs=&ifs;
 	if(0!=(init_error=GetProcStat(&proc_stat)))
 		return;
-	if(0!=sys_get_current_dir(cur_dir,MAX_DIR_SIZE))
-	{
-		init_error=ERR_CUR_DIR_NOT_FOUND;
+	if(0!=(init_error=sys_get_current_dir(cur_dir,MAX_DIR_SIZE)))
 		return;
-	}
+	if(!is_external)
+		cur_stat=&proc_stat;
+	else
+		return;
 	if(proc_stat.local_cur_dir)
 	{
 		if(0!=(init_error=sys_set_current_dir(exe_dir)))
@@ -293,6 +300,11 @@ int process_identifier::GetProcStat(process_stat* pstat)
 			}
 		}
 	}
+	if(pstat->main_info!=NULL&&(!found)&&launcher_found&&manager_found)
+	{
+		is_external=true;
+		return 0;
+	}
 	return ERR_EXEC_NOT_FOUND;
 }
 DLLAPI(main_process_info*) get_main_info()
@@ -325,7 +337,7 @@ int process_identifier::Init()
 		return init_error;
 	if(0!=(init_error=config_val_container::get_val_container()->config_value(&config)))
 		return init_error;
-	if(proc_stat.unique_instance)
+	if((!is_external)&&proc_stat.unique_instance)
 	{
 		proc_data this_proc;
 		insert_proc_data_cmdline(this_proc,proc_stat);
@@ -335,7 +347,7 @@ int process_identifier::Init()
 			return init_error;
 		}
 	}
-	if(_hCurrentProc.proc_stat.log)
+	if((!is_external)&&_hCurrentProc.proc_stat.log)
 	if(0!=(init_error=log_sys.Init()))
 		return init_error;
 	return 0;
