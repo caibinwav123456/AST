@@ -160,7 +160,7 @@ void sys_fclose(void* fd)
 }
 int sys_get_current_dir(char* pathbuf, uint size)
 {
-	return GetCurrentDirectoryA((DWORD)size, pathbuf)?0:ERR_FILE_IO;
+	return GetCurrentDirectoryA((DWORD)size, pathbuf)?0:ERR_CUR_DIR_NOT_FOUND;
 }
 int sys_set_current_dir(char* pathbuf)
 {
