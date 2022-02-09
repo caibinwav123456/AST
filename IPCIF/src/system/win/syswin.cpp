@@ -209,8 +209,7 @@ unsigned int WINAPI ThreadProc(void* param)
 	int (*cb)(void*)=data->cb;
 	void* p=data->param;
 	delete data;
-	int ret = cb(p);
-	return (unsigned int)ret;
+	return (unsigned int)cb(p);
 }
 void* sys_create_thread(int (*cb)(void*), void* param)
 {
