@@ -105,26 +105,24 @@ DLLAPI(uint) get_sysfs_buffer_size()
 }
 DLL int __LOGFILE(uint level,uint ftype,char* file,int line,char* format,...)
 {
-	if(sys_log_level>level)
+	if(sys_log_level<=level)
+		return 0;
+	string str;
+	const char* ptr;
 	{
-		string str;
-		const char* ptr;
-		{
-			char buf[1025];
-			va_list args;
-			va_start(args,format);
-			vsprintf(buf,format,args);
-			va_end(args);
-			str=buf;
-			ptr=strrchr(file,_dir_symbol);
-			if (ptr==NULL)
-				ptr=file;
-			else
-				ptr++;
-		}
-		return _hCurrentProc.log_sys.Log(sys_log_names[ftype],ptr,line,str);
+		char buf[1025];
+		va_list args;
+		va_start(args,format);
+		vsprintf(buf,format,args);
+		va_end(args);
+		str=buf;
+		ptr=strrchr(file,_dir_symbol);
+		if (ptr==NULL)
+			ptr=file;
+		else
+			ptr++;
 	}
-	return 0;
+	return _hCurrentProc.log_sys.Log(sys_log_names[ftype],ptr,line,str);
 }
 DLLAPI(int) get_executable_info(process_stat* info)
 {
@@ -224,31 +222,30 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->log=log?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_AMBIG,ambiguous);
 	pstat->ambiguous=ambiguous?1:0;
-	if(pstat->ifs!=NULL)
+	if(pstat->ifs==NULL)
+		return 0;
+	char buf[IF_INFO_SIZE];
+	string str;
+	pstat->ifs->count=0;
+	memset(pstat->ifs->if_id,0,sizeof(if_id_info)*MAX_IF_COUNT);
+	for(int i=0;i<MAX_IF_COUNT;i++)
 	{
-		char buf[IF_INFO_SIZE];
-		string str;
-		pstat->ifs->count=0;
-		memset(pstat->ifs->if_id,0,sizeof(if_id_info)*MAX_IF_COUNT);
-		for(int i=0;i<MAX_IF_COUNT;i++)
-		{
-			sprintf(buf,CFG_TAG_EXEC_IF,i);
-			if(!config.GetCongfigItem(exec,buf,str))
-				break;
-			strcpy(pstat->ifs->if_id[pstat->ifs->count].if_name,str.c_str());
-			uint cnt=1;
-			string usage(i==0?"cmd":"data");
-			int prior=0;
-			sprintf(buf,CFG_TAG_EXEC_IF_CNT,i);
-			config.GetCongfigItem(exec,buf,cnt);
-			sprintf(buf,CFG_TAG_EXEC_IF_USAGE,i);
-			config.GetCongfigItem(exec,buf,usage);
-			sprintf(buf,CFG_TAG_EXEC_IF_PRIOR,i);
-			config.GetCongfigItem(exec,buf,prior);
-			pstat->ifs->if_id[pstat->ifs->count].thrdcnt=(cnt<1?1:cnt);
-			pstat->ifs->if_id[pstat->ifs->count].prior=prior;
-			strcpy(pstat->ifs->if_id[pstat->ifs->count++].usage,usage.c_str());
-		}
+		sprintf(buf,CFG_TAG_EXEC_IF,i);
+		if(!config.GetCongfigItem(exec,buf,str))
+			break;
+		strcpy(pstat->ifs->if_id[pstat->ifs->count].if_name,str.c_str());
+		uint cnt=1;
+		string usage(i==0?"cmd":"data");
+		int prior=0;
+		sprintf(buf,CFG_TAG_EXEC_IF_CNT,i);
+		config.GetCongfigItem(exec,buf,cnt);
+		sprintf(buf,CFG_TAG_EXEC_IF_USAGE,i);
+		config.GetCongfigItem(exec,buf,usage);
+		sprintf(buf,CFG_TAG_EXEC_IF_PRIOR,i);
+		config.GetCongfigItem(exec,buf,prior);
+		pstat->ifs->if_id[pstat->ifs->count].thrdcnt=(cnt<1?1:cnt);
+		pstat->ifs->if_id[pstat->ifs->count].prior=prior;
+		strcpy(pstat->ifs->if_id[pstat->ifs->count++].usage,usage.c_str());
 	}
 	return 0;
 }
@@ -262,42 +259,41 @@ int process_identifier::GetProcStat(process_stat* pstat)
 	int ret=0;
 	for(it=config.BeginIterate(CONFIG_SECTION_EXEC);it;it++)
 	{
-		if(it->first!="")
+		if(it->first=="")
+			continue;
+		const string& s=it->first;
+		string file;
+		if(config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
 		{
-			const string& s=it->first;
-			string file;
-			if(config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
+			if(!found&&file==pstat->file)
 			{
-				if(!found&&file==pstat->file)
+				found=true;
+				if(0!=(ret=__get_stat__(pstat,s,config)))
+					return ret;
+			}
+			if(!(launcher_found&&manager_found))
+			{
+				string str;
+				if(config.GetCongfigItem(s,CFG_TAG_EXEC_TYPE,str))
 				{
-					found=true;
-					if(0!=(ret=__get_stat__(pstat,s,config)))
-						return ret;
-				}
-				if(!(launcher_found&&manager_found))
-				{
-					string str;
-					if(config.GetCongfigItem(s,CFG_TAG_EXEC_TYPE,str))
+					if(!launcher_found&&str==CFG_TAG_EXEC_TYPE_LAUNCHER)
 					{
-						if(!launcher_found&&str==CFG_TAG_EXEC_TYPE_LAUNCHER)
-						{
-							launcher_found=true;
-							strcpy(pstat->main_info->loader_exe_info.file,file.c_str());
-							if(0!=(ret=__get_stat__(&pstat->main_info->loader_exe_info,s,config)))
-								return ret;
-						}
-						if(!manager_found&&str==CFG_TAG_EXEC_TYPE_MANAGER)
-						{
-							manager_found=true;
-							strcpy(pstat->main_info->manager_exe_info.file,file.c_str());
-							if(0!=(ret=__get_stat__(&pstat->main_info->manager_exe_info,s,config)))
-								return ret;
-						}
+						launcher_found=true;
+						strcpy(pstat->main_info->loader_exe_info.file,file.c_str());
+						if(0!=(ret=__get_stat__(&pstat->main_info->loader_exe_info,s,config)))
+							return ret;
+					}
+					if(!manager_found&&str==CFG_TAG_EXEC_TYPE_MANAGER)
+					{
+						manager_found=true;
+						strcpy(pstat->main_info->manager_exe_info.file,file.c_str());
+						if(0!=(ret=__get_stat__(&pstat->main_info->manager_exe_info,s,config)))
+							return ret;
 					}
 				}
-				if(found&&launcher_found&&manager_found)
-					return 0;
 			}
+			if(found&&launcher_found&&manager_found)
+				return 0;
 		}
 	}
 	if(pstat->main_info!=NULL&&(!found)&&launcher_found&&manager_found)
