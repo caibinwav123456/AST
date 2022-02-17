@@ -39,22 +39,15 @@ private:
 };
 typedef struct
 {
-	DWORD_PTR Filler[4];
+	DWORD_PTR Filler64[4];
 	LPVOID InfoBlockAddress;
 } __PEB;
-#ifdef CONFIG_X64
 typedef struct
 {
-	DWORD_PTR Filler[15];
+	DWORD Filler[4];
+	DWORD_PTR Filler64[13];
 	LPVOID wszCmdLineAddress;
 } __INFOBLOCK;
-#else
-typedef struct
-{
-	DWORD_PTR Filler[17];
-	LPVOID wszCmdLineAddress;
-} __INFOBLOCK;
-#endif
 typedef NTSTATUS(CALLBACK* PFN_NTQUERYINFORMATIONPROCESS)(
 	HANDLE ProcessHandle,
 	PROCESSINFOCLASS ProcessInformationClass,

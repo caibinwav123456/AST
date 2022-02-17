@@ -1750,6 +1750,36 @@ int cb_fs_delete(char* pathname)
 	}
 	return ret;
 }
+int cb_fs_path_stat(char* pathname,dword type,void* param,char dsym)
+{
+	path_recurse_stat* pstat=(path_recurse_stat*)param;
+	int ret=0;
+	if(type==FILE_TYPE_NORMAL)
+	{
+		UInteger64 fsize(pstat->size.sizel,&pstat->size.sizeh),inc_size;
+		void* hfile=g_sysfs.Open(pathname,FILE_OPEN_EXISTING|FILE_READ);
+		if(!VALID(hfile))
+			return ERR_OPEN_FILE_FAILED;
+		if(0!=(ret=g_sysfs.GetSetFileSize(CMD_FSGETSIZE,hfile,&inc_size.low,&inc_size.high)))
+		{
+			__fs_perm_close(hfile);
+			return ret;
+		}
+		__fs_perm_close(hfile);
+		fsize+=inc_size;
+		pstat->size.sizel=fsize.low,pstat->size.sizeh=fsize.high;
+	}
+	switch(type)
+	{
+	case FILE_TYPE_NORMAL:
+		pstat->nfile++;
+		break;
+	case FILE_TYPE_DIR:
+		pstat->ndir++;
+		break;
+	}
+	return 0;
+}
 int __fs_recurse_copy(char* from,char* to,file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
@@ -1759,4 +1789,12 @@ int __fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_mkdir,cb_fs_copy,cb_fs_delete};
 	return recurse_fdelete(pathname,&cb,cbdata,'/');
+}
+int __fs_recurse_stat(char* pathname,path_recurse_stat* pstat,file_recurse_cbdata* cbdata)
+{
+	pstat->nfile=0;
+	pstat->ndir=0;
+	pstat->size.sizeh=pstat->size.sizel=0;
+	file_recurse_handle_callback cb={cb_fs_stat,cb_fs_traverse,cb_fs_path_stat};
+	return recurse_fhandle(pathname,&cb,true,pstat,cbdata,'/');
 }

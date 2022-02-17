@@ -168,7 +168,7 @@ static int parse_config_text(const byte* buf,int size,
 int ConfigProfile::LoadConfigFile(const char* filename)
 {
 	int ret=0;
-	dword filesize=0;
+	uint filesize=0;
 	byte* buf;
 	void* hFile=sys_fopen(const_cast<char*>(filename),FILE_OPEN_EXISTING|FILE_READ);
 	if(!VALID(hFile))

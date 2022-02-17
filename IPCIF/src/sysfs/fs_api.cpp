@@ -110,6 +110,10 @@ DLLAPI(int) fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata)
 {
 	return __fs_recurse_delete(pathname,cbdata);
 }
+DLLAPI(int) fs_recurse_stat(char* pathname,path_recurse_stat* pstat,file_recurse_cbdata* cbdata)
+{
+	return __fs_recurse_stat(pathname,pstat,cbdata);
+}
 
 DLLAPI(int) fss_init(vector<if_proc>* pif,RequestResolver* resolver)
 {

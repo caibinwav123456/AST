@@ -5,6 +5,7 @@
 #include "syslog.h"
 #include "mutex.h"
 #include "process_data.h"
+#include "Integer64.h"
 #include "arch.h"
 #include <stdarg.h>
 #define IF_INFO_SIZE IF_USAGE_SIZE
@@ -492,13 +493,9 @@ DLLAPI(int) recurse_fcopy(char* from, char* to, file_recurse_callback* callback,
 	rparam.callback=callback;
 	rparam.cbdata=cbdata;
 	if(rparam.start>rparam.from&&*(rparam.start-1)==dsym)
-	{
 		*(--rparam.start)=0;
-	}
 	if(rparam.tstart>rparam.to&&*(rparam.tstart-1)==dsym)
-	{
 		*(--rparam.tstart)=0;
-	}
 	if(strcmp(rparam.from,rparam.to)==0)
 		goto end;
 	if(type==FILE_TYPE_DIR)
@@ -535,10 +532,8 @@ static int cb_delete(char* name, dword type, void* param, char dsym)
 	strcpy(newdel.start,name);
 	newdel.start+=strlen(name);
 	if(type==FILE_TYPE_DIR)
-	{
 		ret=callback->_ftraverse_(newdel.path,cb_delete,&newdel);
-		*(newdel.start)=0;
-	}
+	*(newdel.start)=0;
 	int retc=0;
 	(ret==0&&newdel.quitdel==0)?ret=retc=callback->_fdelete_(newdel.path):0;
 	ret!=0?del->quitdel=ret:(newdel.quitdel!=0?del->quitdel=newdel.quitdel:0);
@@ -560,9 +555,7 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, fil
 	rparam.cbdata=cbdata;
 	rparam.quitdel=0;
 	if(rparam.start>rparam.path&&*(rparam.start-1)==dsym)
-	{
 		*(--rparam.start)=0;
-	}
 	if(type==FILE_TYPE_DIR)
 		ret=callback->_ftraverse_(rparam.path,cb_delete,&rparam);
 	*rparam.start=0;
@@ -572,13 +565,125 @@ DLLAPI(int) recurse_fdelete(char* pathname, file_recurse_callback* callback, fil
 	delete[] rparam.path;
 	return ret;
 }
-DLLAPI(int) sys_recurse_fcopy(char* from, char* to, file_recurse_cbdata* cbdata)
+struct rhandle_param
+{
+	char* path;
+	char* start;
+	file_recurse_handle_callback* callback;
+	void* param;
+	file_recurse_cbdata* cbdata;
+	bool root_first;
+};
+static int cb_fhandle(char* name,dword type,void* param,char dsym);
+static inline void __f_traverse__(rhandle_param* rparam,dword type,int& ret)
+{
+	if(type==FILE_TYPE_DIR)
+	{
+		ret==0?(ret=rparam->callback->_ftraverse_(rparam->path,cb_fhandle,rparam)):0;
+		*(rparam->start)=0;
+	}
+}
+static inline void __f_handle__(rhandle_param* rparam,dword type,int& ret,char dsym)
+{
+	int retc=0;
+	ret==0?(ret=retc=rparam->callback->_handler_(rparam->path,type,rparam->param,dsym)):0;
+	((ret==0||(retc!=0))&&rparam->cbdata!=NULL)?ret=rparam->cbdata->cb(ret,rparam->path,type,rparam->cbdata->param,dsym):0;
+}
+static int cb_fhandle(char* name,dword type,void* param,char dsym)
+{
+	int ret=0;
+	rhandle_param* hstat=(rhandle_param*)param;
+	file_recurse_handle_callback* callback=hstat->callback;
+	rhandle_param newstat=*hstat;
+	*(newstat.start++)=dsym;
+	strcpy(newstat.start,name);
+	newstat.start+=strlen(name);
+	if(newstat.root_first)
+	{
+		__f_handle__(&newstat,type,ret,dsym);
+		__f_traverse__(&newstat,type,ret);
+	}
+	else
+	{
+		__f_traverse__(&newstat,type,ret);
+		__f_handle__(&newstat,type,ret,dsym);
+	}
+	return ret;
+}
+DLLAPI(int) recurse_fhandle(char* pathname,file_recurse_handle_callback* callback,bool root_first,void* param,file_recurse_cbdata* cbdata,char dsym)
+{
+	dword type=0;
+	int ret=0;
+	if(0!=(ret=callback->_fstat_(pathname,&type)))
+		return ret;
+	rhandle_param rparam;
+	rparam.path=new char[1024];
+	strcpy(rparam.path,pathname);
+	rparam.start=rparam.path+strlen(rparam.path);
+	rparam.callback=callback;
+	rparam.param=param;
+	rparam.cbdata=cbdata;
+	rparam.root_first=root_first;
+	if(rparam.start>rparam.path&&*(rparam.start-1)==dsym)
+		*(--rparam.start)=0;
+	if(rparam.root_first)
+	{
+		__f_handle__(&rparam,type,ret,dsym);
+		__f_traverse__(&rparam,type,ret);
+	}
+	else
+	{
+		__f_traverse__(&rparam,type,ret);
+		__f_handle__(&rparam,type,ret,dsym);
+	}
+	delete[] rparam.path;
+	return ret;
+}
+static int cb_stat(char* pathname,dword type,void* param,char dsym)
+{
+	path_recurse_stat* pstat=(path_recurse_stat*)param;
+	int ret=0;
+	if(type==FILE_TYPE_NORMAL)
+	{
+		UInteger64 fsize(pstat->size.sizel,&pstat->size.sizeh),inc_size;
+		void* hfile=sys_fopen(pathname,FILE_OPEN_EXISTING|FILE_READ);
+		if(!VALID(hfile))
+			return ERR_OPEN_FILE_FAILED;
+		if(0!=(ret=sys_get_file_size(hfile,&inc_size.low,&inc_size.high)))
+		{
+			sys_fclose(hfile);
+			return ret;
+		}
+		sys_fclose(hfile);
+		fsize+=inc_size;
+		pstat->size.sizel=fsize.low,pstat->size.sizeh=fsize.high;
+	}
+	switch(type)
+	{
+	case FILE_TYPE_NORMAL:
+		pstat->nfile++;
+		break;
+	case FILE_TYPE_DIR:
+		pstat->ndir++;
+		break;
+	}
+	return 0;
+}
+DLLAPI(int) sys_recurse_fcopy(char* from,char* to,file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
 	return recurse_fcopy(from,to,&cb,cbdata,_dir_symbol);
 }
-DLLAPI(int) sys_recurse_fdelete(char* pathname, file_recurse_cbdata* cbdata)
+DLLAPI(int) sys_recurse_fdelete(char* pathname,file_recurse_cbdata* cbdata)
 {
 	file_recurse_callback cb={sys_fstat,sys_ftraverse,sys_mkdir,sys_fcopy,sys_fdelete};
 	return recurse_fdelete(pathname,&cb,cbdata,_dir_symbol);
+}
+DLLAPI(int) sys_recurse_fstat(char* pathname,path_recurse_stat* pstat,file_recurse_cbdata* cbdata)
+{
+	pstat->nfile=0;
+	pstat->ndir=0;
+	pstat->size.sizeh=pstat->size.sizel=0;
+	file_recurse_handle_callback cb={sys_fstat,sys_ftraverse,cb_stat};
+	return recurse_fhandle(pathname,&cb,true,pstat,cbdata,_dir_symbol);
 }
