@@ -121,24 +121,28 @@ int sys_fseek(void* fd, uint offlow, uint* offhigh, int seektype)
 		return ERR_FILE_IO;
 	return 0;
 }
-int sys_get_file_size(void* fd, dword* sizelow, dword* sizehigh)
+int sys_get_file_size(void* fd, uint* sizelow, uint* sizehigh)
 {
-	dword dummy=0;
-	dword* sz=(sizehigh==NULL?&dummy:sizehigh);
+	DWORD dummy=0;
 	SetLastError(NO_ERROR);
-	*sizelow=(dword)GetFileSize((HANDLE)fd,(LPDWORD)sz);
-	if(dummy!=0||GetLastError()!=NO_ERROR)
+	*sizelow=(uint)GetFileSize((HANDLE)fd,&dummy);
+	if(GetLastError()!=NO_ERROR)
 		return ERR_FILE_IO;
+	if(sizehigh==NULL&&dummy!=0)
+		return ERR_FILE_IO;
+	if(sizehigh!=NULL)
+		*sizehigh=dummy;
 	return 0;
 }
-int sys_set_file_size(void* fd, dword sizelow, dword* sizehigh)
+int sys_set_file_size(void* fd, uint sizelow, uint* sizehigh)
 {
 	SetLastError(NO_ERROR);
+	LONG dummy=(sizehigh==NULL?0:*sizehigh);
 	LONG orig_high=0;
 	LONG orig_low=SetFilePointer((HANDLE)fd, (LONG)0, (PLONG)&orig_high, FILE_CURRENT);
 	if(GetLastError()!=NO_ERROR)
 		return ERR_FILE_IO;
-	SetFilePointer((HANDLE)fd, (LONG)sizelow, (PLONG)sizehigh, FILE_BEGIN);
+	SetFilePointer((HANDLE)fd, (LONG)sizelow, sizehigh==NULL?NULL:&dummy, FILE_BEGIN);
 	if(GetLastError()!=NO_ERROR)
 		return ERR_FILE_IO;
 	if(!SetEndOfFile((HANDLE)fd))

@@ -212,6 +212,7 @@ enum E_FS_MODE
 int __fs_perm_close(void* handle);
 int __fs_recurse_copy(char* from,char* to,file_recurse_cbdata* cbdata);
 int __fs_recurse_delete(char* pathname,file_recurse_cbdata* cbdata);
+int __fs_recurse_stat(char* pathname,path_recurse_stat* pstat,file_recurse_cbdata* cbdata);
 struct fs_if_path
 {
 	if_proc* ifpath;

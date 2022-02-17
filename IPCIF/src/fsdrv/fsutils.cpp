@@ -152,7 +152,7 @@ bool dev_is_locked(const string& devname)
 	void* h=sys_fopen((char*)lockfile.c_str(),FILE_OPEN_EXISTING|FILE_READ);
 	if(!VALID(h))
 		return true;
-	dword size=0;
+	uint size=0;
 	if(0!=sys_get_file_size(h,&size))
 	{
 		sys_fclose(h);
@@ -199,7 +199,7 @@ bool lock_dev(const string& devname,bool lock)
 	void* h=sys_fopen((char*)lockfile.c_str(),FILE_OPEN_ALWAYS|FILE_READ|FILE_WRITE);
 	if(!VALID(h))
 		return false;
-	dword size=0;
+	uint size=0;
 	if(0!=sys_get_file_size(h,&size))
 	{
 		sys_fclose(h);

@@ -33,6 +33,7 @@ DEFINE_UINT_VAL(test_copy_seg,1024);
 DEFINE_STRING_VAL(test_arch_proc_cmd,"");
 
 DEFINE_BOOL_VAL(config_testfile,false);
+DEFINE_BOOL_VAL(config_testfilestat,false);
 DEFINE_BOOL_VAL(config_test_fs,false);
 DEFINE_BOOL_VAL(config_test_fs_io,false);
 DEFINE_BOOL_VAL(config_test_match,false);
@@ -69,7 +70,7 @@ int testfile()
 	hFile=sys_fopen("D:\\unit_test\\test1\\test2\\test.txt",FILE_READ|FILE_WRITE|FILE_OPEN_EXISTING);
 	char buf[10];
 	ret=sys_fread(hFile,buf,6);
-	dword size;
+	uint size;
 	ret=sys_get_file_size(hFile,&size);
 	sys_fclose(hFile);
 
@@ -92,6 +93,15 @@ int testfile()
 	ret=sys_recurse_fdelete("D:\\unit_test\\",NULL);
 
 	return 0;
+}
+int test_fs_stat();
+int testfilestat()
+{
+	path_recurse_stat pstat;
+	int ret=sys_recurse_fstat("D:\\Programs\\Origin\\IPCIF",&pstat,NULL);
+	ret=sys_recurse_fstat("D:\\Programs\\Origin\\IPCIF\\Configure",&pstat,NULL);
+	ret=test_fs_stat();
+	return ret;
 }
 static bool check_instance_exist()
 {
@@ -118,7 +128,20 @@ int test_fs()
 	handle=fs_open("/",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
 	handle=fs_open("sto1:",FILE_CREATE_ALWAYS|FILE_READ|FILE_WRITE);
 	fsc_exit();
-	return 0;
+	return ret;
+}
+int test_fs_stat()
+{
+	int ret=0;
+	void* handle=0;
+	if(!check_instance_exist())
+		return ERR_GENERIC;
+	if(0!=(ret=fsc_init(4,2048,NULL,&reqrslvr)))
+		return ret;
+	path_recurse_stat pstat;
+	ret=fs_recurse_stat("/IPCIF",&pstat,NULL);
+	fsc_exit();
+	return ret;
 }
 bool load_uint(uint& t)
 {
@@ -291,8 +314,7 @@ bool compare_raw_file()
 		ret=false;
 		goto end;
 	}
-	uint rdlen=0;
-	dword lsrc=0,ldst=0;
+	uint rdlen=0,lsrc=0,ldst=0;
 	if(0!=sys_get_file_size(hsrc,&lsrc)||0!=sys_get_file_size(hdst,&ldst))
 	{
 		ret=false;
@@ -860,6 +882,7 @@ int _tmain(int argc, TCHAR** argv)
 	//sys_create_process("notepad");
 	//sys_create_process("pythonw D:\\AST2\\IPCIF\\src\\project\\unittest\\unittest\\hello.py");
 	config_testfile&&testfile();
+	config_testfilestat&&testfilestat();
 	config_test_fs&&test_fs();
 	config_test_fs_io&&test_fs_io();
 	config_test_match&&test_match();

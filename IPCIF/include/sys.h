@@ -55,8 +55,8 @@ void* sys_fopen(char* pathname, dword flags);
 int sys_fread(void* fd, void* buf, uint len, uint* rdlen=NULL);
 int sys_fwrite(void* fd, void* buf, uint len, uint* wrlen=NULL);
 int sys_fseek(void* fd, uint offlow, uint* offhigh=NULL, int seektype=SEEK_BEGIN);
-int sys_get_file_size(void* fd, dword* sizelow, dword* sizehigh=NULL);
-int sys_set_file_size(void* fd, dword sizelow, dword* sizehigh=NULL);
+int sys_get_file_size(void* fd, uint* sizelow, uint* sizehigh=NULL);
+int sys_set_file_size(void* fd, uint sizelow, uint* sizehigh=NULL);
 int sys_fflush(void* fd);
 void sys_fclose(void* fd);
 

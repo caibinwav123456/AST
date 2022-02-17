@@ -288,12 +288,12 @@ int fs_native_write(void* hdev,void* hfile,uint offset,uint offhigh,uint len,voi
 int fs_native_getsize(void* hdev,void* hfile,uint* size,uint* sizehigh)
 {
 	decl_rec(pRec,hfile);
-	return sys_get_file_size(pRec->fd,(dword*)size,(dword*)sizehigh);
+	return sys_get_file_size(pRec->fd,size,sizehigh);
 }
 int fs_native_setsize(void* hdev,void* hfile,uint size,uint sizehigh)
 {
 	decl_rec(pRec,hfile);
-	return sys_set_file_size(pRec->fd,size,(dword*)&sizehigh);
+	return sys_set_file_size(pRec->fd,size,&sizehigh);
 }
 int fs_native_move(void* hdev,char* src,char* dst)
 {
