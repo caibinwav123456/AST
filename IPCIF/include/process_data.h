@@ -93,7 +93,7 @@ inline void init_proc_data_cmdline(proc_data* pdata)
 	{
 		string cmd(pdata->cmdline.empty()?"":" "+pdata->cmdline);
 		pdata->cmdline=pdata->name+cmd;
-		if(!pdata->ambiguous)
+		if(pdata->ambiguous)
 			pdata->cmdline+=string(" user=")+get_if_user();
 		pdata->cmd_calced=true;
 	}
