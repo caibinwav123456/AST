@@ -21,7 +21,7 @@ using namespace std;
 #define MAX_FLIST_CHAR 80
 #define MAX_NUM_FLIST 8
 #define MIN_TPBUF_LEN 1024
-#define CMD_REDIR "%redir%"
+#define CMD_REDIR "\t%redir%\t"
 enum E_FILE_DISP_MODE
 {
 	file_disp_simple,
@@ -782,15 +782,9 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 				t_output("%s",strret.c_str());
 				continue;
 			}
-			string sz=FormatI64(u64);
-			string dispsz;
-			string strdate;
-			for(int i=0;i<(int)sz.size();i+=3)
-			{
-				string sec=((int)sz.size()>i+3?sz.substr(sz.size()-i-3,3):sz.substr(0,sz.size()-i));
-				dispsz=sec+(i==0?"":",")+dispsz;
-			}
 			CDateTime datetime(date.time);
+			string dispsz,strdate;
+			format_segmented_u64(u64,dispsz);
 #ifdef CMD_TEST
 			if(datetime.year==0||file.empty())
 				sys_show_message("error");
