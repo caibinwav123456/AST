@@ -8,7 +8,7 @@
 #define t_write_clean_priv(st_priv) write_clean_priv(st_priv,pipe_next,__tp_buf__)
 #define t_print_byte(bbin,b) print_binary_byte(bbin,b,pipe_next)
 #define IS_DISP_CHAR(c) ((c)>=32&&(c)<=126)
-//echo cat fmt hex write cp mv rm mkdir setlen touch print
+//echo cat fmt hex write cp mv rm stat mkdir setlen touch print
 static int echo_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
@@ -819,6 +819,7 @@ static int check_path(cmd_param_st* param,const string& path,string& fullpath,bo
 #define CMD_ID_MV 0
 #define CMD_ID_CP 1
 #define CMD_ID_RM 2
+#define CMD_ID_STAT 3
 struct file_recurse_ret
 {
 	int ret;
@@ -1038,6 +1039,20 @@ static int do_delete(file_recurse_st& frecur)
 	}
 	return ret;
 }
+static int do_stat(file_recurse_st& frecur)
+{
+	common_sh_args(frecur.param);
+	int ret=0;
+	path_recurse_stat pstat;
+	t_output("\n%s:\n",frecur.fsrc.c_str());
+	if(0!=(ret=fs_recurse_stat((char*)frecur.fsrc.c_str(),&pstat,NULL)))
+		return_t_msg(ret,"stat error: %s\n",get_error_desc(ret));
+	UInteger64 u64(pstat.size.sizel,&pstat.size.sizeh);
+	string dispsz;
+	format_segmented_u64(u64,dispsz);
+	t_output("Total size: %s,\t%u files,\t%u directories\n",dispsz.c_str(),pstat.nfile,pstat.ndir);
+	return 0;
+}
 static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 {
 	file_recurse_st* rec=(file_recurse_st*)rparam;
@@ -1060,6 +1075,9 @@ static int cb_fs_recurse_func(char* path,dword flags,void* rparam,char dsym)
 		break;
 	case CMD_ID_RM:
 		do_delete(*rec);
+		break;
+	case CMD_ID_STAT:
+		do_stat(*rec);
 		break;
 	}
 	return 0;
@@ -1171,9 +1189,9 @@ DEF_SH_CMD(mv,mv_handler,
 	"move a file or a directory to a new path.",
 	"Format:\n\tmv [options] (source-path) (destination-path)\n"
 	"The mv command moves the file/directory of source-path to destination-path.\n"
-	"Wildcard symbol \'*\' can be used as placeholder for 0~any character(s), "
-	"\'?\' can be used as placeholder for exactly 1 character to form a match pattern "
-	"in the last section of source path and move all the matched files/directories to the destination path.\n"
+	"Wildcard symbol \'*\' can be used as a placeholder for 0~any character(s), "
+	"\'?\' can be used as a placeholder for exactly 1 character to form a match pattern "
+	"in the last section of source path and moves all the matched files/directories to the destination path.\n"
 	"The source path must exist.\n"
 	"If the destination path does not exist, the source path will be moved to that path.\n"
 	"If the destination path exists and is a directory, it will be moved with the same name as a sub-node of that path, "
@@ -1189,9 +1207,9 @@ DEF_SH_CMD(mv,mv_handler,
 	"-s\n"
 	"\tStop at first error. With this option, each process of batch move operations will stop immediately when an error is encountered.\n"
 	"-d\n"
-	"\tOnly process directories, for path with wildcard symbols.\n"
+	"\tOnly process directories, for paths with wildcard symbols.\n"
 	"-n\n"
-	"\tOnly process normal files, for path with wildcard symbols.\n"
+	"\tOnly process normal files, for paths with wildcard symbols.\n"
 );
 static int cp_handler(cmd_param_st* param)
 {
@@ -1286,9 +1304,9 @@ DEF_SH_CMD(cp,cp_handler,
 	"copy a file(or files) or a directory(or directories) to a new path.",
 	"Format:\n\tcp [options] (source-path) (destination-path)\n"
 	"The cp command copies the file/directory of source-path to destination-path, multiple options are supported.\n"
-	"Wildcard symbol \'*\' can be used as placeholder for 0~any character(s), "
-	"\'?\' can be used as placeholder for exactly 1 character to form a match pattern "
-	"in the last section of source path and copy all the matched files/directories to the destination path.\n"
+	"Wildcard symbol \'*\' can be used as a placeholder for 0~any character(s), "
+	"\'?\' can be used as a placeholder for exactly 1 character to form a match pattern "
+	"in the last section of source path and copies all the matched files/directories to the destination path.\n"
 	"The source path must exist.\n"
 	"If the destination path does not exist, the source path will be copied to that path.\n"
 	"If the destination path exists and is a directory, it will be copied and merged with the same name as a sub-node of that path, "
@@ -1307,9 +1325,9 @@ DEF_SH_CMD(cp,cp_handler,
 	"-s\n"
 	"\tStop at first error. With this option, copy process will stop immediately when an error is encountered.\n"
 	"-d\n"
-	"\tOnly process directories, for path with wildcard symbols.\n"
+	"\tOnly process directories, for paths with wildcard symbols.\n"
 	"-n\n"
-	"\tOnly process normal files, for path with wildcard symbols.\n"
+	"\tOnly process normal files, for paths with wildcard symbols.\n"
 );
 static int rm_handler(cmd_param_st* param)
 {
@@ -1392,9 +1410,9 @@ DEF_SH_CMD(rm,rm_handler,
 	"remove a file(or files) or a directory(or directories).",
 	"Format:\n\trm [options] (path1) (path2) ...\n"
 	"The rm command deletes the file/directory of paths listed in the path list, multiple options are supported.\n"
-	"Wildcard symbol \'*\' can be used as placeholder for 0~any character(s), "
-	"\'?\' can be used as placeholder for exactly 1 character to form a match pattern "
-	"in the last section of path and delete all the matched files/directories.\n"
+	"Wildcard symbol \'*\' can be used as a placeholder for 0~any character(s), "
+	"\'?\' can be used as a placeholder for exactly 1 character to form a match pattern "
+	"in the last section of path and deletes all the matched files/directories.\n"
 	"If a path does not exist, the command will return with no effects.\n"
 	"The root directory of any device can not be deleted.\n"
 	"Options:\n"
@@ -1408,9 +1426,86 @@ DEF_SH_CMD(rm,rm_handler,
 	"-s\n"
 	"\tStop at first error. With this option, deleting process will stop immediately when an error is encountered.\n"
 	"-d\n"
-	"\tOnly process directories, for path with wildcard symbols.\n"
+	"\tOnly process directories, for paths with wildcard symbols.\n"
 	"-n\n"
-	"\tOnly process normal files, for path with wildcard symbols.\n"
+	"\tOnly process normal files, for paths with wildcard symbols.\n"
+);
+static int stat_handler(cmd_param_st* param)
+{
+	common_sh_args(param);
+	vector<string> vfiles;
+	file_recurse_st frecur(param,CMD_ID_STAT);
+	for(int i=1;i<(int)args.size();i++)
+	{
+		const pair<string,string>& arg=args[i];
+		if(arg.first.empty())
+			continue;
+		if(!arg.second.empty())
+			return_t_msg(ERR_INVALID_PARAM,"the option \'%s=%s\' is invalid\n",arg.first.c_str(),arg.second.c_str());
+		if(arg.first[0]=='-')
+		{
+			for(int i=1;i<(int)arg.first.size();i++)
+			{
+				switch(arg.first[i])
+				{
+				case 'd':
+					frecur.option.handle_file=false;
+					break;
+				case 'n':
+					frecur.option.handle_dir=false;
+					break;
+				default:
+					return_t_msg(ERR_INVALID_PARAM,"the option \'%s\' is invalid\n",arg.first.c_str());
+				}
+			}
+		}
+		else
+		{
+			vfiles.push_back(arg.first);
+		}
+	}
+	if(!(frecur.option.handle_dir||frecur.option.handle_file))
+		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used simultaneously\n");
+	frecur.option.stop_at_error=true;
+	int ret=0;
+	for(int i=0;i<(int)vfiles.size();i++)
+	{
+		int retc=0;
+		string w_path;
+		bool wildcard=false;
+		frecur.src=vfiles[i];
+		CMatch match;
+		if(0!=(ret=init_match(match,frecur.src,wildcard)))
+			return_t_msg(ret,"\'%s\': %s\n",frecur.src.c_str(),get_error_desc(ret));
+		if(wildcard)
+			frecur.pmatch=&match;
+		if(0!=(retc=check_path(frecur.param,frecur.src,frecur.fsrc)))
+		{
+			ret=retc;
+			continue;
+		}
+		if(wildcard)
+			w_path=frecur.src=frecur.fsrc;
+		if(0!=(retc=(wildcard?fs_traverse((char*)w_path.c_str(),cb_fs_recurse_func,&frecur):do_stat(frecur))))
+		{
+			ret=retc;
+		}
+	}
+	return ret;
+}
+DEF_SH_CMD(stat,stat_handler,
+	"output statistics of the specified path(s).",
+	"Format:\n\tstat [options] (path1) (path2) ...\n"
+	"The stat command calculates the size and count of files and directories of the specified path(s), "
+	"multiple options are supported.\n"
+	"Wildcard symbol \'*\' can be used as a placeholder for 0~any character(s), "
+	"\'?\' can be used as a placeholder for exactly 1 character to form a match pattern "
+	"in the last section of path and calculates all the matched files/directories.\n"
+	"Options:\n"
+	"-d\n"
+	"\tOnly process directories, for paths with wildcard symbols.\n"
+	"-n\n"
+	"\tOnly process normal files, for paths with wildcard symbols.\n"
 );
 static int mkdir_handler(cmd_param_st* param)
 {

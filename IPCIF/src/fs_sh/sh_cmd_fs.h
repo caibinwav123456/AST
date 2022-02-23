@@ -137,6 +137,16 @@ inline void tputs(Pipe* pipe,const void* ptr,uint len,bool bs=false)
 			pipe->Send(ptr,slen);
 	}
 }
+inline void format_segmented_u64(const UInteger64& u64,string& dispsz)
+{
+	string sz=FormatI64(u64);
+	dispsz.clear();
+	for(int i=0;i<(int)sz.size();i+=3)
+	{
+		string sec=((int)sz.size()>i+3?sz.substr(sz.size()-i-3,3):sz.substr(0,sz.size()-i));
+		dispsz=sec+(i==0?"":",")+dispsz;
+	}
+}
 class ShCmdTable
 {
 public:
