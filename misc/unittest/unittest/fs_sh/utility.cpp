@@ -14,7 +14,7 @@ spec_char_verifier::spec_char_verifier(const byte* ch,uint nch,bool balphanum,bo
 	for(int i=0;i<(int)nch;i++)
 		alphabet[(uint)(uchar)ch[i]]=true;
 }
-bool spec_char_verifier::is_spec(char c)
+bool spec_char_verifier::is_spec(char c) const
 {
 	int i=(int)c;
 	if(i<0||i>=128)
