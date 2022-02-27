@@ -13,7 +13,7 @@ static inline bool is_valid_env_name(const char* envname)
 		if(!token_vrf.is_spec(*pstr))
 			return false;
 	}
-	return 0;
+	return true;
 }
 int FSEnvSet::SetEnv(const string& envname,const string& envval)
 {
