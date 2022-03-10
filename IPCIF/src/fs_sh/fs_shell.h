@@ -1,14 +1,22 @@
 #ifndef _FS_SHELL_H_
 #define _FS_SHELL_H_
 #include "common.h"
+#include "fsenv.h"
 #include <vector>
 #include <string>
 using namespace std;
 #define CTRL_KEY (1<<31)
 #define FS_CMD_HANDLE_STATE_EXEC 0
 #define FS_CMD_HANDLE_STATE_INIT 1
+#define FS_CMD_HANDLE_STATE_EXIT 2
 #include "key_def.h"
 #define CMD_PROMPT ">"
+struct ctx_priv_data
+{
+#ifdef USE_FS_ENV_VAR
+	FSEnvSet env_cache;
+#endif
+};
 struct sh_context
 {
 	uint c;
