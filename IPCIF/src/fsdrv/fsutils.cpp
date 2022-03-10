@@ -80,39 +80,38 @@ int parse_cmd(const byte* buf,int size,
 			while(size>0)
 			{
 				trim_text(buf,size,trim_string);
+				if(size<=0)
+					continue;
+				if(*buf=='\"')
+				{
+					if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
+						return ERR_BUFFER_OVERFLOW;
+					memcpy(ptoken,pbuf,buf-pbuf);
+					ptoken+=buf-pbuf;
+					*ptoken=0;
+					break;
+				}
+				else if(*buf=='\\')
+				{
+					if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
+						return ERR_BUFFER_OVERFLOW;
+					memcpy(ptoken,pbuf,buf-pbuf);
+					ptoken+=buf-pbuf;
+				}
+				else
+				{
+					//should not reach here.
+					assert(false);
+				}
+				buf++,size--;
 				if(size>0)
 				{
-					if(*buf=='\"')
-					{
-						if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
-							return ERR_BUFFER_OVERFLOW;
-						memcpy(ptoken,pbuf,buf-pbuf);
-						ptoken+=buf-pbuf;
-						*ptoken=0;
-						break;
-					}
-					else if(*buf=='\\')
-					{
-						if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
-							return ERR_BUFFER_OVERFLOW;
-						memcpy(ptoken,pbuf,buf-pbuf);
-						ptoken+=buf-pbuf;
-					}
-					else
-					{
-						//should not reach here.
-						assert(false);
-					}
+					if((ptoken-token_buf)+1>token_buf_size)
+						return ERR_BUFFER_OVERFLOW;
+					*ptoken=*buf;
+					ptoken++;
 					buf++,size--;
-					if(size>0)
-					{
-						if((ptoken-token_buf)+1>token_buf_size)
-							return ERR_BUFFER_OVERFLOW;
-						*ptoken=*buf;
-						ptoken++;
-						buf++,size--;
-						pbuf=buf,psize=size;
-					}
+					pbuf=buf,psize=size;
 				}
 			}
 			if(size==0)

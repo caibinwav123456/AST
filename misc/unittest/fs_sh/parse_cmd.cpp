@@ -3,8 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #define token_buf_size 1024
-static const byte seps[]={' ','\t','\r','\n'};
-static const byte spec_char[]={'_','-','+','.',',','/','{','}','~',':','#','%','*','@'};
+static const byte spec_char[]={'_','-','+','.',',','/','(',')','[',']','{','}','~',':','#','%','*','@','$'};
 static const byte spec_sym[]={'|','<','>'};
 struct quote_data
 {
@@ -12,14 +11,7 @@ struct quote_data
 };
 static bool trim_space(byte c,void* param)
 {
-	for(int i=0;i<sizeof(seps)/sizeof(byte);i++)
-	{
-		if(c==seps[i])
-		{
-			return true;
-		}
-	}
-	return false;
+	return c==' ';
 }
 static bool trim_token(byte c,void* param)
 {
@@ -66,59 +58,56 @@ static int parse_string(const byte* &buf,int& size,byte* token_buf,byte quote,st
 	assert(quote=='\"'||quote=='\'');
 	quote_data qdata;
 	qdata.quote=quote;
-	while(size>0)
+	for(;;)
 	{
 		trim_text(buf,size,trim_string,&qdata);
+		if(size==0)
+			return ERR_INVALID_CMD;
+		if(*buf==quote)
+		{
+			if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
+				return ERR_BUFFER_OVERFLOW;
+			memcpy(ptoken,pbuf,buf-pbuf);
+			ptoken+=buf-pbuf;
+			*ptoken=0;
+			break;
+		}
+		else if(*buf=='\\')
+		{
+			if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
+				return ERR_BUFFER_OVERFLOW;
+			memcpy(ptoken,pbuf,buf-pbuf);
+			ptoken+=buf-pbuf;
+		}
+		else
+		{
+			//should not reach here.
+			assert(false);
+		}
+		buf++,size--;
 		if(size>0)
 		{
+			byte esc_sym[2];
+			int esc_size;
 			if(*buf==quote)
 			{
-				if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
-					return ERR_BUFFER_OVERFLOW;
-				memcpy(ptoken,pbuf,buf-pbuf);
-				ptoken+=buf-pbuf;
-				*ptoken=0;
-				break;
-			}
-			else if(*buf=='\\')
-			{
-				if((ptoken-token_buf)+(buf-pbuf)>token_buf_size)
-					return ERR_BUFFER_OVERFLOW;
-				memcpy(ptoken,pbuf,buf-pbuf);
-				ptoken+=buf-pbuf;
+				esc_sym[0]=quote;
+				esc_size=1;
 			}
 			else
 			{
-				//should not reach here.
-				assert(false);
+				esc_sym[0]='\\';
+				esc_sym[1]=*buf;
+				esc_size=2;
 			}
+			if((ptoken-token_buf)+esc_size>token_buf_size)
+				return ERR_BUFFER_OVERFLOW;
+			memcpy(ptoken,esc_sym,esc_size);
+			ptoken+=esc_size;
 			buf++,size--;
-			if(size>0)
-			{
-				byte esc_sym[2];
-				int esc_size;
-				if(*buf==quote)
-				{
-					esc_sym[0]=quote;
-					esc_size=1;
-				}
-				else
-				{
-					esc_sym[0]='\\';
-					esc_sym[1]=*buf;
-					esc_size=2;
-				}
-				if((ptoken-token_buf)+esc_size>token_buf_size)
-					return ERR_BUFFER_OVERFLOW;
-				memcpy(ptoken,esc_sym,esc_size);
-				ptoken+=esc_size;
-				buf++,size--;
-				pbuf=buf,psize=size;
-			}
+			pbuf=buf,psize=size;
 		}
 	}
-	if(size==0)
-		return ERR_INVALID_CMD;
 	//handle the case '\\' is the last character of the string.
 	//in that case, a '+' is appended to the letter '\\'.
 	//for strings ending with "\\+[n]",the last trailing letter '+' will be eliminated.
@@ -141,11 +130,11 @@ static int parse_string(const byte* &buf,int& size,byte* token_buf,byte quote,st
 	return 0;
 }
 static int __parse_cmd(const byte* buf,int size,
-	vector<pair<string,string>>& args)
+	vector<pair<string,string>>& args,ctx_priv_data* privdata)
 {
 	int ret=0;
 	byte token_buf[token_buf_size+1];
-	string item,val;
+	string item;
 	const byte* pbuf;
 	int psize;
 	args.clear();
@@ -181,23 +170,21 @@ static int __parse_cmd(const byte* buf,int size,
 		trim_text(buf,size,trim_space);
 		if(size>0&&(*buf=='\"'||*buf=='\''))
 		{
-			if(0!=(ret=parse_string(buf,size,token_buf,*buf,val)))
+			if(0!=(ret=parse_string(buf,size,token_buf,*buf,args.back().second)))
 				return ret;
-			args.back().second=val;
 			continue;
 		}
 		pbuf=buf,psize=size;
 		if(!trim_text(buf,size,trim_token))
 			return ERR_INVALID_CMD;
-		make_token(pbuf,buf,token_buf,val);
-		args.back().second=val;
+		make_token(pbuf,buf,token_buf,args.back().second);
 	}
 	return 0;
 }
 int parse_cmd(const byte* buf,int size,
-	vector<pair<string,string>>& args)
+	vector<pair<string,string>>& args,void* priv)
 {
-	int ret=__parse_cmd(buf,size,args);
+	int ret=__parse_cmd(buf,size,args,(ctx_priv_data*)priv);
 	if(ret!=0)
 		args.clear();
 	return ret;

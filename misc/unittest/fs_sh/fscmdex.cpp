@@ -1664,12 +1664,16 @@ DEF_SH_CMD(touch,touch_handler,
 	"or creates a new empty file if it does not exist.\n"
 	"Each path is processed respectively.\n"
 );
+#ifdef USE_FS_ENV_VAR
 static int print_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
+	if(param->ctx->priv==NULL)
+		return_t_msg(ERR_GENERIC,"environment variable cache not initiated\n");
 	return 0;
 }
 DEF_SH_CMD(print,print_handler,
 	"show specified/all environment variable(s).",
 	""
 );
+#endif

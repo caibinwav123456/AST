@@ -144,12 +144,13 @@ void process_normal_key(sh_context* ctx)
 }
 int run_sh()
 {
+	int ret=0;
 	sh_context ctx;
 	if(cmd_handler!=NULL)
 		cmd_handler(&ctx,FS_CMD_HANDLE_STATE_INIT);
 	print_prompt(&ctx);
 #ifdef CMD_TEST
-	return cmd_test(&ctx,execute_cmd);
+	ret=cmd_test(&ctx,execute_cmd);
 #else
 	for(;;)
 	{
@@ -166,6 +167,8 @@ int run_sh()
 				break;
 		}
 	}
-	return 0;
 #endif
+	if(cmd_handler!=NULL)
+		cmd_handler(&ctx,FS_CMD_HANDLE_STATE_EXIT);
+	return ret;
 }
