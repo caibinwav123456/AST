@@ -134,7 +134,7 @@ static int execute(sh_context* ctx)
 	if(args.empty())
 		return 0;
 	const string& cmd_head=args[0].first;
-#ifdef USE_FS_ENV_VAR
+#ifdef USE_CTX_PRIV
 	ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
 #ifdef USE_FS_ENV_VAR
 	if(args.size()==1&&!args[0].second.empty())
@@ -323,13 +323,13 @@ static int linux_cmd_handler(sh_context* ctx,dword state)
 	}
 	else if(state==FS_CMD_HANDLE_STATE_INIT)
 	{
-#ifdef USE_FS_ENV_VAR
+#ifdef USE_CTX_PRIV
 		ctx->priv=new ctx_priv_data;
 #endif
 	}
 	else if(state==FS_CMD_HANDLE_STATE_EXIT)
 	{
-#ifdef USE_FS_ENV_VAR
+#ifdef USE_CTX_PRIV
 		ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
 		delete privdata;
 #endif

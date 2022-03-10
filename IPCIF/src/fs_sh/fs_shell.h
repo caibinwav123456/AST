@@ -11,6 +11,9 @@ using namespace std;
 #define FS_CMD_HANDLE_STATE_EXIT 2
 #include "key_def.h"
 #define CMD_PROMPT ">"
+#if defined(USE_FS_ENV_VAR)
+#define USE_CTX_PRIV
+#endif
 struct ctx_priv_data
 {
 #ifdef USE_FS_ENV_VAR
