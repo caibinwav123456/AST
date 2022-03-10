@@ -28,6 +28,12 @@ static inline void rtrim_space(const char* pstr,uint& pos,uint pos_start)
 {
 	for(;*pstr==' '&&pos>pos_start;pstr--,pos--);
 }
+static inline void trim_token(const char* pstr,uint& pos)
+{
+	if(*pstr==0||(*pstr>='0'&&*pstr<='9'))
+		return;
+	for(;token_vrf.is_spec(*pstr);pstr++,pos++);
+}
 static inline bool find_spec_char(const char* pstr,uint& pos,char c)
 {
 	for(;*pstr!=c&&*pstr!=0;pstr++,pos++);
@@ -100,7 +106,9 @@ int FSEnvSet::ReplaceEnv(const string& origin,string& output,solid_data* solid) 
 			continue;
 		uint pos_origin=pos;
 		const char* p_origin=porigin;
-		if((!find_spec_char(porigin,pos,ref_end))&&ref_end!=' ')
+		if(ref_end==' ')
+			trim_token(porigin,pos);
+		else if((!find_spec_char(porigin,pos,ref_end)))
 			return ERR_PARSE_ENV_FAILED;
 		uint pos_end=pos-1;
 		const char* p_end=porigin-1;

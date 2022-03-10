@@ -25,5 +25,5 @@ public:
 private:
 	map<string,string> env_assoc;
 };
-#endif
-#endif
+#endif //#ifdef USE_FS_ENV_VAR
+#endif //#ifndef _FSENV_H_
