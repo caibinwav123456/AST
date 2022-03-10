@@ -14,6 +14,13 @@ using namespace std;
 #if defined(USE_FS_ENV_VAR)
 #define USE_CTX_PRIV
 #endif
+#ifdef USE_CTX_PRIV
+#define init_ctx_priv(ctx) init_ctx_priv_data(ctx)
+#define destroy_ctx_priv(ctx) destroy_ctx_priv_data(ctx)
+#else
+#define init_ctx_priv(ctx)
+#define destroy_ctx_priv(ctx)
+#endif
 struct ctx_priv_data
 {
 #ifdef USE_FS_ENV_VAR
@@ -53,6 +60,15 @@ inline void print_blank(uint n)
 {
 	for(uint i=0;i<n;i++)
 		printf(" ");
+}
+inline void init_ctx_priv_data(sh_context* ctx)
+{
+	ctx->priv=new ctx_priv_data;
+}
+inline void destroy_ctx_priv_data(sh_context* ctx)
+{
+	delete (ctx_priv_data*)ctx->priv;
+	ctx->priv=NULL;
 }
 uint get_char();
 void quit_sh();

@@ -314,25 +314,20 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 static int linux_cmd_handler(sh_context* ctx,dword state)
 {
 	int ret=0;
-	if(state==FS_CMD_HANDLE_STATE_EXEC)
+	switch(state)
 	{
+	case FS_CMD_HANDLE_STATE_EXEC:
 		if(ctx->c==(uint)'\t')
 			complete(ctx);
 		else
 			ret=execute(ctx);
-	}
-	else if(state==FS_CMD_HANDLE_STATE_INIT)
-	{
-#ifdef USE_CTX_PRIV
-		ctx->priv=new ctx_priv_data;
-#endif
-	}
-	else if(state==FS_CMD_HANDLE_STATE_EXIT)
-	{
-#ifdef USE_CTX_PRIV
-		ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
-		delete privdata;
-#endif
+		break;
+	case FS_CMD_HANDLE_STATE_INIT:
+		init_ctx_priv(ctx);
+		break;
+	case FS_CMD_HANDLE_STATE_EXIT:
+		destroy_ctx_priv(ctx);
+		break;
 	}
 	if(state!=FS_CMD_HANDLE_STATE_EXIT&&get_cmd_return("pwd",ctx->pwd)!=0)
 		ctx->pwd.clear();
