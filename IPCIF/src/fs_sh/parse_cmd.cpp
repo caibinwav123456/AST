@@ -178,7 +178,7 @@ static int parse_string(const byte* &buf,int& size,byte* token_buf,string& str,t
 			pbuf=buf,psize=size;
 		}
 	}
-	//handle the case '\\' is the last character of the string.
+	//handle the case in which '\\' is the last character of the string.
 	//in that case, a '+' is appended to the letter '\\'.
 	//for strings ending with "\\+[n]",the last trailing letter '+' will be eliminated.
 	uint l=strlen((const char*)token_buf);
