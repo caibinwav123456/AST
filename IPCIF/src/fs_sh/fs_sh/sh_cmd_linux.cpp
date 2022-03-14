@@ -250,7 +250,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 	string lscmd=string("ls -aF")+(fulldir.empty()?"":" ")+fulldir;
 	if(0!=get_cmd_return(lscmd.c_str(),strfiles))
 		return;
-	if(0!=parse_cmd((byte*)strfiles.c_str(),strfiles.size(),vfile))
+	if(0!=parse_cmd((byte*)strfiles.c_str(),strfiles.size(),vfile,NULL))
 		return;
 	for(int i=0;i<(int)vfile.size();i++)
 	{
