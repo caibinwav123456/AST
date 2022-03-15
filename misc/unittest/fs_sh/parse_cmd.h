@@ -5,6 +5,6 @@
 #include <string>
 using namespace std;
 int parse_cmd(const byte* buf,int size,
-	vector<pair<string,string>>& args);
+	vector<pair<string,string>>& args,void* priv);
 void generate_cmd(const vector<pair<string,string>>& args,string& cmd);
 #endif

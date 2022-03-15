@@ -603,24 +603,22 @@ static int execute(sh_context* ctx)
 	string cmd=ctx->cmd;
 	vector<pair<string,string>> args;
 	int ret=0;
-	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args)))
-	{
-		switch(ret)
-		{
-		case ERR_INVALID_CMD:
-			printf("bad command format\n");
-			break;
-		case ERR_BUFFER_OVERFLOW:
-			printf("command buffer overflow\n");
-			break;
-		default:
-			assert(false);
-			break;
-		}
-		return ret;
-	}
+	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
+		return_msg(ret,"%s\n",get_error_desc(ret));
 	if(args.empty())
 		return 0;
+#ifdef USE_CTX_PRIV
+	ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
+#ifdef USE_FS_ENV_VAR
+	if(args.size()==1&&!args[0].second.empty())
+	{
+		if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+			return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
+				args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
+		return 0;
+	}
+#endif
+#endif
 	return ShCmdTable::ExecCmd(ctx,args);
 }
 static inline void sprint_buf(string& ret,char* buf,const char* format,...)
@@ -989,16 +987,21 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 static int _fs_cmd_handler(sh_context* ctx,dword state)
 {
 	int ret=0;
-	if(state==FS_CMD_HANDLE_STATE_EXEC)
+	switch(state)
 	{
+	case FS_CMD_HANDLE_STATE_EXEC:
 		if(ctx->c==(uint)'\t')
 			complete(ctx);
 		else
 			ret=execute(ctx);
-	}
-	else
-	{
+		break;
+	case FS_CMD_HANDLE_STATE_INIT:
+		init_ctx_priv(ctx);
 		ctx->pwd="/";
+		break;
+	case FS_CMD_HANDLE_STATE_EXIT:
+		destroy_ctx_priv(ctx);
+		break;
 	}
 	return ret;
 }

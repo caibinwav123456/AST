@@ -30,6 +30,9 @@
     <ClInclude Include="..\..\..\..\include\arch\win\key_def.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="fsenv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="complete.cpp">
@@ -51,6 +54,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="fscmdex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fsenv.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
