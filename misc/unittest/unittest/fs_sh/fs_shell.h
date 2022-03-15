@@ -25,10 +25,12 @@ using namespace std;
 #define init_ctx_priv(ctx)
 #define destroy_ctx_priv(ctx)
 #endif
+#define CTXPRIV_ENVF_DEL 1
 struct ctx_priv_data
 {
 #ifdef USE_FS_ENV_VAR
 	FSEnvSet env_cache;
+	dword env_flags;
 #endif
 };
 struct sh_context
@@ -37,7 +39,7 @@ struct sh_context
 	uint icmd;
 	uint ilog;
 	dword flags;
-	void* priv;
+	ctx_priv_data* priv;
 	string cmd;
 	string pwd;
 	vector<string> logback;
@@ -68,10 +70,13 @@ inline void print_blank(uint n)
 inline void init_ctx_priv_data(sh_context* ctx)
 {
 	ctx->priv=new ctx_priv_data;
+#ifdef USE_FS_ENV_VAR
+	ctx->priv->env_flags=0;
+#endif
 }
 inline void destroy_ctx_priv_data(sh_context* ctx)
 {
-	delete (ctx_priv_data*)ctx->priv;
+	delete ctx->priv;
 	ctx->priv=NULL;
 }
 uint get_char();

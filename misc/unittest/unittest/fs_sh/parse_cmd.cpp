@@ -281,22 +281,49 @@ static int __parse_cmd(const byte* buf,int size,
 		{
 			tdata.quote=*buf;
 			safe_return(ret,parse_string(buf,size,token_buf,args.back().second,&tdata));
+#ifdef USE_FS_ENV_VAR
+			if(args.back().second.empty())
+			{
+				if(args.size()==1)
+					privdata->env_flags|=CTXPRIV_ENVF_DEL;
+			}
+#endif
 			continue;
 		}
 		pbuf=buf,psize=size;
 		safe_return(ret,trim_text(buf,size,trim_token,&tdata));
 		if(!tdata.valid_trim)
+		{
+#ifdef USE_FS_ENV_VAR
+			if(args.size()==1)
+				privdata->env_flags|=CTXPRIV_ENVF_DEL;
+			else
+#endif
 			return ERR_INVALID_CMD;
-		make_token(pbuf,buf,token_buf,args.back().second);
+		}
+		else
+			make_token(pbuf,buf,token_buf,args.back().second);
 	}
+#ifdef USE_FS_ENV_VAR
+	if(args.size()>1&&(privdata->env_flags&CTXPRIV_ENVF_DEL))
+	{
+		privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+		return ERR_INVALID_CMD;
+	}
+#endif
 	return 0;
 }
 int parse_cmd(const byte* buf,int size,
-	vector<pair<string,string>>& args,void* priv)
+	vector<pair<string,string>>& args,ctx_priv_data* priv)
 {
-	int ret=__parse_cmd(buf,size,args,(ctx_priv_data*)priv);
+	int ret=__parse_cmd(buf,size,args,priv);
 	if(ret!=0)
+	{
 		args.clear();
+#ifdef USE_FS_ENV_VAR
+		priv->env_flags&=(~CTXPRIV_ENVF_DEL);
+#endif
+	}
 	return ret;
 }
 void generate_cmd(const vector<pair<string,string>>& args,string& cmd)
