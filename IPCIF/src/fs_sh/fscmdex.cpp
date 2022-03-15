@@ -1673,7 +1673,7 @@ static int print_handler(cmd_param_st* param)
 	if(args.size()>0&&!args[0].second.empty())
 		return_t_msg(ERR_INVALID_CMD,"the cmd \'%s=%s\' is invalid\n",args[0].first.c_str(),args[0].second.c_str());
 	int ret=0;
-	FSEnvSet& env=((ctx_priv_data*)ctx->priv)->env_cache;
+	FSEnvSet& env=ctx->priv->env_cache;
 	if(args.size()==1)
 	{
 		for(FSEnvSet::iterator it=env.BeginIterate();it;++it)

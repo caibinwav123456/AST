@@ -606,7 +606,7 @@ static int execute(sh_context* ctx)
 	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
 		return_msg(ret,"%s\n",get_error_desc(ret));
 #ifdef USE_CTX_PRIV
-	ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
+	ctx_priv_data* privdata=ctx->priv;
 #ifdef USE_FS_ENV_VAR
 	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
 	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);

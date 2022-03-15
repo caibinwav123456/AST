@@ -35,7 +35,7 @@ struct sh_context
 	uint icmd;
 	uint ilog;
 	dword flags;
-	void* priv;
+	ctx_priv_data* priv;
 	string cmd;
 	string pwd;
 	vector<string> logback;
@@ -65,15 +65,14 @@ inline void print_blank(uint n)
 }
 inline void init_ctx_priv_data(sh_context* ctx)
 {
-	ctx_priv_data* privdata=new ctx_priv_data;
-	ctx->priv=privdata;
+	ctx->priv=new ctx_priv_data;
 #ifdef USE_FS_ENV_VAR
-	privdata->env_flags=0;
+	ctx->priv->env_flags=0;
 #endif
 }
 inline void destroy_ctx_priv_data(sh_context* ctx)
 {
-	delete (ctx_priv_data*)ctx->priv;
+	delete ctx->priv;
 	ctx->priv=NULL;
 }
 uint get_char();
