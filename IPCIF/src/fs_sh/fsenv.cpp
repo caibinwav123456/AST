@@ -20,21 +20,21 @@ static inline bool is_valid_env_name(const char* envname)
 	}
 	return true;
 }
-static inline void trim_space(const char* pstr,uint& pos)
+static inline void trim_space(const char*& pstr,uint& pos)
 {
 	for(;*pstr==' ';pstr++,pos++);
 }
-static inline void rtrim_space(const char* pstr,uint& pos,uint pos_start)
+static inline void rtrim_space(const char*& pstr,uint& pos,uint pos_start)
 {
-	for(;*pstr==' '&&pos>pos_start;pstr--,pos--);
+	for(;pos>pos_start&&*pstr==' ';pstr--,pos--);
 }
-static inline void trim_token(const char* pstr,uint& pos)
+static inline void trim_token(const char*& pstr,uint& pos)
 {
 	if(*pstr==0||(*pstr>='0'&&*pstr<='9'))
 		return;
 	for(;token_vrf.is_spec(*pstr);pstr++,pos++);
 }
-static inline bool find_spec_char(const char* pstr,uint& pos,char c)
+static inline bool find_spec_char(const char*& pstr,uint& pos,char c)
 {
 	for(;*pstr!=c&&*pstr!=0;pstr++,pos++);
 	return *pstr==c;
@@ -63,7 +63,7 @@ int FSEnvSet::FindEnv(const string& envname,string& envval) const
 	envval=it->second;
 	return 0;
 }
-//$(var) & $var are solid, ${var} is unsolid
+//$(var) & $var is solid, ${var} is unsolid.
 int FSEnvSet::ReplaceEnv(const string& origin,string& output,solid_data* solid) const
 {
 	int ret=0;
@@ -77,7 +77,7 @@ int FSEnvSet::ReplaceEnv(const string& origin,string& output,solid_data* solid) 
 	{
 		uint pos_prev=pos;
 		bool b=find_spec_char(porigin,pos,REF_SYM);
-		output+=origin.substr(pos,pos-pos_prev);
+		output+=origin.substr(pos_prev,pos-pos_prev);
 		if(!b)
 			break;
 		porigin++,pos++;

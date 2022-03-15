@@ -37,7 +37,7 @@ static bool trim_token(byte c,trim_data* param)
 #define is_spec_sym(c) trim_sym(c,NULL)
 static bool trim_sym(byte c,trim_data* param)
 {
-	static spec_char_verifier ts(spec_sym,sizeof(spec_sym)/sizeof(byte),false,true);
+	static spec_char_verifier ts(spec_sym,sizeof(spec_sym)/sizeof(byte));
 	return ts.is_spec(c);
 }
 static bool trim_string(byte c,trim_data* param)
@@ -99,7 +99,7 @@ static inline int trim_text(const byte* &buf,int& size,bool (*trim_func)(byte,tr
 	for(;size>0;buf++,size--)
 	{
 #ifdef USE_FS_ENV_VAR
-		safe_return(ret,leap_solid(buf,size,ps,sd,flags&TF_MULTI,trimmed_normal,escape));
+		safe_return(ret,leap_solid(buf,size,ps,sd,!!(flags&TF_MULTI),trimmed_normal,escape));
 		if(escape)
 			break;
 		if(size<=0)
@@ -231,6 +231,15 @@ static int __parse_cmd(const byte* buf,int size,
 		safe_return(ret,trim_text(buf,size,trim_space,&tdata,TF_EXC_SOLID));
 		if(size==0)
 			break;
+#ifdef USE_FS_ENV_VAR
+		if(next_is_solid(size,tdata.ps,vs.sd))
+		{
+			pbuf=buf,psize=size;
+			safe_return(ret,leap_next_solid(buf,size,tdata.ps,vs.sd));
+			make_token(pbuf,buf,token_buf,item);
+		}
+		else
+#endif
 		if(*buf=='\"'||*buf=='\'')
 		{
 			tdata.quote=*buf;
@@ -258,6 +267,16 @@ static int __parse_cmd(const byte* buf,int size,
 			continue;
 		buf++,size--;
 		safe_return(ret,trim_text(buf,size,trim_space,&tdata,TF_EXC_SOLID));
+#ifdef USE_FS_ENV_VAR
+		if(next_is_solid(size,tdata.ps,vs.sd))
+		{
+			pbuf=buf,psize=size;
+			safe_return(ret,leap_next_solid(buf,size,tdata.ps,vs.sd));
+			make_token(pbuf,buf,token_buf,args.back().second);
+			continue;
+		}
+		else
+#endif
 		if(size>0&&(*buf=='\"'||*buf=='\''))
 		{
 			tdata.quote=*buf;
