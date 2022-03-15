@@ -605,19 +605,28 @@ static int execute(sh_context* ctx)
 	int ret=0;
 	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
 		return_msg(ret,"%s\n",get_error_desc(ret));
-	if(args.empty())
-		return 0;
 #ifdef USE_CTX_PRIV
 	ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
 #ifdef USE_FS_ENV_VAR
-	if(args.size()==1&&!args[0].second.empty())
-	{
-		if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
-			return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
-				args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
-		return 0;
-	}
+	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
+	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
 #endif
+#endif
+	if(args.empty())
+		return 0;
+#ifdef USE_FS_ENV_VAR
+	if(args.size()==1)
+	{
+		bool empty=args[0].second.empty();
+		assert(!((!empty)&&del_flag));
+		if(((!empty)&&!del_flag)||(empty&&del_flag))
+		{
+			if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+				return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
+					args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
+			return 0;
+		}
+	}
 #endif
 	return ShCmdTable::ExecCmd(ctx,args);
 }

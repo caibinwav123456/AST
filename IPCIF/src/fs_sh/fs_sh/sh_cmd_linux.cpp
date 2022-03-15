@@ -17,19 +17,23 @@
 #define CMD_SET_EXEC_MODE "setmode"
 #define EXEC_MODE_ALL "all"
 #define EXEC_MODE_NORM "normal"
+#define CMD_PRINT_ENV "print"
 
 static const byte ls_suffix[]={'*','@','|','>'};
 struct st_alias
 {
 	const char* alias;
-	const char* full;
+	const char** full;
 	uint min_args;
 	uint max_args;
 };
+const char* ll_full[]={"ls","-alF",NULL};
+const char* la_full[]={"ls","-A",NULL};
+const char* l_full[]={"ls","-CF",NULL};
 static const st_alias s_alias[]={
-	{"ll","ls -alF",0,INFINITE},
-	{"la","ls -A",0,INFINITE},
-	{"l","ls -CF",0,INFINITE}
+	{"ll",ll_full,0,INFINITE},
+	{"la",la_full,0,INFINITE},
+	{"l",l_full,0,INFINITE}
 };
 static int validate_param(vector<pair<string,string>>& args,const st_alias& alias)
 {
@@ -90,6 +94,48 @@ static int check_args(vector<pair<string,string>>& args,bool mute=false)
 	}
 	return 0;
 }
+#ifdef USE_FS_ENV_VAR
+static int print_env(FSEnvSet& env,const vector<pair<string,string>>& args)
+{
+	int ret=0;
+	if(args.size()==1)
+	{
+		for(FSEnvSet::iterator it=env.BeginIterate();it;++it)
+		{
+			printf("%s",it->first.c_str());
+			printf("=");
+			printf("%s",it->second.c_str());
+			printf("\n");
+		}
+	}
+	else
+	{
+		for(int i=1;i<(int)args.size();i++)
+		{
+			if(!args[i].second.empty())
+				printf("\'%s=%s\': invalid option\n",args[i].first.c_str(),args[i].second.c_str());
+			const string& envname=args[i].first;
+			string val;
+			ret=env.FindEnv(envname,val);
+			if(ret==0)
+			{
+				printf("%s",envname.c_str());
+				printf("=");
+				printf("%s",val.c_str());
+				printf("\n");
+			}
+			else if(ret==ERR_ENV_NOT_FOUND)
+			{
+				printf("%s",envname.c_str());
+				printf("=\n");
+			}
+			else
+				printf("\'%s\': invalid environment variable name\n",envname.c_str());
+		}
+	}
+	return 0;
+}
+#endif
 static inline void print_error_setmode()
 {
 	printf("the param of the command %s error.\n"
@@ -131,32 +177,48 @@ static int execute(sh_context* ctx)
 		}
 		return ret;
 	}
-	if(args.empty())
-		return 0;
-	const string& cmd_head=args[0].first;
 #ifdef USE_CTX_PRIV
 	ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
 #ifdef USE_FS_ENV_VAR
-	if(args.size()==1&&!args[0].second.empty())
+	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
+	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+#endif
+#endif
+	if(args.empty())
+		return 0;
+	const string& cmd_head=args[0].first;
+#ifdef USE_FS_ENV_VAR
+	if(args.size()==1)
 	{
-		if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+		bool empty=args[0].second.empty();
+		assert(!((!empty)&&del_flag));
+		if(((!empty)&&!del_flag)||(empty&&del_flag))
 		{
-			const char* errmsg=NULL;
-			switch(ret)
+			if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
 			{
-			case ERR_INVALID_ENV_NAME:
-				errmsg="Invalid environment variable name";
-				break;
-			default:
-				assert(false);
-				break;
+				const char* errmsg=NULL;
+				switch(ret)
+				{
+				case ERR_INVALID_ENV_NAME:
+					errmsg="Invalid environment variable name";
+					break;
+				default:
+					assert(false);
+					break;
+				}
+				printf("set environment variable \'%s\' to \'%s\' failed: %s\n",
+					args[0].first.c_str(),args[0].second.c_str(),errmsg);
+				return ret;
 			}
-			printf("set environment variable \'%s\' to \'%s\' failed: %s\n",
-				args[0].first.c_str(),args[0].second.c_str(),errmsg);
-			return ret;
+			return 0;
 		}
 	}
-#endif
+	if(cmd_head==CMD_PRINT_ENV)
+	{
+		if(0!=(ret=check_args(args)))
+			return ret;
+		print_env(privdata->env_cache,args);
+	}
 	else
 #endif
 	if(cmd_head==CMD_SET_EXEC_MODE)
@@ -204,7 +266,11 @@ static int execute(sh_context* ctx)
 			{
 				if(0!=(ret=check_args(args)))
 					return ret;
-				args[0].first=s_alias[i].full;
+				args.erase(args.begin());
+				int j;
+				const char** p;
+				for(j=0,p=s_alias[i].full;*p!=NULL;j++,p++)
+					args.insert(args.begin()+j,pair<string,string>(*p,""));
 				break;
 			}
 		}
