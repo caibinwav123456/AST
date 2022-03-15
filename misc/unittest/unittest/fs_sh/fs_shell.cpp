@@ -163,5 +163,7 @@ int run_sh()
 				break;
 		}
 	}
+	if(cmd_handler!=NULL)
+		cmd_handler(&ctx,FS_CMD_HANDLE_STATE_EXIT);
 	return 0;
 }

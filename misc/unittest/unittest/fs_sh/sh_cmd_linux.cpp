@@ -102,8 +102,19 @@ static int execute(sh_context* ctx)
 	string cmd=ctx->cmd;
 	vector<pair<string,string>> args;
 	int ret=0;
-	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args)))
+	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
 	{
+#ifdef USE_FS_ENV_VAR
+		switch(ret)
+		{
+		case ERR_INVALID_ENV_NAME:
+			printf("Invalid environment variable name\n");
+			return ret;
+		case ERR_PARSE_ENV_FAILED:
+			printf("Error occured while replacing environment variables\n");
+			return ret;
+		}
+#endif
 		if(ctx->flags&CTX_FLAG_EXEC_ALL)
 			return system(cmd.c_str());
 		switch(ret)
@@ -123,6 +134,31 @@ static int execute(sh_context* ctx)
 	if(args.empty())
 		return 0;
 	const string& cmd_head=args[0].first;
+#ifdef USE_CTX_PRIV
+	ctx_priv_data* privdata=(ctx_priv_data*)ctx->priv;
+#ifdef USE_FS_ENV_VAR
+	if(args.size()==1&&!args[0].second.empty())
+	{
+		if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+		{
+			const char* errmsg=NULL;
+			switch(ret)
+			{
+			case ERR_INVALID_ENV_NAME:
+				errmsg="Invalid environment variable name";
+				break;
+			default:
+				assert(false);
+				break;
+			}
+			printf("set environment variable \'%s\' to \'%s\' failed: %s\n",
+				args[0].first.c_str(),args[0].second.c_str(),errmsg);
+			return ret;
+		}
+	}
+#endif
+	else
+#endif
 	if(cmd_head==CMD_SET_EXEC_MODE)
 	{
 		if(0!=(ret=check_args(args,true)))
@@ -169,10 +205,10 @@ static int execute(sh_context* ctx)
 				if(0!=(ret=check_args(args)))
 					return ret;
 				args[0].first=s_alias[i].full;
-				generate_cmd(args,cmd);
 				break;
 			}
 		}
+		generate_cmd(args,cmd);
 		if(0!=(ret=system(cmd.c_str())))
 			return ret;
 	}
@@ -214,7 +250,7 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 	string lscmd=string("ls -aF")+(fulldir.empty()?"":" ")+fulldir;
 	if(0!=get_cmd_return(lscmd.c_str(),strfiles))
 		return;
-	if(0!=parse_cmd((byte*)strfiles.c_str(),strfiles.size(),vfile))
+	if(0!=parse_cmd((byte*)strfiles.c_str(),strfiles.size(),vfile,NULL))
 		return;
 	for(int i=0;i<(int)vfile.size();i++)
 	{
@@ -278,14 +314,22 @@ void list_cur_dir_files(const string& dir,vector<string>& files)
 static int linux_cmd_handler(sh_context* ctx,dword state)
 {
 	int ret=0;
-	if(state==FS_CMD_HANDLE_STATE_EXEC)
+	switch(state)
 	{
+	case FS_CMD_HANDLE_STATE_EXEC:
 		if(ctx->c==(uint)'\t')
 			complete(ctx);
 		else
 			ret=execute(ctx);
+		break;
+	case FS_CMD_HANDLE_STATE_INIT:
+		init_ctx_priv(ctx);
+		break;
+	case FS_CMD_HANDLE_STATE_EXIT:
+		destroy_ctx_priv(ctx);
+		break;
 	}
-	if(0!=get_cmd_return("pwd",ctx->pwd))
+	if(state!=FS_CMD_HANDLE_STATE_EXIT&&get_cmd_return("pwd",ctx->pwd)!=0)
 		ctx->pwd.clear();
 	return ret;
 }

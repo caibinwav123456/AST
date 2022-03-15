@@ -90,7 +90,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CONVERT_FULL_PATH;DLL_IMPORT;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_FS_ENV_VAR;CONVERT_FULL_PATH;DLL_IMPORT;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\include;$(SolutionDir)..\..\..\include\arch\win;$(SolutionDir)..\..\..\src\fs_sh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -106,7 +106,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>CONVERT_FULL_PATH;DLL_IMPORT;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_FS_ENV_VAR;CONVERT_FULL_PATH;DLL_IMPORT;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\include;$(SolutionDir)..\..\..\include\arch\win;$(SolutionDir)..\..\..\src\fs_sh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -124,7 +124,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>CONVERT_FULL_PATH;DLL_IMPORT;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_FS_ENV_VAR;CONVERT_FULL_PATH;DLL_IMPORT;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\include;$(SolutionDir)..\..\..\include\arch\win;$(SolutionDir)..\..\..\src\fs_sh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -144,7 +144,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>CONVERT_FULL_PATH;DLL_IMPORT;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_FS_ENV_VAR;CONVERT_FULL_PATH;DLL_IMPORT;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\include;$(SolutionDir)..\..\..\include\arch\win;$(SolutionDir)..\..\..\src\fs_sh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -159,6 +159,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\arch\win\key_def.h" />
     <ClInclude Include="..\..\..\fs_sh\complete.h" />
+    <ClInclude Include="..\..\..\fs_sh\fsenv.h" />
     <ClInclude Include="..\..\..\fs_sh\fs_shell.h" />
     <ClInclude Include="..\..\..\fs_sh\parse_cmd.h" />
     <ClInclude Include="..\..\..\fs_sh\sh_cmd_fs.h" />
@@ -167,6 +168,7 @@
     <ClCompile Include="..\..\..\arch\win\get_char.cpp" />
     <ClCompile Include="..\..\..\fs_sh\complete.cpp" />
     <ClCompile Include="..\..\..\fs_sh\fscmdex.cpp" />
+    <ClCompile Include="..\..\..\fs_sh\fsenv.cpp" />
     <ClCompile Include="..\..\..\fs_sh\fs_shell.cpp" />
     <ClCompile Include="..\..\..\fs_sh\parse_cmd.cpp" />
     <ClCompile Include="..\..\..\fs_sh\sh_cmd_fs.cpp" />
