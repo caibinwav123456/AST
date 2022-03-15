@@ -305,17 +305,11 @@ void generate_cmd(const vector<pair<string,string>>& args,string& cmd)
 	bool start=true;
 	for(int i=0;i<(int)args.size();i++)
 	{
-		string first=args[i].first,second=args[i].second;
+		string first=quote_file(args[i].first),second=quote_file(args[i].second);
 		if(start)
-		{
 			start=false;
-		}
 		else
-		{
 			cmd+=" ";
-			first=quote_file(first);
-			second=quote_file(second);
-		}
 		string item=first+(second.empty()?"":"="+second);
 		cmd+=item;
 	}
