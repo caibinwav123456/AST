@@ -314,15 +314,14 @@ static int __parse_cmd(const byte* buf,int size,
 	return 0;
 }
 int parse_cmd(const byte* buf,int size,
-	vector<pair<string,string>>& args,void* priv)
+	vector<pair<string,string>>& args,ctx_priv_data* priv)
 {
-	ctx_priv_data* privdata=(ctx_priv_data*)priv;
-	int ret=__parse_cmd(buf,size,args,privdata);
+	int ret=__parse_cmd(buf,size,args,priv);
 	if(ret!=0)
 	{
 		args.clear();
 #ifdef USE_FS_ENV_VAR
-		privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+		priv->env_flags&=(~CTXPRIV_ENVF_DEL);
 #endif
 	}
 	return ret;
