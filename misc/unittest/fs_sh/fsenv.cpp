@@ -63,6 +63,14 @@ int FSEnvSet::FindEnv(const string& envname,string& envval) const
 	envval=it->second;
 	return 0;
 }
+FSEnvSet::iterator FSEnvSet::BeginIterate()
+{
+	iterator iter;
+	iter.iter=env_assoc.begin();
+	iter.end=env_assoc.end();
+	iter.valid=(iter.iter!=iter.end);
+	return iter;
+}
 //$(var) & $var is solid, ${var} is unsolid.
 int FSEnvSet::ReplaceEnv(const string& origin,string& output,solid_data* solid) const
 {

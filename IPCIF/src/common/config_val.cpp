@@ -6,7 +6,7 @@ config_val_container* config_val_container::get_val_container()
 }
 int config_val_container::config_value(ConfigProfile* config)
 {
-	for(ConfigProfile::iterator it=config->BeginIterate(CONFIG_SECTION_VARIABLES);it;it++)
+	for(ConfigProfile::iterator it=config->BeginIterate(CONFIG_SECTION_VARIABLES);it;++it)
 	{
 		if(it->first!="")
 		{

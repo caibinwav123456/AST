@@ -1668,8 +1668,45 @@ DEF_SH_CMD(touch,touch_handler,
 static int print_handler(cmd_param_st* param)
 {
 	common_sh_args(param);
-	if(param->ctx->priv==NULL)
-		return_t_msg(ERR_GENERIC,"environment variable cache not initiated\n");
+	if(ctx->priv==NULL)
+		return_t_msg(ERR_GENERIC,"environment variable cache not initialized\n");
+	int ret=0;
+	FSEnvSet& env=((ctx_priv_data*)ctx->priv)->env_cache;
+	if(args.size()==1)
+	{
+		for(FSEnvSet::iterator it=env.BeginIterate();it;++it)
+		{
+			ts_output(it->first.c_str());
+			ts_output("=");
+			ts_output(it->second.c_str());
+			ts_output("\n");
+		}
+	}
+	else
+	{
+		for(int i=1;i<(int)args.size();i++)
+		{
+			if(!args[i].second.empty())
+				t_output("\'%s=%s\': invalid option\n",args[i].first.c_str(),args[i].second.c_str());
+			const string& envname=args[i].first;
+			string val;
+			ret=env.FindEnv(envname,val);
+			if(ret==0)
+			{
+				ts_output(envname.c_str());
+				ts_output("=");
+				ts_output(val.c_str());
+				ts_output("\n");
+			}
+			else if(ret==ERR_ENV_NOT_FOUND)
+			{
+				ts_output(envname.c_str());
+				ts_output("=\n");
+			}
+			else
+				t_output("\'%s\': %s\n",envname.c_str(),get_error_desc(ret));
+		}
+	}
 	return 0;
 }
 DEF_SH_CMD(print,print_handler,

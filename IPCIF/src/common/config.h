@@ -13,6 +13,7 @@ public:
 		bool valid;
 		map<string,string>::iterator iter;
 		map<string,string>::iterator end;
+		iterator(){}
 	public:
 		operator bool()
 		{
@@ -23,12 +24,14 @@ public:
 		iterator operator++(int)
 		{
 			iterator it=*this;
-			iter++;
+			if(valid)
+				iter++;
 			return it;
 		}
 		iterator& operator++()
 		{
-			iter++;
+			if(valid)
+				iter++;
 			return *this;
 		}
 		pair<const string,string>& operator*()

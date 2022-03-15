@@ -27,6 +27,7 @@ class process_identifier
 public:
 	process_identifier();
 	int GetProcStat(process_stat* pstat);
+	int GetMainInfo();
 	int Init();
 	void Exit();
 	int GetStorageInfo(char* name,if_id_info_storage* pifinfo);
@@ -165,12 +166,19 @@ process_identifier::process_identifier()
 	init_process_stat(&proc_stat,name);
 	init_process_stat(&main_info.loader_exe_info,"");
 	init_process_stat(&main_info.manager_exe_info,"");
+	proc_stat.ifs=&ifs;
 	main_info.loader_exe_info.ifs=&loader_ifs;
 	main_info.manager_exe_info.ifs=&manager_ifs;
-	proc_stat.main_info=&main_info;
-	proc_stat.ifs=&ifs;
-	if(0!=(init_error=GetProcStat(&proc_stat)))
+	if(0!=(init_error=GetMainInfo()))
 		return;
+	int ret=GetProcStat(&proc_stat);
+	if(ret==ERR_EXEC_NOT_FOUND)
+		is_external=true;
+	else if(ret!=0)
+	{
+		init_error=ret;
+		return;
+	}
 	if(0!=(init_error=sys_get_current_dir(cur_dir,MAX_DIR_SIZE)))
 		return;
 	if(!is_external)
@@ -250,57 +258,58 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	}
 	return 0;
 }
-int process_identifier::GetProcStat(process_stat* pstat)
+int process_identifier::GetMainInfo()
 {
-	bool found=false,
-		launcher_found=(pstat->main_info==NULL),
-		manager_found=(pstat->main_info==NULL);
-	pstat->file[FILE_NAME_SIZE-1]=0;
-	ConfigProfile::iterator it;
 	int ret=0;
-	for(it=config.BeginIterate(CONFIG_SECTION_EXEC);it;it++)
+	string str;
+	bool launcher_found=false,manager_found=false;
+	for(ConfigProfile::iterator it=config.BeginIterate(CONFIG_SECTION_EXEC);it;++it)
 	{
 		if(it->first=="")
 			continue;
 		const string& s=it->first;
 		string file;
-		if(config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
+		if(!config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
+			continue;
+		if(!config.GetCongfigItem(s,CFG_TAG_EXEC_TYPE,str))
+			continue;
+		if(!launcher_found&&str==CFG_TAG_EXEC_TYPE_LAUNCHER)
 		{
-			if(!found&&file==pstat->file)
-			{
-				found=true;
-				if(0!=(ret=__get_stat__(pstat,s,config)))
-					return ret;
-			}
-			if(!(launcher_found&&manager_found))
-			{
-				string str;
-				if(config.GetCongfigItem(s,CFG_TAG_EXEC_TYPE,str))
-				{
-					if(!launcher_found&&str==CFG_TAG_EXEC_TYPE_LAUNCHER)
-					{
-						launcher_found=true;
-						strcpy(pstat->main_info->loader_exe_info.file,file.c_str());
-						if(0!=(ret=__get_stat__(&pstat->main_info->loader_exe_info,s,config)))
-							return ret;
-					}
-					if(!manager_found&&str==CFG_TAG_EXEC_TYPE_MANAGER)
-					{
-						manager_found=true;
-						strcpy(pstat->main_info->manager_exe_info.file,file.c_str());
-						if(0!=(ret=__get_stat__(&pstat->main_info->manager_exe_info,s,config)))
-							return ret;
-					}
-				}
-			}
-			if(found&&launcher_found&&manager_found)
-				return 0;
+			launcher_found=true;
+			strcpy(main_info.loader_exe_info.file,file.c_str());
+			if(0!=(ret=__get_stat__(&main_info.loader_exe_info,s,config)))
+				return ret;
 		}
+		if(!manager_found&&str==CFG_TAG_EXEC_TYPE_MANAGER)
+		{
+			manager_found=true;
+			strcpy(main_info.manager_exe_info.file,file.c_str());
+			if(0!=(ret=__get_stat__(&main_info.manager_exe_info,s,config)))
+				return ret;
+		}
+		if(launcher_found&&manager_found)
+			return 0;
 	}
-	if(pstat->main_info!=NULL&&(!found)&&launcher_found&&manager_found)
+	return ERR_EXEC_NOT_FOUND;
+}
+int process_identifier::GetProcStat(process_stat* pstat)
+{
+	int ret=0;
+	pstat->file[FILE_NAME_SIZE-1]=0;
+	for(ConfigProfile::iterator it=config.BeginIterate(CONFIG_SECTION_EXEC);it;++it)
 	{
-		is_external=true;
-		return 0;
+		if(it->first=="")
+			continue;
+		const string& s=it->first;
+		string file;
+		if(!config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
+			continue;
+		if(file==pstat->file)
+		{
+			if(0!=(ret=__get_stat__(pstat,s,config)))
+				return ret;
+			return 0;
+		}
 	}
 	return ERR_EXEC_NOT_FOUND;
 }
@@ -380,7 +389,7 @@ failed:
 void* process_identifier::FindFirstExecutable(process_stat* pstat)
 {
 	ConfigProfile::iterator* it=new ConfigProfile::iterator(config.BeginIterate(CONFIG_SECTION_EXEC));
-	for(;(*it)&&(*it)->first=="";(*it)++);
+	for(;(*it)&&(*it)->first=="";++(*it));
 	if(!(*it))
 	{
 		delete it;
@@ -394,13 +403,13 @@ void* process_identifier::FindFirstExecutable(process_stat* pstat)
 		delete it;
 		return NULL;
 	}
-	(*it)++;
+	++(*it);
 	return it;
 }
 int process_identifier::FindNextExecutable(void* handle,process_stat* pstat)
 {
 	ConfigProfile::iterator* it=(ConfigProfile::iterator*)handle;
-	for(;(*it)&&(*it)->first=="";(*it)++);
+	for(;(*it)&&(*it)->first=="";++(*it));
 	if(!(*it))
 		return 0;
 	string file;
@@ -408,7 +417,7 @@ int process_identifier::FindNextExecutable(void* handle,process_stat* pstat)
 	strcpy(pstat->file,file.c_str());
 	if(0!=__get_stat__(pstat,(*it)->first,config))
 		return 0;
-	(*it)++;
+	++(*it);
 	return 1;
 }
 void process_identifier::FindExecutableClose(void* handle)

@@ -54,7 +54,6 @@ struct process_stat
 	int log;
 	int ambiguous;
 	proc_type type;
-	main_process_info* main_info;
 	if_ids* ifs;
 };
 struct main_process_info
