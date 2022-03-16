@@ -226,7 +226,7 @@ static int execute(sh_context* ctx)
 	{
 		if(0!=(ret=check_args(args)))
 			return ret;
-		print_env(privdata->env_cache,args);
+		print_env(ctx->priv->env_cache,args);
 	}
 	else
 #endif

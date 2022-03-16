@@ -263,7 +263,11 @@ static int __parse_cmd(const byte* buf,int size,
 		}
 		safe_return(ret,trim_text(buf,size,trim_space,&tdata,TF_EXC_SOLID));
 		args.push_back(pair<string,string>(item,""));
-		if(size==0||next_is_solid(size,tdata.ps,vs.sd)||*buf!='=')
+		if(size==0
+#ifdef USE_FS_ENV_VAR
+			||next_is_solid(size,tdata.ps,vs.sd)
+#endif
+			||*buf!='=')
 			continue;
 		buf++,size--;
 		safe_return(ret,trim_text(buf,size,trim_space,&tdata,TF_EXC_SOLID));
