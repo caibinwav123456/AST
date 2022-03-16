@@ -605,19 +605,16 @@ static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<s
 	bset=false;
 	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
 	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
-	if(args.size()==1)
-	{
-		bool empty=args[0].second.empty();
-		assert(!((!empty)&&del_flag));
-		if(((!empty)&&!del_flag)||(empty&&del_flag))
-		{
-			if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
-				return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
-					args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
-			bset=true;
-			return 0;
-		}
-	}
+	if(args.size()!=1)
+		return 0;
+	bool empty=args[0].second.empty();
+	assert(!((!empty)&&del_flag));
+	if(empty&&!del_flag)
+		return 0;
+	if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+		return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
+			args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
+	bset=true;
 	return 0;
 }
 #endif

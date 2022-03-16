@@ -94,6 +94,13 @@ static int check_args(vector<pair<string,string>>& args,bool mute=false)
 	}
 	return 0;
 }
+static inline void print_error_setmode()
+{
+	printf("the param of the command %s error.\n"
+		"try \"%s %s\" or \"%s %s\".\n",CMD_SET_EXEC_MODE,
+		CMD_SET_EXEC_MODE,EXEC_MODE_ALL,
+		CMD_SET_EXEC_MODE,EXEC_MODE_NORM);
+}
 #ifdef USE_FS_ENV_VAR
 static int print_env(FSEnvSet& env,const vector<pair<string,string>>& args)
 {
@@ -135,15 +142,6 @@ static int print_env(FSEnvSet& env,const vector<pair<string,string>>& args)
 	}
 	return 0;
 }
-#endif
-static inline void print_error_setmode()
-{
-	printf("the param of the command %s error.\n"
-		"try \"%s %s\" or \"%s %s\".\n",CMD_SET_EXEC_MODE,
-		CMD_SET_EXEC_MODE,EXEC_MODE_ALL,
-		CMD_SET_EXEC_MODE,EXEC_MODE_NORM);
-}
-#ifdef USE_FS_ENV_VAR
 static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<string,string>>& args,bool& bset)
 {
 	int ret=0;
