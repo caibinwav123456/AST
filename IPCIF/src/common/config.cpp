@@ -58,10 +58,10 @@ static inline bool trim_text(const byte* &buf,int& size,bool (*trim_func)(byte))
 	return true;
 }
 #define make_token(pbuf,buf,token_buf,token) \
-	if(buf-pbuf>token_buf_size)return ERR_BUFFER_OVERFLOW; \
+	{if(buf-pbuf>token_buf_size)return ERR_BUFFER_OVERFLOW; \
 	memcpy(token_buf,pbuf,buf-pbuf); \
 	token_buf[buf-pbuf]=0; \
-	token=string((const char*)token_buf)
+	token=string((const char*)token_buf);}
 static int parse_config_text(const byte* buf,int size,
 	map<string,map<string,string>>& configs)
 {
