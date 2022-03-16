@@ -288,7 +288,7 @@ static int __parse_cmd(const byte* buf,int size,
 #ifdef USE_FS_ENV_VAR
 			if(args.back().second.empty())
 			{
-				if(args.size()==1)
+				if(args.size()==1&&privdata!=NULL)
 					privdata->env_flags|=CTXPRIV_ENVF_DEL;
 			}
 #endif
@@ -299,7 +299,7 @@ static int __parse_cmd(const byte* buf,int size,
 		if(!tdata.valid_trim)
 		{
 #ifdef USE_FS_ENV_VAR
-			if(args.size()==1)
+			if(args.size()==1&&privdata!=NULL)
 				privdata->env_flags|=CTXPRIV_ENVF_DEL;
 			else
 #endif
@@ -309,7 +309,7 @@ static int __parse_cmd(const byte* buf,int size,
 			make_token(pbuf,buf,token_buf,args.back().second);
 	}
 #ifdef USE_FS_ENV_VAR
-	if(args.size()>1&&(privdata->env_flags&CTXPRIV_ENVF_DEL))
+	if(args.size()>1&&privdata!=NULL&&(privdata->env_flags&CTXPRIV_ENVF_DEL))
 	{
 		privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
 		return ERR_INVALID_CMD;
