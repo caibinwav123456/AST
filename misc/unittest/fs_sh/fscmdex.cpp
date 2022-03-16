@@ -1715,10 +1715,10 @@ DEF_SH_CMD(print,print_handler,
 	"show specified/all environment variable(s).",
 	"Format:\n\tprint [env1] [env2] ...\n"
 	"The print command shows value(s) of the specified or all environment variables in a list.\n"
-	"Without the name of the variable(s) specified as the parameters, this command list out the name/value pair of all "
-	"the existing environment variables. With variable names specified, only the specified variable(s) are shown.\n"
+	"Without the name of the variable(s) specified as the parameters, this command lists out the name/value pairs of all "
+	"the existing environment variables. With variable names specified, only the value(s) of the specified variable(s) are shown.\n"
 	"Each name/value pair is shown in a single line with the format \'(name)=(value)\'. If the desired variable does not exist, "
 	"the value field will simply be empty.\n"
-	"For use of environment variables, including setting/deleting/modifying/referring them, see detailed documents.\n"
+	"For use of environment variables, including the set/delete/modification/reference of the variables, see detailed document.\n"
 );
 #endif

@@ -598,23 +598,13 @@ int get_full_path(const string& cur_dir,const string& relative_path,string& full
 	full_path=(full_path.empty()?(tag.empty()?"/":tag):tag+"/"+full_path);
 	return 0;
 }
-static int execute(sh_context* ctx)
-{
-	string cmd=ctx->cmd;
-	vector<pair<string,string>> args;
-	int ret=0;
-	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
-		return_msg(ret,"%s\n",get_error_desc(ret));
-#ifdef USE_CTX_PRIV
-	ctx_priv_data* privdata=ctx->priv;
 #ifdef USE_FS_ENV_VAR
+static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<string,string>>& args,bool& bset)
+{
+	int ret=0;
+	bset=false;
 	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
 	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
-#endif
-#endif
-	if(args.empty())
-		return 0;
-#ifdef USE_FS_ENV_VAR
 	if(args.size()==1)
 	{
 		bool empty=args[0].second.empty();
@@ -624,10 +614,27 @@ static int execute(sh_context* ctx)
 			if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
 				return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
 					args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
+			bset=true;
 			return 0;
 		}
 	}
+	return 0;
+}
 #endif
+static int execute(sh_context* ctx)
+{
+	string cmd=ctx->cmd;
+	vector<pair<string,string>> args;
+	int ret=0;
+	bool bsetenv=false;
+	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
+		return_msg(ret,"%s\n",get_error_desc(ret));
+#ifdef USE_FS_ENV_VAR
+	if(0!=(ret=handle_set_env_var(ctx->priv,args,bsetenv))||bsetenv)
+		return ret;
+#endif
+	if(args.empty())
+		return 0;
 	return ShCmdTable::ExecCmd(ctx,args);
 }
 static inline void sprint_buf(string& ret,char* buf,const char* format,...)

@@ -143,11 +143,48 @@ static inline void print_error_setmode()
 		CMD_SET_EXEC_MODE,EXEC_MODE_ALL,
 		CMD_SET_EXEC_MODE,EXEC_MODE_NORM);
 }
+#ifdef USE_FS_ENV_VAR
+static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<string,string>>& args,bool& bset)
+{
+	int ret=0;
+	bset=false;
+	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
+	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+	if(args.size()==1)
+	{
+		bool empty=args[0].second.empty();
+		assert(!((!empty)&&del_flag));
+		if(((!empty)&&!del_flag)||(empty&&del_flag))
+		{
+			if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+			{
+				const char* errmsg=NULL;
+				switch(ret)
+				{
+				case ERR_INVALID_ENV_NAME:
+					errmsg="Invalid environment variable name";
+					break;
+				default:
+					assert(false);
+					break;
+				}
+				printf("set environment variable \'%s\' to \'%s\' failed: %s\n",
+					args[0].first.c_str(),args[0].second.c_str(),errmsg);
+				return ret;
+			}
+			bset=true;
+			return 0;
+		}
+	}
+	return 0;
+}
+#endif
 static int execute(sh_context* ctx)
 {
 	string cmd=ctx->cmd;
 	vector<pair<string,string>> args;
 	int ret=0;
+	bool bsetenv=false;
 	if(0!=(ret=parse_cmd((const byte*)cmd.c_str(),cmd.size(),args,ctx->priv)))
 	{
 #ifdef USE_FS_ENV_VAR
@@ -177,42 +214,14 @@ static int execute(sh_context* ctx)
 		}
 		return ret;
 	}
-#ifdef USE_CTX_PRIV
-	ctx_priv_data* privdata=ctx->priv;
 #ifdef USE_FS_ENV_VAR
-	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
-	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
-#endif
+	if(0!=(ret=handle_set_env_var(ctx->priv,args,bsetenv))||bsetenv)
+		return ret;
 #endif
 	if(args.empty())
 		return 0;
 	const string& cmd_head=args[0].first;
 #ifdef USE_FS_ENV_VAR
-	if(args.size()==1)
-	{
-		bool empty=args[0].second.empty();
-		assert(!((!empty)&&del_flag));
-		if(((!empty)&&!del_flag)||(empty&&del_flag))
-		{
-			if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
-			{
-				const char* errmsg=NULL;
-				switch(ret)
-				{
-				case ERR_INVALID_ENV_NAME:
-					errmsg="Invalid environment variable name";
-					break;
-				default:
-					assert(false);
-					break;
-				}
-				printf("set environment variable \'%s\' to \'%s\' failed: %s\n",
-					args[0].first.c_str(),args[0].second.c_str(),errmsg);
-				return ret;
-			}
-			return 0;
-		}
-	}
 	if(cmd_head==CMD_PRINT_ENV)
 	{
 		if(0!=(ret=check_args(args)))
