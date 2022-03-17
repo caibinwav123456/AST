@@ -77,19 +77,18 @@ static int check_args(vector<pair<string,string>>& args,bool mute=false)
 	}
 	else
 	{
+		int ret=0;
 		for(int i=0;i<sizeof(s_alias)/sizeof(st_alias);i++)
 		{
-			if(cmd_head==s_alias[i].alias)
+			if(cmd_head!=s_alias[i].alias)
+				continue;
+			if(0!=(ret=validate_param(args,s_alias[i])))
 			{
-				int ret=validate_param(args,s_alias[i]);
-				if(ret!=0)
-				{
-					if(!mute)
-						printf("bad command format\n");
-					return ret;
-				}
-				break;
+				if(!mute)
+					printf("bad command format\n");
+				return ret;
 			}
+			break;
 		}
 	}
 	return 0;
@@ -266,17 +265,16 @@ static int execute(sh_context* ctx)
 	{
 		for(int i=0;i<sizeof(s_alias)/sizeof(st_alias);i++)
 		{
-			if(cmd_head==s_alias[i].alias)
-			{
-				if(0!=(ret=check_args(args)))
-					return ret;
-				args.erase(args.begin());
-				int j;
-				const char** p;
-				for(j=0,p=s_alias[i].full;*p!=NULL;j++,p++)
-					args.insert(args.begin()+j,pair<string,string>(*p,""));
-				break;
-			}
+			if(cmd_head!=s_alias[i].alias)
+				continue;
+			if(0!=(ret=check_args(args)))
+				return ret;
+			args.erase(args.begin());
+			int j;
+			const char** p;
+			for(j=0,p=s_alias[i].full;*p!=NULL;j++,p++)
+				args.insert(args.begin()+j,pair<string,string>(*p,""));
+			break;
 		}
 		generate_cmd(args,cmd);
 		if(0!=(ret=system(cmd.c_str())))
