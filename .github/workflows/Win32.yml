@@ -9,14 +9,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: test_vswhere
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: vswhere
-
-    - name: ls
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: ls "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
-
     - name: Build x86
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: $env:PATH="$env:PATH;C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin";msbuild -m -p:Configuration=Release -p:Platform=Win32 .\IPCIF\src\project\win\win32.sln
