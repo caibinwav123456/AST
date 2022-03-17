@@ -5,7 +5,7 @@ DLLAPI(void) split_path(const string& path, vector<string>& split, char dsym)
 	split.clear();
 	int pos=0;
 	int nextpos=0;
-	while((nextpos=path.find(dsym,pos))!=-1)
+	while((nextpos=path.find(dsym,pos))!=string::npos)
 	{
 		if(nextpos>pos)
 			split.push_back(path.substr(pos,nextpos-pos));
