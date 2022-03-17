@@ -673,7 +673,7 @@ int testDllDrv()
 	void *dev=NULL,*dev2=NULL;
 	int ret=0;
 	vector<fsls_element> files;
-	if(0!=(ret=pintf->init()))
+	if(pintf==NULL||0!=(ret=pintf->init()))
 		goto freelib;
 	void** vdev[2]={&dev,&dev2};
 	char* devname[2]={"hello_pan","goodbye_pan"};
