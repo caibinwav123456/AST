@@ -166,6 +166,24 @@ static inline const char* find_exe_file(const char* exe)
 	const char* p=strrchr(exe,'\\');
 	return p==NULL?exe:(p+1);
 }
+static inline void* get_process_cmd(DWORD pid,char* exe,char* args)
+{
+	WCHAR wszCmdLine[1024];
+	char szCmdLine[1024];
+	char exeName[256];
+	HANDLE hproc=GetProcessCmdLine(pid,wszCmdLine,1024);
+	if(!VALID(hproc))
+		return NULL;
+	if(!simple_unicode2ansi(wszCmdLine,szCmdLine))
+		goto failed;
+	if(!parse_cmdline(szCmdLine,exeName,args))
+		goto failed;
+	strcpy(exe,find_exe_file(exeName));
+	return (void*)hproc;
+failed:
+	CloseHandle(hproc);
+	return NULL;
+}
 #ifdef PROCESSENTRY32
 #undef PROCESSENTRY32
 #endif
@@ -176,20 +194,15 @@ static inline const char* find_exe_file(const char* exe)
 #undef Process32Next
 #endif
 static inline void* match_process(PROCESSENTRY32* pe,
-	const char* cmdline, const char* exe, const char* args)
+	const char* exe, const char* args)
 {
-	WCHAR wszCmdLine[1024];
-	char szCmdLine[1024],exeName[256],Args[512];
+	char exeName[256],Args[512];
 	if(strcmp(pe->szExeFile,exe)!=0)
 		return NULL;
-	HANDLE hproc=GetProcessCmdLine(pe->th32ProcessID,wszCmdLine,1024);
+	HANDLE hproc=get_process_cmd(pe->th32ProcessID,exeName,Args);
 	if(!VALID(hproc))
 		return NULL;
-	if(!simple_unicode2ansi(wszCmdLine,szCmdLine))
-		goto failed;
-	if(!parse_cmdline(szCmdLine,exeName,Args))
-		goto failed;
-	if(strcmp(exe,find_exe_file(exeName))!=0)
+	if(strcmp(exe,exeName)!=0)
 		goto failed;
 	if(strcmp(args,Args)!=0)
 		goto failed;
@@ -229,14 +242,14 @@ void* arch_get_process_native(const char* cmdline,bool find_dup)
 	bMore=Process32First(hSnap, &pe);
 	if(bMore)
 	{
-		h=match_process(&pe,cmdline,p,args);
+		h=match_process(&pe,p,args);
 		final_find(h,cnt_left,end);
 	}
 	while(bMore)
 	{
 		if(bMore=Process32Next(hSnap,&pe))
 		{
-			h=match_process(&pe,cmdline,p,args);
+			h=match_process(&pe,p,args);
 			final_find(h,cnt_left,end);
 		}
 	}
@@ -277,4 +290,19 @@ DLLAPI(bool) arch_has_dup_process(const proc_data& data)
 		return true;
 	}
 	return false;
+}
+DLLAPI(int) arch_get_current_process_cmdline(char* cmdline)
+{
+	DWORD pid=GetCurrentProcessId();
+	char exeName[256],Args[512];
+	HANDLE hproc=get_process_cmd(pid,exeName,Args);
+	if(!VALID(hproc))
+		return ERR_GENERIC;
+	CloseHandle(hproc);
+	char* p=cmdline;
+	strcpy(p,exeName);
+	p+=strlen(p);
+	*(p++)=' ';
+	strcpy(p,Args);
+	return 0;
 }
