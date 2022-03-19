@@ -67,7 +67,7 @@ DLLAPI(char*) get_current_executable_name()
 }
 DLLAPI(void*) get_current_executable_id()
 {
-	return _hCurrentProc.proc_stat.id;
+	return _hCurrentProc.is_external?NULL:_hCurrentProc.cur_stat->id;
 }
 DLLAPI(char*) get_current_directory()
 {
@@ -79,19 +79,23 @@ DLLAPI(char*) get_current_executable_path()
 }
 DLLAPI(int) is_launcher()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_LAUNCHER;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_LAUNCHER;
 }
 DLLAPI(int) is_manager()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_MANAGER;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_MANAGER;
 }
 DLLAPI(int) is_managed()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_MANAGED;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_MANAGED;
 }
 DLLAPI(int) is_tool()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_TOOL;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_TOOL;
+}
+DLLAPI(int) is_extern_tool()
+{
+	return _hCurrentProc.is_external?1:0;
 }
 DLLAPI(char*) get_if_user()
 {
@@ -200,7 +204,8 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->id=uint_to_ptr(id);
 	if(!VALID(pstat->id))
 		return ERR_EXEC_INFO_NOT_VALID;
-	bool uniq,ld,log=true,ambiguous=true;
+	bool uniq,ld,log=true;
+	uint ambiguous=defaultAmbiguousLvl;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_UNIQUE,uniq))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_LDIR,ld))
@@ -230,7 +235,18 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_LOG,log);
 	pstat->log=log?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_AMBIG,ambiguous);
-	pstat->ambiguous=ambiguous?1:0;
+	switch((ambig_lvl)ambiguous)
+	{
+	case E_AMBIG_NONE:
+	case E_AMBIG_USER:
+	case E_AMBIG_CMDLINE:
+	case E_AMBIG_PROC_ID:
+		pstat->ambiguous=(ambig_lvl)ambiguous;
+		break;
+	default:
+		pstat->ambiguous=defaultAmbiguousLvl;
+		break;
+	}
 	if(pstat->ifs==NULL)
 		return 0;
 	char buf[IF_INFO_SIZE];

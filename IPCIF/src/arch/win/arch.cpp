@@ -255,7 +255,7 @@ void* arch_get_process_if(const proc_data& data)
 }
 DLLAPI(void*) arch_get_process(const proc_data& data)
 {
-	if(!data.ambiguous)
+	if(data.ambiguous==E_AMBIG_NONE)
 		return sys_get_process((char*)data.cmdline.c_str());
 	if(data.type==E_PROCTYPE_TOOL)
 		return arch_get_process_if(data);
@@ -264,7 +264,7 @@ DLLAPI(void*) arch_get_process(const proc_data& data)
 }
 DLLAPI(bool) arch_has_dup_process(const proc_data& data)
 {
-	if(!data.ambiguous)
+	if(data.ambiguous==E_AMBIG_NONE)
 		return sys_has_dup_process((char*)data.cmdline.c_str());
 	void* hproc;
 	if(data.type==E_PROCTYPE_TOOL)
