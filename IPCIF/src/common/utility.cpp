@@ -311,6 +311,9 @@ int process_identifier::GetMainInfo()
 int process_identifier::GetProcStat(process_stat* pstat)
 {
 	int ret=0;
+	proc_data pdata;
+	string cmd;
+	bool ambig=false,ambig_stat_inited=false;
 	pstat->file[FILE_NAME_SIZE-1]=0;
 	for(ConfigProfile::iterator it=config.BeginIterate(CONFIG_SECTION_EXEC);it;++it)
 	{
@@ -320,12 +323,27 @@ int process_identifier::GetProcStat(process_stat* pstat)
 		string file;
 		if(!config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
 			continue;
-		if(file==pstat->file)
+		if(ambig)
+			init_process_stat(pstat,(char*)pdata.name.c_str());
+		if(file!=pstat->file)
+			continue;
+		if(0!=(ret=__get_stat__(pstat,s,config)))
+			return ret;
+		if(pstat->ambiguous>E_AMBIG_USER)
 		{
-			if(0!=(ret=__get_stat__(pstat,s,config)))
-				return ret;
-			return 0;
+			ambig=true;
+			if(!ambig_stat_inited)
+			{
+				ambig_stat_inited=true;
+				char cmdline_buf[1024];
+				arch_get_current_process_cmdline(cmdline_buf);
+				cmd=cmdline_buf;
+			}
+			insert_proc_data_cmdline(pdata,*pstat);
+			if(pdata.cmdline!=cmd)
+				continue;
 		}
+		return 0;
 	}
 	return ERR_EXEC_NOT_FOUND;
 }

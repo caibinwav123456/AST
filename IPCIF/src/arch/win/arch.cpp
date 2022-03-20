@@ -302,7 +302,10 @@ DLLAPI(int) arch_get_current_process_cmdline(char* cmdline)
 	char* p=cmdline;
 	strcpy(p,exeName);
 	p+=strlen(p);
-	*(p++)=' ';
-	strcpy(p,Args);
+	if(Args[0]!=0)
+	{
+		*(p++)=' ';
+		strcpy(p,Args);
+	}
 	return 0;
 }

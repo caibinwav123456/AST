@@ -86,6 +86,9 @@ inline void init_proc_data(proc_data* pdata)
 	pdata->ambiguous=defaultAmbiguousLvl;
 	pdata->type=E_PROCTYPE_NONE;
 	pdata->cmd_calced=false;
+	pdata->name.clear();
+	pdata->cmdline.clear();
+	pdata->ifproc.clear();
 }
 inline void init_proc_data_cmdline(proc_data* pdata)
 {
@@ -127,6 +130,7 @@ inline void insert_proc_data(proc_data& data,const process_stat& pstat)
 	data.cmd_calced=false;
 	data.hproc=NULL;
 	data.hthrd_shelter=NULL;
+	data.ifproc.clear();
 	for(int i=0;i<pstat.ifs->count;i++)
 	{
 		if_proc ifproc;
