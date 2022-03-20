@@ -27,9 +27,9 @@ struct st_alias
 	uint min_args;
 	uint max_args;
 };
-const char* ll_full[]={"ls","-alF",NULL};
-const char* la_full[]={"ls","-A",NULL};
-const char* l_full[]={"ls","-CF",NULL};
+static const char* ll_full[]={"ls","-alF",NULL};
+static const char* la_full[]={"ls","-A",NULL};
+static const char* l_full[]={"ls","-CF",NULL};
 static const st_alias s_alias[]={
 	{"ll",ll_full,0,INFINITE},
 	{"la",la_full,0,INFINITE},

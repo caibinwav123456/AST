@@ -26,7 +26,7 @@ CFLAGS+=-DCONFIG_X64
 endif
 CFLAGS+=-I$(TopDir)/include -I$(TopDir)/include/arch/linux -Os -Wno-write-strings
 EXE_CFLAGS+=
-DLL_CFLAGS+=-fPIC
+DLL_CFLAGS+=-fPIC -fvisibility=hidden
 
 all: $(Targets)
 	@echo build successful!
