@@ -24,6 +24,14 @@ enum proc_type
 	E_PROCTYPE_MANAGER,
 	E_PROCTYPE_MANAGED,
 };
+enum ambig_lvl
+{
+	E_AMBIG_NONE=0,
+	E_AMBIG_USER,
+	E_AMBIG_CMDLINE,
+	E_AMBIG_PROC_ID,
+};
+#define defaultAmbiguousLvl E_AMBIG_USER
 struct if_id_info
 {
 	char if_name[IF_ID_SIZE];
@@ -52,7 +60,7 @@ struct process_stat
 	int unique_instance;
 	int local_cur_dir;
 	int log;
-	int ambiguous;
+	ambig_lvl ambiguous;
 	proc_type type;
 	if_ids* ifs;
 };
@@ -105,6 +113,7 @@ DLLAPI(int) is_launcher();
 DLLAPI(int) is_manager();
 DLLAPI(int) is_managed();
 DLLAPI(int) is_tool();
+DLLAPI(int) is_extern_tool();
 DLLAPI(char*) get_if_user();
 DLLAPI(uint) get_num_sysfs_buffer_blocks();
 DLLAPI(uint) get_sysfs_buffer_size();

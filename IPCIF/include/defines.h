@@ -18,7 +18,7 @@
 #define CFG_TAG_EXEC_TYPE_MANAGED "managed"
 #define CFG_TAG_EXEC_TYPE_TOOL "tool"
 #define CFG_TAG_EXEC_LOG "log"
-#define CFG_TAG_EXEC_AMBIG "ambiguous"
+#define CFG_TAG_EXEC_AMBIG "ambig_lvl"
 #define CFG_TAG_EXEC_IF "if%d"
 #define CFG_TAG_EXEC_IF_CNT "if%d_cnt"
 #define CFG_TAG_EXEC_IF_USAGE "if%d_usage"
