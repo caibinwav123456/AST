@@ -67,7 +67,7 @@ DLLAPI(char*) get_current_executable_name()
 }
 DLLAPI(void*) get_current_executable_id()
 {
-	return _hCurrentProc.proc_stat.id;
+	return _hCurrentProc.is_external?NULL:_hCurrentProc.cur_stat->id;
 }
 DLLAPI(char*) get_current_directory()
 {
@@ -79,19 +79,23 @@ DLLAPI(char*) get_current_executable_path()
 }
 DLLAPI(int) is_launcher()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_LAUNCHER;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_LAUNCHER;
 }
 DLLAPI(int) is_manager()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_MANAGER;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_MANAGER;
 }
 DLLAPI(int) is_managed()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_MANAGED;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_MANAGED;
 }
 DLLAPI(int) is_tool()
 {
-	return _hCurrentProc.proc_stat.type==E_PROCTYPE_TOOL;
+	return _hCurrentProc.is_external?0:_hCurrentProc.cur_stat->type==E_PROCTYPE_TOOL;
+}
+DLLAPI(int) is_extern_tool()
+{
+	return _hCurrentProc.is_external?1:0;
 }
 DLLAPI(char*) get_if_user()
 {
@@ -200,7 +204,8 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	pstat->id=uint_to_ptr(id);
 	if(!VALID(pstat->id))
 		return ERR_EXEC_INFO_NOT_VALID;
-	bool uniq,ld,log=true,ambiguous=true;
+	bool uniq,ld,log=true;
+	uint ambiguous=defaultAmbiguousLvl;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_UNIQUE,uniq))
 		return ERR_EXEC_INFO_NOT_FOUND;
 	if(!config.GetCongfigItem(exec,CFG_TAG_EXEC_LDIR,ld))
@@ -230,7 +235,18 @@ inline int __get_stat__(process_stat* pstat,const string& exec,ConfigProfile& co
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_LOG,log);
 	pstat->log=log?1:0;
 	config.GetCongfigItem(exec,CFG_TAG_EXEC_AMBIG,ambiguous);
-	pstat->ambiguous=ambiguous?1:0;
+	switch((ambig_lvl)ambiguous)
+	{
+	case E_AMBIG_NONE:
+	case E_AMBIG_USER:
+	case E_AMBIG_CMDLINE:
+	case E_AMBIG_PROC_ID:
+		pstat->ambiguous=(ambig_lvl)ambiguous;
+		break;
+	default:
+		pstat->ambiguous=defaultAmbiguousLvl;
+		break;
+	}
 	if(pstat->ifs==NULL)
 		return 0;
 	char buf[IF_INFO_SIZE];
@@ -295,6 +311,9 @@ int process_identifier::GetMainInfo()
 int process_identifier::GetProcStat(process_stat* pstat)
 {
 	int ret=0;
+	proc_data pdata;
+	string cmd;
+	bool ambig=false,ambig_stat_inited=false;
 	pstat->file[FILE_NAME_SIZE-1]=0;
 	for(ConfigProfile::iterator it=config.BeginIterate(CONFIG_SECTION_EXEC);it;++it)
 	{
@@ -304,12 +323,27 @@ int process_identifier::GetProcStat(process_stat* pstat)
 		string file;
 		if(!config.GetCongfigItem(s,CFG_TAG_EXEC_FILE,file))
 			continue;
-		if(file==pstat->file)
+		if(ambig)
+			init_process_stat(pstat,(char*)pdata.name.c_str());
+		if(file!=pstat->file)
+			continue;
+		if(0!=(ret=__get_stat__(pstat,s,config)))
+			return ret;
+		if(pstat->ambiguous>E_AMBIG_USER)
 		{
-			if(0!=(ret=__get_stat__(pstat,s,config)))
-				return ret;
-			return 0;
+			ambig=true;
+			if(!ambig_stat_inited)
+			{
+				ambig_stat_inited=true;
+				char cmdline_buf[1024];
+				arch_get_current_process_cmdline(cmdline_buf);
+				cmd=cmdline_buf;
+			}
+			insert_proc_data_cmdline(pdata,*pstat);
+			if(pdata.cmdline!=cmd)
+				continue;
 		}
+		return 0;
 	}
 	return ERR_EXEC_NOT_FOUND;
 }

@@ -58,7 +58,7 @@ struct proc_data
 	string name;
 	string cmdline;
 	void* id;
-	bool ambiguous;
+	ambig_lvl ambiguous;
 	proc_type type;
 	bool cmd_calced;
 	vector<if_proc> ifproc;
@@ -83,31 +83,54 @@ inline void init_proc_data(proc_data* pdata)
 	pdata->hproc=NULL;
 	pdata->hthrd_shelter=NULL;
 	pdata->id=NULL;
-	pdata->ambiguous=false;
+	pdata->ambiguous=defaultAmbiguousLvl;
 	pdata->type=E_PROCTYPE_NONE;
 	pdata->cmd_calced=false;
+	pdata->name.clear();
+	pdata->cmdline.clear();
+	pdata->ifproc.clear();
 }
 inline void init_proc_data_cmdline(proc_data* pdata)
 {
-	if(!pdata->cmd_calced)
+	if(pdata->cmd_calced)
+		return;
+	string cmd(pdata->cmdline.empty()?"":" "+pdata->cmdline);
+	switch(pdata->ambiguous)
 	{
-		string cmd(pdata->cmdline.empty()?"":" "+pdata->cmdline);
+	case E_AMBIG_NONE:
 		pdata->cmdline=pdata->name+cmd;
-		if(pdata->ambiguous)
-			pdata->cmdline+=string(" user=")+get_if_user();
-		pdata->cmd_calced=true;
+		break;
+	case E_AMBIG_USER:
+	case E_AMBIG_CMDLINE:
+		pdata->cmdline=pdata->name+cmd+string(" user=")+get_if_user();
+		break;
+	case E_AMBIG_PROC_ID:
+		{
+			void* id;
+			string tag_id;
+			if((id=get_current_executable_id())!=NULL)
+			{
+				char buf[16];
+				sprintf(buf," id=%d",(int)ptr_to_uint(id));
+				tag_id=buf;
+			}
+			pdata->cmdline=pdata->name+cmd+string(" user=")+get_if_user()+tag_id;
+		}
+		break;
 	}
+	pdata->cmd_calced=true;
 }
 inline void insert_proc_data(proc_data& data,const process_stat& pstat)
 {
 	data.name=pstat.file;
 	data.cmdline=pstat.cmdline;
 	data.id=pstat.id;
-	data.ambiguous=!!pstat.ambiguous;
+	data.ambiguous=pstat.ambiguous;
 	data.type=pstat.type;
 	data.cmd_calced=false;
 	data.hproc=NULL;
 	data.hthrd_shelter=NULL;
+	data.ifproc.clear();
 	for(int i=0;i<pstat.ifs->count;i++)
 	{
 		if_proc ifproc;
