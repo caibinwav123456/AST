@@ -48,6 +48,7 @@ DEFINE_BOOL_VAL(config_test_gate,false);
 DEFINE_BOOL_VAL(config_testPipe,false);
 DEFINE_BOOL_VAL(config_test_fwrite,false);
 DEFINE_BOOL_VAL(config_test_arch_get_process,false);
+DEFINE_BOOL_VAL(config_test_arch_get_process_cmd,false);
 
 int testfile()
 {
@@ -873,6 +874,11 @@ int test_arch_get_process()
 	}
 	return ERR_GENERIC;
 }
+int test_arch_get_process_cmd()
+{
+	char buf[1024];
+	return arch_get_current_process_cmdline(buf);
+}
 int _tmain(int argc, TCHAR** argv)
 {
 	int ret=0;
@@ -897,6 +903,7 @@ int _tmain(int argc, TCHAR** argv)
 	config_testPipe&&testPipe();
 	config_test_fwrite&&test_fwrite();
 	config_test_arch_get_process&&test_arch_get_process();
+	config_test_arch_get_process_cmd&&test_arch_get_process_cmd();
 	LOGFILE(0,log_ftype_info,"%s start OK",get_current_executable_name());
 	process_stat pstat;
 	init_process_stat(&pstat,"ASTManager.exe");
