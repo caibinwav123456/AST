@@ -37,7 +37,11 @@ typedef unsigned long dword;
 #define main_entry WINAPI _tWinMain
 #define main_args HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nShowCmd
 #else
+#ifndef DLL_IMPORT
 #define DLL __attribute__((visibility("default")))
+#else
+#define DLL
+#endif
 #define DLLAPI(T) DLL T
 #define main_entry main
 #define main_args int argc, char** argv
