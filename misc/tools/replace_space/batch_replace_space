@@ -1,1 +1,7 @@
-for file in `tree -nif --noreport $1`; do if [ -f $file ];then ./replace_space $file $2; fi; done
+for file in `tree -nif --noreport $1`; do
+ if [ -f $file ]; then
+  if [ "${file##*.}"x = "cpp"x ] || [ "${file##*.}"x = "c"x ] || [ "${file##*.}"x = "h"x ] || [ "${file##*.}"x = "java"x ]; then
+   ./replace_space $file $2;
+  fi
+ fi;
+done

@@ -9,9 +9,9 @@ int main(int argc,char** argv)
 	if(argc<=1)
 		return 0;
 	char* path=argv[1];
-	int bfinddualspace=0;
-	if(argc>2&&strcmp(argv[2],"-u")==0)
-		bfinddualspace=1;
+	int verbose=0;
+	if(argc>2&&strcmp(argv[2],"-v")==0)
+		verbose=1;
 	struct stat size;
 	if(0!=stat((const char*)path,&size))
 	{
@@ -36,15 +36,21 @@ int main(int argc,char** argv)
 	fclose(file);
 	int i,j;
 	int det=0;
+	int opened=1;
 	for(i=0,j=0;i<ns;i++)
 	{
-		if(buf[i]!=' ')
+		if(buf[i]=='\r'||buf[i]=='\n')
 		{
-			if(det>0)
-			{
-				buf[j++]=' ';
-				det=0;
-			}
+			buf[j++]=buf[i];
+			if(buf[i]=='\r'&&i+1<ns&&buf[i+1]=='\n')
+				buf[j++]=buf[++i];
+			opened=1;
+			det=0;
+		}
+		else if(buf[i]!=' '||!opened)
+		{
+			opened=0;
+			det=0;
 			buf[j++]=buf[i];
 		}
 		else
@@ -58,6 +64,17 @@ int main(int argc,char** argv)
 				det=0;
 			}
 		}
+	}
+	if(j==i)
+	{
+		free(buf);
+		return 0;
+	}
+	else if(verbose)
+	{
+		free(buf);
+		printf("file \"%s\" needs to be patched.\n",path);
+		return 0;
 	}
 	file=fopen(path,"w");
 	if(file==NULL)
@@ -75,5 +92,6 @@ int main(int argc,char** argv)
 	}
 	free(buf);
 	fclose(file);
+	printf("file \"%s\" patched.\n",path);
 	return 0;
 }
