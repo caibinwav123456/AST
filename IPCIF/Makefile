@@ -25,7 +25,7 @@ ifeq ($(CONFIG_X64), true)
 CFLAGS+=-DCONFIG_X64
 endif
 CFLAGS+=-I$(TopDir)/include -I$(TopDir)/include/arch/linux -Os -Wno-write-strings
-EXE_CFLAGS+=
+EXE_CFLAGS+=-DDLL_IMPORT
 DLL_CFLAGS+=-fPIC -fvisibility=hidden
 
 all: $(Targets)
