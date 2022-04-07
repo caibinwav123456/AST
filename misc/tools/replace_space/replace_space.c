@@ -34,38 +34,36 @@ int main(int argc,char** argv)
 		return -1;
 	}
 	fclose(file);
-	int i,j;
 	int det=0;
 	int opened=1;
-	for(i=0,j=0;i<ns;i++)
+	char *src,*dst,*end=buf+ns;
+	for(src=dst=buf;src<end;src++)
 	{
-		if(buf[i]=='\r'||buf[i]=='\n')
+		if(*src=='\r'||*src=='\n')
 		{
-			buf[j++]=buf[i];
-			if(buf[i]=='\r'&&i+1<ns&&buf[i+1]=='\n')
-				buf[j++]=buf[++i];
+			*(dst++)=*src;
+			if(*src=='\r'&&src+1<end&&*(src+1)=='\n')
+				*(dst++)=*(++src);
 			opened=1;
 			det=0;
 		}
-		else if(buf[i]!=' '||!opened)
+		else if(*src!=' '||!opened)
 		{
 			opened=0;
 			det=0;
-			buf[j++]=buf[i];
+			*(dst++)=*src;
 		}
 		else
 		{
-			if(i==ns-1)
-				break;
 			det++;
 			if(det==4)
 			{
-				buf[j++]='\t';
+				*(dst++)='\t';
 				det=0;
 			}
 		}
 	}
-	if(j==i)
+	if(dst==end)
 	{
 		free(buf);
 		return 0;
@@ -76,6 +74,7 @@ int main(int argc,char** argv)
 		printf("file \"%s\" needs to be patched.\n",path);
 		return 0;
 	}
+	int dstlen=dst-buf;
 	file=fopen(path,"w");
 	if(file==NULL)
 	{
@@ -83,7 +82,7 @@ int main(int argc,char** argv)
 		free(buf);
 		return -1;
 	}
-	if(fwrite(buf,1,j,file)!=j)
+	if(fwrite(buf,1,dstlen,file)!=dstlen)
 	{
 		free(buf);
 		fclose(file);
