@@ -28,6 +28,12 @@ struct ctx_priv_data
 	FSEnvSet env_cache;
 	dword env_flags;
 #endif
+	ctx_priv_data()
+	{
+#ifdef USE_FS_ENV_VAR
+		env_flags=0;
+#endif
+	}
 };
 struct sh_context
 {
@@ -66,9 +72,6 @@ inline void print_blank(uint n)
 inline void init_ctx_priv_data(sh_context* ctx)
 {
 	ctx->priv=new ctx_priv_data;
-#ifdef USE_FS_ENV_VAR
-	ctx->priv->env_flags=0;
-#endif
 }
 inline void destroy_ctx_priv_data(sh_context* ctx)
 {
