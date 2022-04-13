@@ -21,9 +21,18 @@
     <ClCompile Include="win.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="utpath.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_path.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="win.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utpath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -166,9 +166,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="testmain.cpp" />
+    <ClCompile Include="test_path.cpp" />
+    <ClCompile Include="utpath.cpp" />
     <ClCompile Include="win.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="utpath.h" />
     <ClInclude Include="win.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
