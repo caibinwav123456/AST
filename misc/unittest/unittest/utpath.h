@@ -43,7 +43,7 @@ public:
 	void push_back(const char* str);
 	void push_back(const char* str,uint len);
 	void push_back(const iterator& it);
-	void pop_back(path_cache* cache=NULL);
+	void pop_back();
 	const char* back() const;
 	iterator begin() const;
 	iterator end() const;

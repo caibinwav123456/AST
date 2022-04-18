@@ -77,8 +77,9 @@ public:
 			return this;
 		else
 		{
+			path_it_base* pbase=clone();
 			Release();
-			return clone();
+			return pbase;
 		}
 	}
 	virtual void operator++(int)=0;
@@ -508,14 +509,11 @@ void path_cache::push_back(const iterator& it)
 {
 	((path_cache_base*)pcache)->push_back((path_it_base*)it.iter);
 }
-void path_cache::pop_back(path_cache* cache)
+void path_cache::pop_back()
 {
 	path_it_base* it=((path_cache_base*)pcache)->end();
 	--*it;
-	if(cache==NULL)
-		((path_cache_base*)pcache)->erase(it);
-	else
-		((path_cache_base*)cache->pcache)->push_back(it);
+	((path_cache_base*)pcache)->erase(it);
 	it->Release();
 }
 const char* path_cache::back() const

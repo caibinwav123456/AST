@@ -1,6 +1,10 @@
 #include "common.h"
 #include "path.h"
 #include "utpath.h"
+#include "win.h"
+#define INIT_FREQ() double __freq__=get_tick_freq()
+#define BEGIN_CNT(time) double __##time##__=get_tick_hq()
+#define END_CNT(time) {__##time##__=get_tick_hq()-__##time##__;printf("%s: %lf\n",#time,__##time##__/__freq__);}
 static bool fs_extract_drive_tag(const string& path,string& tag,string& pure)
 {
 	const int pos=path.find('/');
@@ -66,18 +70,18 @@ static int utget_full_path(const string& cur_dir,const string& relative_path,str
 	full_path=tag+"/"+full_path;
 	return 0;
 }
-static void utparse_path(const string& cur_dir,const string& path,string& fullpath,unittest::path_cache_type type)
-{
-	for(int i=0;i<1024;i++)
-	{
-		utget_full_path(cur_dir,path,fullpath,type);
-	}
-}
 static void parse_path(const string& cur_dir,const string& path,string& fullpath)
 {
 	for(int i=0;i<1024;i++)
 	{
 		get_full_path(cur_dir,path,fullpath);
+	}
+}
+static void utparse_path(const string& cur_dir,const string& path,string& fullpath,unittest::path_cache_type type)
+{
+	for(int i=0;i<1024;i++)
+	{
+		utget_full_path(cur_dir,path,fullpath,type);
 	}
 }
 int test_new_path()
@@ -86,19 +90,24 @@ int test_new_path()
 	//unittest::path_cache cache2(cache);
 	//unittest::path_cache cache3=cache2;
 	//cache3=cache;
+	INIT_FREQ();
 	string path("D:/Programs/IPCIF/bin/Debug/astdata/disk1/sto0_bak/IPCIF"),
 		path1("../Programs/IPCIF/bin/Debug/astdata/disk1/sto0_bak/IPCIF"),
 		cur_dir("sto1:/Programs/IPCIF/bin/../../");
 	string fullpath;
 
 	parse_path(cur_dir,path,fullpath);
+	BEGIN_CNT(T1);
 	parse_path(cur_dir,path1,fullpath);
+	END_CNT(T1);
 
 	utparse_path(cur_dir,path,fullpath,unittest::PCT_STL_STYLE);
 	utparse_path(cur_dir,path1,fullpath,unittest::PCT_STL_STYLE);
 
 	utparse_path(cur_dir,path,fullpath,unittest::PCT_C_STYLE);
+	BEGIN_CNT(T2);
 	utparse_path(cur_dir,path1,fullpath,unittest::PCT_C_STYLE);
+	END_CNT(T2);
 
 	unittest::path_cache cache1(unittest::PCT_C_STYLE), cache2(unittest::PCT_C_STYLE);
 	unittest::split_path(path,cache1,'/');
