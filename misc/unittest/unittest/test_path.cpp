@@ -38,33 +38,33 @@ static int get_full_path(const string& cur_dir,const string& relative_path,strin
 	string tag,pure;
 	if(fs_extract_drive_tag(relative_path,tag,pure))
 	{
-		if(0!=(ret=get_absolute_path(pure,"",full_path,NULL,'/')))
+		if(0!=(ret=legacy::get_absolute_path(pure,"",full_path,NULL,'/')))
 			return ret;
 	}
 	else
 	{
 		if(!fs_extract_drive_tag(cur_dir,tag,pure))
 			return ERR_INVALID_PATH;
-		if(0!=(ret=get_absolute_path(pure,relative_path,full_path,NULL,'/')))
+		if(0!=(ret=legacy::get_absolute_path(pure,relative_path,full_path,NULL,'/')))
 			return ret;
 	}
 	full_path=tag+"/"+full_path;
 	return 0;
 }
-static int utget_full_path(const string& cur_dir,const string& relative_path,string& full_path,unittest::path_cache_type type)
+static int utget_full_path(const string& cur_dir,const string& relative_path,string& full_path,path_cache_type type)
 {
 	int ret=0;
 	string tag,pure;
 	if(fs_extract_drive_tag(relative_path,tag,pure))
 	{
-		if(0!=(ret=unittest::get_absolute_path(pure,"",full_path,NULL,'/',type)))
+		if(0!=(ret=get_absolute_path(pure,"",full_path,NULL,'/',type)))
 			return ret;
 	}
 	else
 	{
 		if(!fs_extract_drive_tag(cur_dir,tag,pure))
 			return ERR_INVALID_PATH;
-		if(0!=(ret=unittest::get_absolute_path(pure,relative_path,full_path,NULL,'/',type)))
+		if(0!=(ret=get_absolute_path(pure,relative_path,full_path,NULL,'/',type)))
 			return ret;
 	}
 	full_path=tag+"/"+full_path;
@@ -77,7 +77,7 @@ static void parse_path(const string& cur_dir,const string& path,string& fullpath
 		get_full_path(cur_dir,path,fullpath);
 	}
 }
-static void utparse_path(const string& cur_dir,const string& path,string& fullpath,unittest::path_cache_type type)
+static void utparse_path(const string& cur_dir,const string& path,string& fullpath,path_cache_type type)
 {
 	for(int i=0;i<1024;i++)
 	{
@@ -101,17 +101,17 @@ int test_new_path()
 	parse_path(cur_dir,path1,fullpath);
 	END_CNT(T1);
 
-	utparse_path(cur_dir,path,fullpath,unittest::PCT_STL_STYLE);
-	utparse_path(cur_dir,path1,fullpath,unittest::PCT_STL_STYLE);
+	utparse_path(cur_dir,path,fullpath,PCT_STL_STYLE);
+	utparse_path(cur_dir,path1,fullpath,PCT_STL_STYLE);
 
-	utparse_path(cur_dir,path,fullpath,unittest::PCT_C_STYLE);
+	utparse_path(cur_dir,path,fullpath,PCT_C_STYLE);
 	BEGIN_CNT(T2);
-	utparse_path(cur_dir,path1,fullpath,unittest::PCT_C_STYLE);
+	utparse_path(cur_dir,path1,fullpath,PCT_C_STYLE);
 	END_CNT(T2);
 
-	unittest::path_cache cache1(unittest::PCT_C_STYLE), cache2(unittest::PCT_C_STYLE);
-	unittest::split_path(path,cache1,'/');
-	unittest::split_path(path,cache2,'/');
+	path_cache cache1(PCT_C_STYLE), cache2(PCT_C_STYLE);
+	split_path(path,cache1,'/');
+	split_path(path,cache2,'/');
 	cache1.clear();
 	cache2.erase(cache2.begin(),cache2.end());
 
