@@ -96,7 +96,7 @@ class path_it_stl:public path_it_base
 {
 	friend class path_cache_stl;
 public:
-	path_it_stl(vector<string>::iterator& it,path_cache_stl* v):iter(it),vhost(v){}
+	path_it_stl(const vector<string>::iterator& it,path_cache_stl* v):iter(it),vhost(v){}
 	virtual void operator++(int)
 	{
 		iter++;
