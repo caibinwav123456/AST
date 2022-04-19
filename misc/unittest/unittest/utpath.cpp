@@ -59,6 +59,8 @@ inline void remove_s_cache(s_cache* sca,s_cache* scb)
 	sca->prev=scb;
 	scb->next=sca;
 }
+class path_cache_stl;
+class path_cache_c;
 class path_it_base
 {
 public:
