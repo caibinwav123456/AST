@@ -463,6 +463,7 @@ public:
 		s_cache *begin=ps->iter,
 			*prev=pe->iter->prev,*tmp;
 		remove_s_cache(begin,prev);
+		prev=begin;
 		do
 		{
 			tmp=begin;
@@ -517,6 +518,7 @@ void path_cache::push_back(const char* str, uint len)
 }
 void path_cache::push_back(const iterator& it)
 {
+	it.iter=((path_it_base*)it.iter)->slit();
 	((path_cache_base*)pcache)->push_back((path_it_base*)it.iter);
 }
 void path_cache::pop_back()
@@ -548,6 +550,8 @@ path_cache::iterator path_cache::end() const
 }
 void path_cache::insert(const iterator& before,const iterator& start,const iterator& end)
 {
+	start.iter=((path_it_base*)start.iter)->slit();
+	end.iter=((path_it_base*)end.iter)->slit();
 	((path_cache_base*)pcache)->insert((path_it_base*)before.iter,(path_it_base*)start.iter,(path_it_base*)end.iter);
 }
 void path_cache::erase(const iterator& it)

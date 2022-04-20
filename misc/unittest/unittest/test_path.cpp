@@ -84,6 +84,27 @@ static void utparse_path(const string& cur_dir,const string& path,string& fullpa
 		utget_full_path(cur_dir,path,fullpath,type);
 	}
 }
+void insert_pull(path_cache& insert,path_cache& pull,path_cache::iterator& insert_before,
+	path_cache::iterator& start,path_cache::iterator& end)
+{
+	string s1,s2;
+	path_cache::iterator first=start,last=end;
+	--last;
+	insert.insert(insert_before,start,end);
+	++last;
+
+	//do something...
+	merge_path(s1,insert,'/');
+	merge_path(s2,pull,'/');
+	//finished do something
+
+	pull.insert(end,first,last);
+
+	//do something...
+	merge_path(s1,insert,'/');
+	merge_path(s2,pull,'/');
+	//finished do something
+}
 int test_new_path()
 {
 	//unittest::path_cache cache;
@@ -111,7 +132,8 @@ int test_new_path()
 
 	path_cache cache1(PCT_C_STYLE), cache2(PCT_C_STYLE);
 	split_path(path,cache1,'/');
-	split_path(path,cache2,'/');
+	split_path(cur_dir,cache2,'/');
+	insert_pull(cache1,cache2,cache1.begin(),cache2.begin(),cache2.end());
 	cache1.clear();
 	cache2.erase(cache2.begin(),cache2.end());
 

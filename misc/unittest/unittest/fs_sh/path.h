@@ -29,7 +29,7 @@ public:
 		bool operator!=(const iterator& other) const;
 		const char* operator*() const;
 	private:
-		void* iter;
+		mutable void* iter;
 	};
 	path_cache(path_cache_type t=PCT_C_STYLE);
 private:

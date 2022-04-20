@@ -634,6 +634,8 @@ int testKeyTree()
 	{
 		printf("%s\n",it->t);
 	}
+	//vector<string> keylist;
+	//ktree.GetNode(keylist);//ok
 	return 0;
 }
 int MountDev(pintf_fsdrv pintf,char* base,void** dev)
