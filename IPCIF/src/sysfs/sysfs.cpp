@@ -8,6 +8,7 @@
 #include "common_request.h"
 #include "Integer64.h"
 #include "datetime.h"
+#include <string.h>
 #include <assert.h>
 #define sem_safe_release(sem) \
 	if(VALID(sem)) \
@@ -606,17 +607,36 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if
 		path=*ifp->purepath;
 		return 0;
 	}
-	vector<string> split_in_path,split_out_path;
+	if(in_path.empty())
+		return ERR_INVALID_PATH;
+	path_cache split_in_path,split_out_path;
 	split_path(in_path,split_in_path,'/');
 	int ret=0;
 	if_proc* ifproc;
-	if((!split_in_path.empty())
-		&&(!split_in_path[0].empty())
-		&&split_in_path[0].back()==':')
+	const char* drv=NULL;
+	if(!split_in_path.empty())
 	{
-		if((!in_path.empty())&&in_path.front()=='/')
+		const char* p=drv=split_in_path.front();
+		for(;*p!=0;p++);
+		if(!(p>drv&&*(p-1)==':'))
+			drv=NULL;
+		else
+		{
+			int len=p-drv;
+			if(len==1)
+				return ERR_INVALID_PATH;
+			char* drvname=new char[len];
+			memcpy(drvname,drv,len-1);
+			drvname[len-1]=0;
+			drv=drvname;
+		}
+	}
+	if(drv!=NULL)
+	{
+		if(in_path.front()=='/')
 			return ERR_INVALID_PATH;
-		string if_id=split_in_path[0].substr(0,split_in_path[0].size()-1);
+		string if_id(drv);
+		delete[] drv;
 		if(if_id.empty())
 			return ERR_INVALID_PATH;
 		if(NULL==(ifproc=GetIfProcFromID(if_id)))
@@ -625,6 +645,8 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if
 	}
 	else
 	{
+		if(in_path.front()!='/')
+			return ERR_INVALID_PATH;
 		if(NULL==(ifproc=GetIfProcFromID("")))
 			return ERR_INVALID_PATH;
 	}

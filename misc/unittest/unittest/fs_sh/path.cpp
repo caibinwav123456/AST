@@ -238,6 +238,7 @@ public:
 	virtual void push_back(const char* str,uint len)=0;
 	virtual void push_back(path_it_base* it)=0;
 	virtual const char* back() const=0;
+	virtual const char* front() const=0;
 	virtual path_it_base* begin()=0;
 	virtual path_it_base* end()=0;
 	virtual void insert(path_it_base* before,path_it_base* start,path_it_base* end)=0;
@@ -288,6 +289,10 @@ public:
 	virtual const char* back() const
 	{
 		return vs.back().c_str();
+	}
+	virtual const char* front() const
+	{
+		return vs.front().c_str();
 	}
 	virtual path_it_base* begin()
 	{
@@ -403,6 +408,10 @@ public:
 	virtual const char* back() const
 	{
 		return last.prev->sz;
+	}
+	virtual const char* front() const
+	{
+		return first.next->sz;
 	}
 	virtual path_it_base* begin()
 	{
@@ -520,6 +529,10 @@ void path_cache::pop_back()
 const char* path_cache::back() const
 {
 	return ((path_cache_base*)pcache)->back();
+}
+const char* path_cache::front() const
+{
+	return ((path_cache_base*)pcache)->front();
 }
 path_cache::iterator path_cache::begin() const
 {

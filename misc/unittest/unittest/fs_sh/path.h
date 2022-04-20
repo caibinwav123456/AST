@@ -44,6 +44,7 @@ public:
 	void push_back(const iterator& it);
 	void pop_back();
 	const char* back() const;
+	const char* front() const;
 	iterator begin() const;
 	iterator end() const;
 	void insert(const iterator& before,const iterator& start,const iterator& end);
