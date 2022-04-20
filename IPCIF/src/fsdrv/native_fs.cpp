@@ -73,9 +73,8 @@ void NativeFsRec::Release()
 		delete this;
 	}
 }
-static int __get_full_path(const string& base,path_cache& vbase)
+static inline int __get_full_path(const string& base,path_cache& vbase)
 {
-	path_cache merge,relative;
 	return get_absolute_path_v(get_current_executable_path(),base,vbase,sys_is_absolute_path,'/');
 }
 int NativeFsTree::Init(const string& base)
