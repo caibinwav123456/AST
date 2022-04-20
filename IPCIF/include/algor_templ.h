@@ -290,13 +290,13 @@ public:
 		return iterator(BiRingNode<T>::GetPrev(),this);
 	}
 };
-template<class Key,class T,class Pr=less<Key>>
+template<class Key,class T,class KeyListType=vector<Key>,class Pr=less<Key>>
 class KeyTree
 {
 public:
 	class TreeNode
 	{
-		friend class KeyTree<Key,T,Pr>;
+		friend class KeyTree<Key,T,KeyListType,Pr>;
 		Key key;
 		TreeNode* parent;
 		bool bHead;
@@ -371,7 +371,7 @@ public:
 	};
 	class iterator
 	{
-		friend class KeyTree<Key,T,Pr>;
+		friend class KeyTree<Key,T,KeyListType,Pr>;
 		TreeNode* cur_node;
 		vector<typename map<Key,TreeNode*,Pr>::iterator> it_child;
 		bool cur_first;
@@ -472,35 +472,37 @@ public:
 	{
 		return head->t;
 	}
-	TreeNode* GetNode(vector<Key>& vKey,TreeNode*(*bset)(const vector<Key>&,int,void*)=NULL,void* param=NULL)
+	TreeNode* GetNode(KeyListType& vKey,TreeNode*(*bset)(KeyListType&,typename KeyListType::iterator&,void*)=NULL,void* param=NULL)
 	{
 		TreeNode *tn=head,*last=NULL;
-		for(int i=0;i<(int)vKey.size();i++)
+		for(typename KeyListType::iterator it=vKey.begin();it!=vKey.end();)
 		{
-			if(tn->child.find(vKey[i])!=tn->child.end())
-				tn=tn->child[vKey[i]];
-			else if(bset!=NULL)
+			if(tn->child.find(*it)!=tn->child.end())
 			{
-				TreeNode* node;
-				if(NULL!=(node=bset(vKey,i,param)))
-				{
-					if(last==NULL)
-						last=node;
-					verify(node->AddTo(tn));
-					tn=node;
-				}
-				else
-				{
-					if(last!=NULL)
-					{
-						verify(last->Detach());
-						delete last;
-					}
-					return NULL;
-				}
+				tn=tn->child[*it];
+				++it;
+				continue;
+			}
+			else if(bset==NULL)
+				return NULL;
+			TreeNode* node;
+			++it;
+			if(NULL!=(node=bset(vKey,it,param)))
+			{
+				if(last==NULL)
+					last=node;
+				verify(node->AddTo(tn));
+				tn=node;
 			}
 			else
+			{
+				if(last!=NULL)
+				{
+					verify(last->Detach());
+					delete last;
+				}
 				return NULL;
+			}
 		}
 		return tn;
 	}

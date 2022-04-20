@@ -24,9 +24,9 @@ public:
 	}
 	string GetFullPath(const string& path);
 protected:
-	virtual pINode CteateNode(const vector<string>& path);
+	virtual pINode CteateNode(path_cache& path);
 private:
-	vector<string> base_path;
+	path_cache base_path;
 };
 class NativeFsDev
 {
@@ -39,11 +39,11 @@ public:
 	{
 		return fs_tree.GetFullPath(path);
 	}
-	pINode GetINode(vector<string>& vKey)
+	pINode GetINode(path_cache& vKey)
 	{
 		return fs_tree.GetINode(vKey);
 	}
-	pINode GetINodeInTree(vector<string>& vKey)
+	pINode GetINodeInTree(path_cache& vKey)
 	{
 		return fs_tree.GetINodeInTree(vKey);
 	}
@@ -73,9 +73,9 @@ void NativeFsRec::Release()
 		delete this;
 	}
 }
-static int __get_full_path(const string& base,vector<string>& vbase)
+static int __get_full_path(const string& base,path_cache& vbase)
 {
-	vector<string> merge,relative;
+	path_cache merge,relative;
 	if(sys_is_absolute_path((char*)base.c_str(),'/'))
 	{
 		split_path(base,merge,'/');
@@ -96,15 +96,16 @@ int NativeFsTree::Init(const string& base)
 {
 	return __get_full_path(base,base_path);
 }
-pINode NativeFsTree::CteateNode(const vector<string>& path)
+pINode NativeFsTree::CteateNode(path_cache& path)
 {
 	assert(!path.empty());
 	if(path.empty())
 		return NULL;
-	vector<string> merge=base_path;
-	merge.insert(merge.end(),path.begin(),path.end());
 	string strmerge;
+	path_cache merge;
+	begin_insert_pull(base_path,path,base_path.end(),__start,__end,path.begin(),path.end());
 	merge_path(strmerge,merge);
+	end_insert_pull(path,path.end(),__start,__end);
 	dword type=0;
 	int ret=sys_fstat((char*)strmerge.c_str(),&type);
 	if(ret!=0)
@@ -115,11 +116,12 @@ pINode NativeFsTree::CteateNode(const vector<string>& path)
 }
 string NativeFsTree::GetFullPath(const string& path)
 {
-	vector<string> split,base=base_path;
-	split_path(path,split,'/');
-	base.insert(base.end(),split.begin(),split.end());
+	path_cache split;
 	string ret;
-	merge_path(ret,base);
+	split_path(path,split,'/');
+	begin_insert_pull(base_path,split,base_path.end(),__start,__end,split.begin(),split.end());
+	merge_path(ret,base_path);
+	end_insert_pull(split,split.end(),__start,__end);
 	return ret;
 }
 int NativeFsDev::parse_cmd_head(const char* head,const string& cmd,string& options)
@@ -173,7 +175,7 @@ int NativeFsDev::Format(string cmd)
 		return ret;
 	if(cmd_options.find(NATIVEFS_BASE_PATH)==cmd_options.end())
 		return ERR_INVALID_CMD;
-	vector<string> vbase;
+	path_cache vbase;
 	string fullpath;
 	if(0!=(ret=__get_full_path(cmd_options[NATIVEFS_BASE_PATH],vbase)))
 		return ret;
@@ -219,7 +221,7 @@ void fs_native_unmount(void* hdev)
 void* fs_native_open(void* hdev,char* pathname,dword flags)
 {
 	decl_dev(dev,hdev);
-	vector<string> vpath;
+	path_cache vpath;
 	split_path(pathname,vpath,'/');
 	nt_path(fullpath,dev,pathname);
 	pINode node;
@@ -301,7 +303,7 @@ int fs_native_move(void* hdev,char* src,char* dst)
 	nt_path(fullsrc,dev,src);
 	nt_path(fulldst,dev,dst);
 	pINode node;
-	vector<string> vpath;
+	path_cache vpath;
 	dword type=0;
 	int ret=sys_fstat((char*)fulldst.c_str(),&type);
 	if(ret==0)
@@ -319,7 +321,7 @@ int fs_native_del(void* hdev,char* path)
 	decl_dev(dev,hdev);
 	nt_path(fullpath,dev,path);
 	pINode node;
-	vector<string> vpath;
+	path_cache vpath;
 	split_path(path,vpath,'/');
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 		return ERR_FS_FILE_DIR_LOCKED;
