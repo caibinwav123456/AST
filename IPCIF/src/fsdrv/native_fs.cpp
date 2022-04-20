@@ -76,21 +76,7 @@ void NativeFsRec::Release()
 static int __get_full_path(const string& base,path_cache& vbase)
 {
 	path_cache merge,relative;
-	if(sys_is_absolute_path((char*)base.c_str(),'/'))
-	{
-		split_path(base,merge,'/');
-	}
-	else
-	{
-		string exepath=get_current_executable_path();
-		split_path(exepath,merge);
-		split_path(base,relative,'/');
-		merge.insert(merge.end(),relative.begin(),relative.end());
-	}
-	int ret=0;
-	if(0!=(ret=get_direct_path(vbase,merge)))
-		return ret;
-	return 0;
+	return get_absolute_path_v(get_current_executable_path(),base,vbase,sys_is_absolute_path,'/');
 }
 int NativeFsTree::Init(const string& base)
 {
@@ -102,9 +88,8 @@ pINode NativeFsTree::CteateNode(path_cache& path)
 	if(path.empty())
 		return NULL;
 	string strmerge;
-	path_cache merge;
 	begin_insert_pull(base_path,path,base_path.end(),__start,__end,path.begin(),path.end());
-	merge_path(strmerge,merge);
+	merge_path(strmerge,base_path);
 	end_insert_pull(path,path.end(),__start,__end);
 	dword type=0;
 	int ret=sys_fstat((char*)strmerge.c_str(),&type);

@@ -635,33 +635,28 @@ DLLAPI(int)get_direct_path(path_cache& direct, const path_cache& indirect)
 	}
 	return 0;
 }
-int get_absolute_path(const string& cur_dir, const path_cache& relative_path, path_cache& absolute_path, char dsym, path_cache_type type)
+static int get_absolute_path_final(const string& cur_dir, const string& relative_path, path_cache& absolute_path, char dsym, path_cache_type type)
 {
-	path_cache cur_dir_split(type);
-	split_path(cur_dir,cur_dir_split,dsym);
-	cur_dir_split.insert(cur_dir_split.end(),relative_path.begin(),relative_path.end());
+	path_cache relative_path_split(type), cur_dir_split(type);
+	split_path(relative_path, relative_path_split, dsym);
+	split_path(cur_dir, cur_dir_split, dsym);
+	cur_dir_split.insert(cur_dir_split.end(), relative_path_split.begin(), relative_path_split.end());
 	return get_direct_path(absolute_path, cur_dir_split);
 }
-int get_absolute_path(const string& cur_dir, const string& relative_path, path_cache& absolute_path, char dsym, path_cache_type type)
+DLLAPI(int) get_absolute_path_v(const string& cur_dir, const string& relative_path, path_cache& array_absolute_path, int (*is_absolute_path)(char* path, char dsym), char dsym, path_cache_type type)
 {
-	path_cache relative_path_split(type);
-	split_path(relative_path, relative_path_split, dsym);
-	return get_absolute_path(cur_dir, relative_path_split, absolute_path, dsym, type);
+	path_cache merge(type), relative(type);
+	if(is_absolute_path!=NULL && is_absolute_path((char*)relative_path.c_str(), dsym))
+		return get_absolute_path_final(relative_path, "", array_absolute_path, dsym, type);
+	else
+		return get_absolute_path_final(cur_dir, relative_path, array_absolute_path, dsym, type);
 }
 DLLAPI(int) get_absolute_path(const string& cur_dir, const string& relative_path, string& absolute_path, int (*is_absolute_path)(char* path, char dsym), char dsym, path_cache_type type)
 {
 	int ret=0;
 	path_cache array_absolute_path(type);
-	if(is_absolute_path!=NULL&&is_absolute_path((char*)relative_path.c_str(),dsym))
-	{
-		if(0!=(ret=get_absolute_path(relative_path, "", array_absolute_path, dsym, type)))
-			return ret;
-	}
-	else
-	{
-		if(0!=(ret=get_absolute_path(cur_dir, relative_path, array_absolute_path, dsym, type)))
-			return ret;
-	}
+	if(0!=(ret=get_absolute_path_v(cur_dir, relative_path, array_absolute_path, is_absolute_path, dsym, type)))
+		return ret;
 	merge_path(absolute_path, array_absolute_path, dsym);
 	return 0;
 }

@@ -475,11 +475,13 @@ public:
 	TreeNode* GetNode(KeyListType& vKey,TreeNode*(*bset)(KeyListType&,typename KeyListType::iterator&,void*)=NULL,void* param=NULL)
 	{
 		TreeNode *tn=head,*last=NULL;
-		for(typename KeyListType::iterator it=vKey.begin();it!=vKey.end();)
+		typename KeyListType::iterator end=vKey.end();
+		for(typename KeyListType::iterator it=vKey.begin();it!=end;)
 		{
-			if(tn->child.find(*it)!=tn->child.end())
+			typename map<Key,TreeNode*,Pr>::iterator iter_child=tn->child.find(*it);
+			if(iter_child!=tn->child.end())
 			{
-				tn=tn->child[*it];
+				tn=iter_child->second;
 				++it;
 				continue;
 			}
