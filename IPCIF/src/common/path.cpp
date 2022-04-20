@@ -672,6 +672,6 @@ DLLAPI(void) concat_path(const string& path1, const string& path2, string& merge
 DLLAPI(bool) is_subpath(const string& relative_path1, const string& relative_path2, char dsym)
 {
 	return relative_path1.size()>relative_path2.size()
-		&&memcmp(relative_path1.c_str(),relative_path2.c_str(),(uint)relative_path2.size())
+		&&(memcmp(relative_path1.c_str(),relative_path2.c_str(),(uint)relative_path2.size())==0)
 		&&relative_path1[relative_path2.size()]==dsym;
 }
