@@ -680,7 +680,7 @@ int testDllDrv()
 	if(pintf==NULL||0!=(ret=pintf->init()))
 		goto freelib;
 	void** vdev[2]={&dev,&dev2};
-	char* devname[2]={"hello_pan","goodbye_pan"};
+	char* devname[2]={"\".\\\\astdata\"","\".\\\\astanalysis\""};
 	for(int i=0;i<2;i++)
 	{
 		if(0!=(ret=MountDev(pintf,devname[i],vdev[i])))
