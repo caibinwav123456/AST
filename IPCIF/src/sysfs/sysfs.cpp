@@ -599,6 +599,28 @@ int SysFs::EnumStorageModule(vector<proc_data>* pdata)
 	}
 	return 0;
 }
+static bool fs_extract_drive_tag(const string& path,string& drv,string& pure)
+{
+	const int pos=path.find('/');
+	string first_dir;
+	if(pos==0)
+	{
+		drv="";
+		pure=path;
+		return true;
+	}
+	else if(pos==string::npos)
+		first_dir=path;
+	else
+		first_dir=path.substr(0,pos);
+	if(first_dir.empty()||first_dir.back()!=':')
+		return false;
+	if(first_dir.size()==1)
+		return false;
+	drv=first_dir.substr(0,first_dir.size()-1);
+	pure=(pos==string::npos?"":path.substr(pos+1));
+	return true;
+}
 int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if_path* ifp)
 {
 	if(ifp!=NULL)
@@ -607,52 +629,15 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if
 		path=*ifp->purepath;
 		return 0;
 	}
-	if(in_path.empty())
-		return ERR_INVALID_PATH;
-	path_cache split_in_path,split_out_path;
-	split_path(in_path,split_in_path,'/');
 	int ret=0;
+	string drv,pure;
 	if_proc* ifproc;
-	const char* drv=NULL;
-	if(!split_in_path.empty())
-	{
-		const char* p=drv=split_in_path.front();
-		for(;*p!=0;p++);
-		if(!(p>drv&&*(p-1)==':'))
-			drv=NULL;
-		else
-		{
-			int len=p-drv;
-			if(len==1)
-				return ERR_INVALID_PATH;
-			char* drvname=new char[len];
-			memcpy(drvname,drv,len-1);
-			drvname[len-1]=0;
-			drv=drvname;
-		}
-	}
-	if(drv!=NULL)
-	{
-		if(in_path.front()=='/')
-			return ERR_INVALID_PATH;
-		string if_id(drv);
-		delete[] drv;
-		if(if_id.empty())
-			return ERR_INVALID_PATH;
-		if(NULL==(ifproc=GetIfProcFromID(if_id)))
-			return ERR_INVALID_PATH;
-		split_in_path.erase(split_in_path.begin());
-	}
-	else
-	{
-		if(in_path.front()!='/')
-			return ERR_INVALID_PATH;
-		if(NULL==(ifproc=GetIfProcFromID("")))
-			return ERR_INVALID_PATH;
-	}
-	if(0!=(ret=get_direct_path(split_out_path,split_in_path)))
+	if(!fs_extract_drive_tag(in_path,drv,pure))
+		return ERR_INVALID_PATH;
+	if(NULL==(ifproc=GetIfProcFromID(drv)))
+		return ERR_INVALID_PATH;
+	if(0!=(ret=get_absolute_path(pure,"",path,NULL,'/')))
 		return ret;
-	merge_path(path,split_out_path,'/');
 	path="/"+path;
 	*ppif=ifproc;
 	return 0;
