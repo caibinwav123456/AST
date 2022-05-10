@@ -15,7 +15,8 @@ int LogSys::Init()
 	int ret=0;
 	if(0!=(ret=get_absolute_path(string(get_current_executable_path()),sys_log_path,full_sys_log_path,sys_is_absolute_path)))
 		return ret;
-	sem=(is_launcher()?sys_create_sem(1,1,(char*)sys_log_sem.c_str()):sys_get_sem((char*)sys_log_sem.c_str()));
+	string log_sem_name=sys_log_sem+"_"+get_if_user();
+	sem=(is_launcher()?sys_create_sem(1,1,(char*)log_sem_name.c_str()):sys_get_sem((char*)log_sem_name.c_str()));
 	if(!VALID(sem))
 		return ERR_SEM_CREATE_FAILED;
 	inited=true;
