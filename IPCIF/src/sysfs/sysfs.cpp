@@ -18,6 +18,12 @@
 	}
 #define uninited_return_val(v) if(quitcode!=0)return (v)
 #define uninited_return if(quitcode!=0)return quitcode
+#define parse_path_ret(ntret,ret,path,ifproc,in_path,ifp) \
+	string __##path##__,*__p_##path##__; \
+	if(0!=(ret=fs_parse_path(&ifproc,__##path##__,&__p_##path##__,in_path,ifp))) \
+		return ntret; \
+	string& path=*__p_##path##__
+#define parse_path(ret,path,ifproc,in_path,ifp) parse_path_ret(ret,ret,path,ifproc,in_path,ifp)
 DEFINE_UINT_VAL(use_storage_level,0);
 DEFINE_UINT_VAL(sysfs_query_pass,4);
 #define active_storage ifvproc[use_storage_level]
@@ -621,12 +627,12 @@ static bool fs_extract_drive_tag(const string& path,string& drv,string& pure)
 	pure=(pos==string::npos?"":path.substr(pos+1));
 	return true;
 }
-int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if_path* ifp)
+int SysFs::fs_parse_path(if_proc** ppif,string& path,string** out_path,const string& in_path,fs_if_path* ifp)
 {
 	if(ifp!=NULL)
 	{
 		*ppif=ifp->ifpath;
-		path=*ifp->purepath;
+		*out_path=ifp->purepath;
 		return 0;
 	}
 	int ret=0;
@@ -640,6 +646,7 @@ int SysFs::fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if
 		return ret;
 	path="/"+path;
 	*ppif=ifproc;
+	*out_path=&path;
 	return 0;
 }
 int SysFs::BeginTransfer(if_proc* pif,void** phif)
@@ -875,11 +882,9 @@ void* SysFs::Open(const char* pathname,dword flags,fs_if_path* ifp)
 {
 	uninited_return_val(NULL);
 	if_proc* ifproc;
-	string path;
 	int ret=0;
 	void* h;
-	if(0!=(ret=fs_parse_path(&ifproc,path,string(pathname),ifp)))
-		return NULL;
+	parse_path_ret(NULL,ret,path,ifproc,pathname,ifp);
 	SortedFileIoRec* pRec=new SortedFileIoRec(nbuf,buf_len,flags);
 	pRec->pif=ifproc;
 	pRec->path=path;
@@ -1331,11 +1336,8 @@ int SysFs::MoveFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path*
 	uninited_return;
 	int ret=0;
 	if_proc *ifsrc,*ifdst;
-	string puresrc,puredst;
-	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src,sifp)))
-		return ret;
-	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst,difp)))
-		return ret;
+	parse_path(ret,puresrc,ifsrc,src,sifp);
+	parse_path(ret,puredst,ifdst,dst,difp);
 	if(ifsrc!=ifdst)
 	{
 		fs_if_path sfp(ifsrc,&puresrc),dfp(ifdst,&puredst);
@@ -1369,15 +1371,12 @@ int SysFs::CopyFile(const char* src,const char* dst,fs_if_path* sifp,fs_if_path*
 	uninited_return;
 	int ret=0;
 	if_proc *ifsrc,*ifdst;
-	string puresrc,puredst;
 	const uint bufsize=8*_1K;
 	UInteger64 srclen;
 	uint dummy=0;
 	const UInteger64 once(bufsize,&dummy);
-	if(0!=(ret=fs_parse_path(&ifsrc,puresrc,src,sifp)))
-		return ret;
-	if(0!=(ret=fs_parse_path(&ifdst,puredst,dst,difp)))
-		return ret;
+	parse_path(ret,puresrc,ifsrc,src,sifp);
+	parse_path(ret,puredst,ifdst,dst,difp);
 	fs_if_path sfp(ifsrc,&puresrc),dfp(ifdst,&puredst);
 	dword sflags=0,dflags=0;
 	DateTime date[3];
@@ -1474,9 +1473,7 @@ int SysFs::DeleteFile(const char* pathname,fs_if_path* ifp)
 	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
-	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,pathname,ifp)))
-		return ret;
+	parse_path(ret,purepath,ifpath,pathname,ifp);
 	void* hif;
 	if(0!=(ret=BeginTransfer(ifpath,&hif)))
 		return ret;
@@ -1498,9 +1495,7 @@ int SysFs::GetSetFileAttr(if_cmd_code cmd,const char* path,dword mask,dword* fla
 	assert(cmd==CMD_FSGETATTR||cmd==CMD_FSSETATTR);
 	int ret=0;
 	if_proc* ifpath;
-	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,path,ifp)))
-		return ret;
+	parse_path(ret,purepath,ifpath,path,ifp);
 	void* hif;
 	if(0!=(ret=BeginTransfer(ifpath,&hif)))
 		return ret;
@@ -1567,9 +1562,7 @@ int SysFs::ListFile(const char* path,vector<fsls_element>& files,fs_if_path* ifp
 	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
-	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,path,ifp)))
-		return ret;
+	parse_path(ret,purepath,ifpath,path,ifp);
 	files.clear();
 	uint nfile=0;
 	void* hls=NULL;
@@ -1653,9 +1646,7 @@ int SysFs::MakeDir(const char* path,fs_if_path* ifp)
 	uninited_return;
 	int ret=0;
 	if_proc* ifpath;
-	string purepath;
-	if(0!=(ret=fs_parse_path(&ifpath,purepath,path,ifp)))
-		return ret;
+	parse_path(ret,purepath,ifpath,path,ifp);
 	void* hif;
 	if(0!=(ret=BeginTransfer(ifpath,&hif)))
 		return ret;

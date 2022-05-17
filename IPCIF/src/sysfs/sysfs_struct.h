@@ -216,8 +216,8 @@ int __fs_recurse_stat(char* pathname,path_recurse_stat* pstat,file_recurse_cbdat
 struct fs_if_path
 {
 	if_proc* ifpath;
-	const string* purepath;
-	fs_if_path(if_proc* _if,const string* _path):ifpath(_if),purepath(_path){}
+	string* purepath;
+	fs_if_path(if_proc* _if,string* _path):ifpath(_if),purepath(_path){}
 };
 class SysFs
 {
@@ -273,7 +273,7 @@ private:
 	SortedFileIoRec* handle_to_rec_ptr(void* handle);
 	static int cb_reconn(void* param);
 	void* sysfs_get_handle();
-	int fs_parse_path(if_proc** ppif,string& path,const string& in_path,fs_if_path* ifp);
+	int fs_parse_path(if_proc** ppif,string& path,string** out_path,const string& in_path,fs_if_path* ifp);
 	map<void*,SortedFileIoRec*> fmap;
 	vector<proc_data> pvdata;
 	vector<if_proc*> ifvproc;
