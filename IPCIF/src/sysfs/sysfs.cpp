@@ -333,7 +333,7 @@ void SysFs::Exit()
 			}
 		}
 	}
-	for(map<void*,SortedFileIoRec*>::iterator it=fmap.begin();it!=fmap.end();it++)
+	for(map<void*,SortedFileIoRec*>::iterator it=fmap.begin();it!=fmap.end();++it)
 	{
 		delete it->second;
 	}

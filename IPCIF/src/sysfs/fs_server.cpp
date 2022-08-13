@@ -620,7 +620,7 @@ void FsServer::Clear(void* proc_id,bool cl_root)
 	}
 	else
 	{
-		for(it=proc_id_map.begin();it!=proc_id_map.end();it++)
+		for(it=proc_id_map.begin();it!=proc_id_map.end();++it)
 		{
 			SrvProcRing* ring=it->second;
 			clear_ring(smap,ring,cdrvcall,chdev);

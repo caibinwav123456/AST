@@ -36,7 +36,7 @@ public:
 	static bool IsLocked(pINode node);
 	static bool LockDir(pINode node,bool lck);
 protected:
-	virtual pINode CteateNode(path_cache& path)=0;
+	virtual pINode CreateNode(path_cache& path)=0;
 private:
 	static pINode GetNodeCallBack(path_cache& path,path_cache::iterator& it,void* param);
 	static pINode GetNodeCallBackNull(path_cache& path,path_cache::iterator& it,void* param);

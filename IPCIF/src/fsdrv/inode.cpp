@@ -5,7 +5,7 @@ pINode INodeTree::GetNodeCallBack(path_cache& path,path_cache::iterator& it,void
 	INodeTree* tree=(INodeTree*)param;
 	path_cache sub;
 	begin_insert_pull(sub,path,sub.end(),__start,__end,path.begin(),it);
-	pINode node=tree->CteateNode(sub);
+	pINode node=tree->CreateNode(sub);
 	end_insert_pull(path,path.begin(),__start,__end);
 	return node;
 }

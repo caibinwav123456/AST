@@ -310,7 +310,7 @@ public:
 		}
 		void Clear()
 		{
-			for(typename map<Key,TreeNode*,Pr>::iterator it=child.begin();it!=child.end();it++)
+			for(typename map<Key,TreeNode*,Pr>::iterator it=child.begin();it!=child.end();++it)
 			{
 				delete it->second;
 			}

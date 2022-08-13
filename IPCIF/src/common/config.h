@@ -31,7 +31,7 @@ public:
 		iterator& operator++()
 		{
 			if(valid)
-				iter++;
+				++iter;
 			return *this;
 		}
 		pair<const string,string>& operator*()

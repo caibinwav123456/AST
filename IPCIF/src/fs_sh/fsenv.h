@@ -44,7 +44,7 @@ public:
 		{
 			if(valid)
 			{
-				iter++;
+				++iter;
 				valid=(iter!=end);
 			}
 			return *this;
