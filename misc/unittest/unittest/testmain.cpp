@@ -49,6 +49,7 @@ DEFINE_BOOL_VAL(config_testPipe,false);
 DEFINE_BOOL_VAL(config_test_fwrite,false);
 DEFINE_BOOL_VAL(config_test_arch_get_process,false);
 DEFINE_BOOL_VAL(config_test_arch_get_process_cmd,false);
+DEFINE_BOOL_VAL(config_test_path,false);
 
 int testfile()
 {
@@ -633,6 +634,8 @@ int testKeyTree()
 	{
 		printf("%s\n",it->t);
 	}
+	//vector<string> keylist;
+	//ktree.GetNode(keylist);//ok
 	return 0;
 }
 int MountDev(pintf_fsdrv pintf,char* base,void** dev)
@@ -677,7 +680,7 @@ int testDllDrv()
 	if(pintf==NULL||0!=(ret=pintf->init()))
 		goto freelib;
 	void** vdev[2]={&dev,&dev2};
-	char* devname[2]={"hello_pan","goodbye_pan"};
+	char* devname[2]={"\".\\\\astdata\"","\".\\\\astanalysis\""};
 	for(int i=0;i<2;i++)
 	{
 		if(0!=(ret=MountDev(pintf,devname[i],vdev[i])))
@@ -879,6 +882,7 @@ int test_arch_get_process_cmd()
 	char buf[1024];
 	return arch_get_current_process_cmdline(buf);
 }
+int test_new_path();
 int _tmain(int argc, TCHAR** argv)
 {
 	int ret=0;
@@ -904,6 +908,7 @@ int _tmain(int argc, TCHAR** argv)
 	config_test_fwrite&&test_fwrite();
 	config_test_arch_get_process&&test_arch_get_process();
 	config_test_arch_get_process_cmd&&test_arch_get_process_cmd();
+	config_test_path&&test_new_path();
 	LOGFILE(0,log_ftype_info,"%s start OK",get_current_executable_name());
 	process_stat pstat;
 	init_process_stat(&pstat,"ASTManager.exe");
