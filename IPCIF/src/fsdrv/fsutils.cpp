@@ -5,6 +5,7 @@
 #include <assert.h>
 #define token_buf_size 256
 #define LOCKFILE_SUFFIX ".lck"
+#define TAG_USER "user"
 #define TAG_USER_ID "user_id"
 static const byte seps[]={' ','\t','\r','\n'};
 static const byte spec_token_ch[]={'_','-','.','/',};
@@ -129,11 +130,9 @@ int parse_cmd(const byte* buf,int size,
 	}
 	return 0;
 }
-inline bool __check_dev_exist__(const string& devname)
+inline bool __check_dev_exist__(const string& devname,const string& lockfile)
 {
-	string lockfile=devname+LOCKFILE_SUFFIX;
-	dword type=0;
-	if(0!=sys_fstat((char*)devname.c_str(),&type))
+	if(0!=sys_fstat((char*)devname.c_str(),NULL))
 	{
 		sys_fdelete((char*)lockfile.c_str());
 		return false;
@@ -143,10 +142,9 @@ inline bool __check_dev_exist__(const string& devname)
 bool dev_is_locked(const string& devname)
 {
 	string lockfile=devname+LOCKFILE_SUFFIX;
-	dword type=0;
-	if(!__check_dev_exist__(devname))
+	if(!__check_dev_exist__(devname,lockfile))
 		return false;
-	if(0!=sys_fstat((char*)lockfile.c_str(),&type))
+	if(0!=sys_fstat((char*)lockfile.c_str(),NULL))
 		return false;
 	void* h=sys_fopen((char*)lockfile.c_str(),FILE_OPEN_EXISTING|FILE_READ);
 	if(!VALID(h))
@@ -168,17 +166,17 @@ bool dev_is_locked(const string& devname)
 	map<string,string> lock_param;
 	verify(0==parse_cmd(buf,size,lock_param));
 	delete[] buf;
-	if(lock_param.find(TAG_USER_ID)==lock_param.end())
-		return false;
-	string strid=lock_param[TAG_USER_ID];
+	if(lock_param.find(TAG_USER_ID)==lock_param.end()||lock_param.find(TAG_USER)==lock_param.end())
+		return true;
+	string strid=lock_param[TAG_USER_ID],struser=lock_param[TAG_USER];
 	uint id=0;
 	sscanf(strid.c_str(),"%d",&id);
-	return uint_to_ptr(id)!=get_current_executable_id();
+	return uint_to_ptr(id)!=get_current_executable_id()||struser!=get_if_user();
 }
 inline bool __write_id__(void* h)
 {
 	char buf[50];
-	sprintf(buf,TAG_USER_ID"=%d",ptr_to_uint(get_current_executable_id()));
+	sprintf(buf,"%s=%d %s=%s",TAG_USER_ID,ptr_to_uint(get_current_executable_id()),TAG_USER,get_if_user());
 	if(0!=sys_set_file_size(h,0))
 		return false;
 	if(0!=sys_fwrite(h,buf,strlen(buf)))
@@ -189,11 +187,9 @@ bool lock_dev(const string& devname,bool lock)
 {
 	string lockfile=devname+LOCKFILE_SUFFIX;
 	if(!lock)
-	{
 		return 0==sys_fdelete((char*)lockfile.c_str());
-	}
 	dword type=0;
-	if(!__check_dev_exist__(devname))
+	if(!__check_dev_exist__(devname,lockfile))
 		return false;
 	void* h=sys_fopen((char*)lockfile.c_str(),FILE_OPEN_ALWAYS|FILE_READ|FILE_WRITE);
 	if(!VALID(h))
@@ -220,15 +216,11 @@ bool lock_dev(const string& devname,bool lock)
 	map<string,string> lock_param;
 	verify(0==parse_cmd(buf,size,lock_param));
 	delete[] buf;
-	if(lock_param.find(TAG_USER_ID)==lock_param.end())
-	{
-		bool ret=__write_id__(h);
-		sys_fclose(h);
-		return ret;
-	}
 	sys_fclose(h);
-	string strid=lock_param[TAG_USER_ID];
+	if(lock_param.find(TAG_USER_ID)==lock_param.end()||lock_param.find(TAG_USER)==lock_param.end())
+		return false;
+	string strid=lock_param[TAG_USER_ID],struser=lock_param[TAG_USER];
 	uint id=0;
 	sscanf(strid.c_str(),"%d",&id);
-	return uint_to_ptr(id)==get_current_executable_id();
+	return uint_to_ptr(id)==get_current_executable_id()&&struser==get_if_user();
 }

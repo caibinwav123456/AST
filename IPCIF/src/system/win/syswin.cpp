@@ -220,6 +220,7 @@ void* sys_create_thread(int (*cb)(void*), void* param)
 	if(!VALID(hret))
 	{
 		delete data;
+		return NULL;
 	}
 	return hret;
 }

@@ -1464,6 +1464,8 @@ static int stat_handler(cmd_param_st* param)
 			vfiles.push_back(arg.first);
 		}
 	}
+	if(vfiles.empty())
+		vfiles.push_back("");
 	if(!(frecur.option.handle_dir||frecur.option.handle_file))
 		return_t_msg(ERR_INVALID_PARAM,"options \'-d\' and \'-n\' can not be used simultaneously\n");
 	frecur.option.stop_at_error=true;

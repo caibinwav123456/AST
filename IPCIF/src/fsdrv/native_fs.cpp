@@ -10,23 +10,23 @@
 #define fsrec(ptr) ((NativeFsRec*)(ptr))
 #define decl_rec(rec,ptr) NativeFsRec* rec=fsrec(ptr)
 #define decl_dev(dev,ptr) NativeFsDev* dev=(NativeFsDev*)(ptr)
-#define nt_path(fullpath,dev,path) string fullpath=(dev)->GetFullPath(path)
+#define nt_path(fullpath,dev,path) string fullpath;(dev)->GetFullPath(fullpath,path)
+#define nt_path_v(fullpath,dev,path,vpath) string fullpath;path_cache vpath; \
+	(dev)->GetFullPath(fullpath,path,&(vpath))
 #define nt_rec(node) ((NativeFsRec*)(node)->t.priv)
 class NativeFsTree : public INodeTree
 {
 public:
 	int Init(const string& base);
-	string GetBase(char dsym=_dir_symbol)
+	void GetBase(string& base,char dsym=_dir_symbol)
 	{
-		string ret;
-		merge_path(ret,base_path,dsym);
-		return ret;
+		merge_path(base,base_path,dsym);
 	}
-	string GetFullPath(const string& path);
+	void GetFullPath(string& fullpath,const string& path,path_cache* pcache=NULL);
 protected:
-	virtual pINode CteateNode(const vector<string>& path);
+	virtual pINode CreateNode(path_cache& path);
 private:
-	vector<string> base_path;
+	path_cache base_path;
 };
 class NativeFsDev
 {
@@ -35,15 +35,15 @@ public:
 	void Exit();
 	int PrepareBase(const string& base);
 	static int Format(string cmd);
-	string GetFullPath(const string& path)
+	void GetFullPath(string& fullpath,const string& path,path_cache* pcache=NULL)
 	{
-		return fs_tree.GetFullPath(path);
+		fs_tree.GetFullPath(fullpath,path,pcache);
 	}
-	pINode GetINode(vector<string>& vKey)
+	pINode GetINode(path_cache& vKey)
 	{
 		return fs_tree.GetINode(vKey);
 	}
-	pINode GetINodeInTree(vector<string>& vKey)
+	pINode GetINodeInTree(path_cache& vKey)
 	{
 		return fs_tree.GetINodeInTree(vKey);
 	}
@@ -65,46 +65,30 @@ struct NativeFsRec
 };
 void NativeFsRec::Release()
 {
-	refcnt--;
-	if(refcnt<=0)
+	if((--refcnt)<=0)
 	{
 		sys_fclose(fd);
 		INodeTree::ReleaseNode(node);
 		delete this;
 	}
 }
-static int __get_full_path(const string& base,vector<string>& vbase)
+static inline int __get_full_path(const string& base,path_cache& vbase)
 {
-	vector<string> merge,relative;
-	if(sys_is_absolute_path((char*)base.c_str(),'/'))
-	{
-		split_path(base,merge,'/');
-	}
-	else
-	{
-		string exepath=get_current_executable_path();
-		split_path(exepath,merge);
-		split_path(base,relative,'/');
-		merge.insert(merge.end(),relative.begin(),relative.end());
-	}
-	int ret=0;
-	if(0!=(ret=get_direct_path(vbase,merge)))
-		return ret;
-	return 0;
+	return get_absolute_path_v(get_current_executable_path(),base,vbase,sys_is_absolute_path);
 }
 int NativeFsTree::Init(const string& base)
 {
 	return __get_full_path(base,base_path);
 }
-pINode NativeFsTree::CteateNode(const vector<string>& path)
+pINode NativeFsTree::CreateNode(path_cache& path)
 {
 	assert(!path.empty());
 	if(path.empty())
 		return NULL;
-	vector<string> merge=base_path;
-	merge.insert(merge.end(),path.begin(),path.end());
 	string strmerge;
-	merge_path(strmerge,merge);
+	begin_insert_pull(base_path,path,base_path.end(),__start,__end,path.begin(),path.end());
+	merge_path(strmerge,base_path);
+	end_insert_pull(path,path.end(),__start,__end);
 	dword type=0;
 	int ret=sys_fstat((char*)strmerge.c_str(),&type);
 	if(ret!=0)
@@ -113,14 +97,16 @@ pINode NativeFsTree::CteateNode(const vector<string>& path)
 	node->t.attr=(type==FILE_TYPE_DIR?FS_ATTR_FLAGS_DIR:0);
 	return node;
 }
-string NativeFsTree::GetFullPath(const string& path)
+void NativeFsTree::GetFullPath(string& fullpath,const string& path,path_cache* pcache)
 {
-	vector<string> split,base=base_path;
+	path_cache* cache=pcache==NULL?(new path_cache):pcache;
+	path_cache& split=*cache;
 	split_path(path,split,'/');
-	base.insert(base.end(),split.begin(),split.end());
-	string ret;
-	merge_path(ret,base);
-	return ret;
+	begin_insert_pull(base_path,split,base_path.end(),__start,__end,split.begin(),split.end());
+	merge_path(fullpath,base_path);
+	end_insert_pull(split,split.end(),__start,__end);
+	if(pcache==NULL)
+		delete cache;
 }
 int NativeFsDev::parse_cmd_head(const char* head,const string& cmd,string& options)
 {
@@ -134,7 +120,7 @@ int NativeFsDev::parse_cmd_head(const char* head,const string& cmd,string& optio
 int NativeFsDev::Init(string cmd)
 {
 	int ret=0;
-	string options;
+	string options,base;
 	if(0!=(ret=parse_cmd_head(NATIVEFS_MOUNT_CMD,cmd,options)))
 		return ret;
 	map<string,string> cmd_options;
@@ -144,7 +130,8 @@ int NativeFsDev::Init(string cmd)
 		return ERR_INVALID_CMD;
 	if(0!=(ret=fs_tree.Init(cmd_options[NATIVEFS_BASE_PATH])))
 		return ret;
-	if(0!=(ret=PrepareBase(fs_tree.GetBase())))
+	fs_tree.GetBase(base);
+	if(0!=(ret=PrepareBase(base)))
 		return ret;
 	return 0;
 }
@@ -160,7 +147,9 @@ int NativeFsDev::PrepareBase(const string& base)
 }
 void NativeFsDev::Exit()
 {
-	lock_dev(fs_tree.GetBase(),false);
+	string base;
+	fs_tree.GetBase(base);
+	lock_dev(base,false);
 }
 int NativeFsDev::Format(string cmd)
 {
@@ -173,7 +162,7 @@ int NativeFsDev::Format(string cmd)
 		return ret;
 	if(cmd_options.find(NATIVEFS_BASE_PATH)==cmd_options.end())
 		return ERR_INVALID_CMD;
-	vector<string> vbase;
+	path_cache vbase;
 	string fullpath;
 	if(0!=(ret=__get_full_path(cmd_options[NATIVEFS_BASE_PATH],vbase)))
 		return ret;
@@ -219,9 +208,7 @@ void fs_native_unmount(void* hdev)
 void* fs_native_open(void* hdev,char* pathname,dword flags)
 {
 	decl_dev(dev,hdev);
-	vector<string> vpath;
-	split_path(pathname,vpath,'/');
-	nt_path(fullpath,dev,pathname);
+	nt_path_v(fullpath,dev,pathname,vpath);
 	pINode node;
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 	{
@@ -249,7 +236,6 @@ void* fs_native_open(void* hdev,char* pathname,dword flags)
 	}
 	NativeFsRec* pRec=new NativeFsRec(dev);
 	pRec->fd=h;
-	pRec->host=dev;
 	pRec->node=node;
 	pRec->flags=flags;
 	pRec->AddRef();
@@ -298,10 +284,9 @@ int fs_native_setsize(void* hdev,void* hfile,uint size,uint sizehigh)
 int fs_native_move(void* hdev,char* src,char* dst)
 {
 	decl_dev(dev,hdev);
-	nt_path(fullsrc,dev,src);
+	nt_path_v(fullsrc,dev,src,vpath);
 	nt_path(fulldst,dev,dst);
 	pINode node;
-	vector<string> vpath;
 	dword type=0;
 	int ret=sys_fstat((char*)fulldst.c_str(),&type);
 	if(ret==0)
@@ -309,7 +294,6 @@ int fs_native_move(void* hdev,char* src,char* dst)
 	ret=sys_fstat((char*)fullsrc.c_str(),&type);
 	if(ret!=0)
 		return ERR_PATH_NOT_EXIST;
-	split_path(src,vpath,'/');
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 		return ERR_FS_FILE_DIR_LOCKED;
 	return sys_fmove((char*)fullsrc.c_str(),(char*)fulldst.c_str());
@@ -317,10 +301,8 @@ int fs_native_move(void* hdev,char* src,char* dst)
 int fs_native_del(void* hdev,char* path)
 {
 	decl_dev(dev,hdev);
-	nt_path(fullpath,dev,path);
+	nt_path_v(fullpath,dev,path,vpath);
 	pINode node;
-	vector<string> vpath;
-	split_path(path,vpath,'/');
 	if(NULL!=(node=dev->GetINodeInTree(vpath)))
 		return ERR_FS_FILE_DIR_LOCKED;
 	return sys_fdelete((char*)fullpath.c_str());

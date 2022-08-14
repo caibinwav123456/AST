@@ -44,7 +44,7 @@ public:
 		{
 			if(valid)
 			{
-				iter++;
+				++iter;
 				valid=(iter!=end);
 			}
 			return *this;
@@ -66,5 +66,5 @@ public:
 private:
 	map<string,string> env_assoc;
 };
-#endif //#ifdef USE_FS_ENV_VAR
 #endif //#ifndef _FSENV_H_
+#endif //#ifdef USE_FS_ENV_VAR

@@ -1,22 +1,23 @@
 #include "inode.h"
 #include <assert.h>
-pINode INodeTree::GetNodeCallBack(const vector<string>& path, int index, void* param)
+pINode INodeTree::GetNodeCallBack(path_cache& path,path_cache::iterator& it,void* param)
 {
 	INodeTree* tree=(INodeTree*)param;
-	vector<string> sub;
-	for(int i=0;i<=index;i++)
-		sub.push_back(path[i]);
-	return tree->CteateNode(sub);
+	path_cache sub;
+	begin_insert_pull(sub,path,sub.end(),__start,__end,path.begin(),it);
+	pINode node=tree->CreateNode(sub);
+	end_insert_pull(path,path.begin(),__start,__end);
+	return node;
 }
-pINode INodeTree::GetNodeCallBackNull(const vector<string>& path,int index,void* param)
+pINode INodeTree::GetNodeCallBackNull(path_cache& path,path_cache::iterator& it,void* param)
 {
 	return NULL;
 }
-pINode INodeTree::GetINode(vector<string>& vKey)
+pINode INodeTree::GetINode(path_cache& vKey)
 {
 	return GetNode(vKey,GetNodeCallBack,this);
 }
-pINode INodeTree::GetINodeInTree(vector<string>& vKey)
+pINode INodeTree::GetINodeInTree(path_cache& vKey)
 {
 	return GetNode(vKey,GetNodeCallBackNull,NULL);
 }

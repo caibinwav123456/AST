@@ -9,9 +9,9 @@ int main(int argc,char** argv)
 	if(argc<=1)
 		return 0;
 	char* path=argv[1];
-	int verbose=0;
-	if(argc>2&&strcmp(argv[2],"-v")==0)
-		verbose=1;
+	int write=0;
+	if(argc>2&&strcmp(argv[2],"-w")==0)
+		write=1;
 	struct stat size;
 	if(0!=stat((const char*)path,&size))
 	{
@@ -68,7 +68,7 @@ int main(int argc,char** argv)
 		free(buf);
 		return 0;
 	}
-	else if(verbose)
+	else if(!write)
 	{
 		free(buf);
 		printf("file \"%s\" needs to be patched.\n",path);
