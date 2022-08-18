@@ -18,6 +18,8 @@ typedef unsigned long dword;
 #define ptr_to_uint(ptr) ((uint)(ptr))
 #define uint_to_ptr(n) ((void*)(n))
 #endif
+#define hiword(x) ((x)>>16)
+#define loword(x) ((x)&0xffff)
 #if (defined(DEBUG) || defined(_DEBUG)) && !defined(NDEBUG)
 #define verify(m) assert(m)
 #else

@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 #include <algorithm>
+#define PROC_ID_TABLE_LEN 256
 using namespace std;
 struct fs_datagram_param
 {
@@ -321,6 +322,10 @@ struct BackupData
 		};
 	};
 };
+class BackupRing;
+typedef bool (*DataBackupRestoreCallback)(datagram_base* dbase,BackupRing* ring,bool backup);
+#define CONFIG_CMD_BACKUP_RESTORE_CALLBACK(cmd,callback) \
+	BackupRing :: config_cmd_backup_restore_callback __config_back_restore_cb_ ## cmd (cmd, BackupRing :: callback)
 class BackupRing
 {
 public:
@@ -337,6 +342,14 @@ public:
 		if(mem_backup)
 			delete[] mem_backup;
 	}
+	class config_cmd_backup_restore_callback
+	{
+	public:
+		config_cmd_backup_restore_callback(uint cmd,DataBackupRestoreCallback callback)
+		{
+			BackupRing::get_config_backup_vec()->push_back(pair<uint,DataBackupRestoreCallback>(cmd,callback));
+		}
+	};
 	void Init();
 	void ReleaseAll();
 	static bool DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup);
@@ -346,6 +359,7 @@ public:
 	static bool DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup);
 	static bool DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup);
 	static bool DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backup);
+	static vector<pair<uint, DataBackupRestoreCallback>>* get_config_backup_vec();
 private:
 	BiRingNode<BackupData>* GetNode(datagram_base* data,bool backup);
 	map<dword,BiRingNode<BackupData>*> bmap;
@@ -354,7 +368,6 @@ private:
 	BiRingNode<BackupData>* backup_items;
 	byte* mem_backup;
 };
-typedef bool (*DataBackupRestoreCallback)(datagram_base* dbase,BackupRing* ring,bool backup);
 class FsServer;
 class SrvProcRing : public BiRing<FileServerRec>
 {
@@ -377,6 +390,58 @@ private:
 	BackupRing backup;
 };
 typedef map<FileServerKey,BiRingNode<FileServerRec>*,less_servrec_ptr> fs_key_map;
+struct proc_id_ring_rec
+{
+	int cnt;
+	SrvProcRing* ring;
+};
+class proc_id_ring_map
+{
+public:
+	struct iterator
+	{
+		iterator(){}
+		iterator(map<void*,SrvProcRing*>::iterator _iter,
+			map<void*,SrvProcRing*>::iterator _end):iter(_iter),end(_end){}
+		void operator++(int)
+		{
+			iter++;
+		}
+		void operator++()
+		{
+			++iter;
+		}
+		operator bool()
+		{
+			return iter!=end;
+		}
+		pair<void* const,SrvProcRing*>& operator*()
+		{
+			return *iter;
+		}
+		pair<void* const,SrvProcRing*>* operator->()
+		{
+			return &*iter;
+		}
+	private:
+		map<void*,SrvProcRing*>::iterator iter;
+		map<void*,SrvProcRing*>::iterator end;
+	};
+	proc_id_ring_map()
+	{
+		memset(proc_id_table,0,sizeof(proc_id_table));
+	}
+	bool query_proc_ring(void* proc_id,SrvProcRing** ring=NULL,proc_id_ring_rec** pprec=NULL,map<void*,SrvProcRing*>::iterator* it=NULL);
+	SrvProcRing* find_proc_from_id(void* proc_id);
+	bool add_proc(void* proc_id,SrvProcRing* proc_ring);
+	void add_proc_no_check(void* proc_id,proc_id_ring_rec* prec,SrvProcRing* proc_ring);
+	SrvProcRing* remove_proc(void* proc_id);
+	void clear();
+	iterator begin();
+private:
+	map<void*,SrvProcRing*> proc_id_map;
+	proc_id_ring_rec proc_id_table[PROC_ID_TABLE_LEN];
+};
 class FssContainer;
 class FsServer
 {
@@ -421,8 +486,8 @@ private:
 	int HandleListFiles(dg_fslsfiles* fslsfiles);
 	int HandleGetDevInfo(dg_fsdevinfo* fsdevinfo);
 	BiRingNode<FileServerRec>* get_fs_node(void* proc_id,void* h,fs_key_map::iterator* it=NULL);
+	proc_id_ring_map proc_id_map;
 	fs_key_map smap;
-	map<void*,SrvProcRing*> proc_id_map;
 	void* hthrd_server;
 	if_info_storage* if_info;
 	void** psem;
@@ -437,6 +502,7 @@ public:
 		sem=NULL;
 		quitcode=ERR_MODULE_NOT_INITED;
 		locked=false;
+		memset(cmd_data_backup_restore_map,0,sizeof(cmd_data_backup_restore_map));
 	}
 	int Init(vector<if_proc>* pif,RequestResolver* resolver);
 	void Exit();
@@ -447,7 +513,7 @@ private:
 	void SetupBackupRestoreMap();
 	vector<FsServer*> vfs_srv;
 	vector<storage_mod_info> vfs_mod;
-	map<uint,DataBackupRestoreCallback> cmd_data_backup_restore_map;
+	DataBackupRestoreCallback cmd_data_backup_restore_map[CMD_COUNT];
 	void* sem;
 	bool locked;
 	int quitcode;
