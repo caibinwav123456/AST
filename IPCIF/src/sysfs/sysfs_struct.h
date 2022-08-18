@@ -398,6 +398,12 @@ struct proc_id_ring_rec
 class proc_id_ring_map
 {
 public:
+	struct hash_cache
+	{
+		void* proc;
+		uint hash_val;
+		hash_cache():proc(NULL),hash_val(0){}
+	};
 	struct iterator
 	{
 		iterator(){}
@@ -441,6 +447,7 @@ public:
 private:
 	map<void*,SrvProcRing*> proc_id_map;
 	proc_id_ring_rec proc_id_table[PROC_ID_TABLE_LEN];
+	hash_cache cache;
 };
 class FssContainer;
 class FsServer

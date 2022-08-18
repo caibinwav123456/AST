@@ -468,9 +468,11 @@ bool FssContainer::ReqHandler(uint cmd,void* addr,void* param,int op)
 	}
 	return ret;
 }
-inline uint __proc_id_hash_func__(void* proc_id)
+inline uint __proc_id_hash_func__(void* proc_id,proc_id_ring_map::hash_cache& cache)
 {
 	assert(VALID(proc_id));
+	if(proc_id==cache.proc)
+		return cache.hash_val;
 	uint uid=ptr_to_uint(proc_id);
 	uint hash_val=uid%PROC_ID_TABLE_LEN;
 	uint instance_id=__instance_id(uid);
@@ -479,13 +481,15 @@ inline uint __proc_id_hash_func__(void* proc_id)
 	if(instance_id!=0)
 		hash_val=(hash_val+((__process_id(uid)<<inst_group_shift)%(PROC_ID_TABLE_LEN-inst_group_len)
 			+inst_group_len)+instance_id)%PROC_ID_TABLE_LEN;
+	cache.proc=proc_id;
+	cache.hash_val=hash_val;
 	return hash_val;
 }
 bool proc_id_ring_map::query_proc_ring(void* proc_id,SrvProcRing** ring,proc_id_ring_rec** pprec,map<void*,SrvProcRing*>::iterator* it)
 {
 	if(!VALID(proc_id))
 		return false;
-	uint hash_val=__proc_id_hash_func__(proc_id);
+	uint hash_val=__proc_id_hash_func__(proc_id,cache);
 	proc_id_ring_rec& rec=proc_id_table[hash_val];
 	if(pprec!=NULL)
 		*pprec=&rec;
@@ -559,7 +563,7 @@ void proc_id_ring_map::add_proc_no_check(void* proc_id,proc_id_ring_rec* prec,Sr
 SrvProcRing* proc_id_ring_map::remove_proc(void* proc_id)
 {
 	assert(VALID(proc_id));
-	uint hash_val=__proc_id_hash_func__(proc_id);
+	uint hash_val=__proc_id_hash_func__(proc_id,cache);
 	proc_id_ring_rec& rec=proc_id_table[hash_val];
 	switch(rec.cnt)
 	{
@@ -591,7 +595,7 @@ SrvProcRing* proc_id_ring_map::remove_proc(void* proc_id)
 	{
 		for(it=proc_id_map.begin();it!=proc_id_map.end();++it)
 		{
-			if(__proc_id_hash_func__(it->first)==hash_val)
+			if(__proc_id_hash_func__(it->first,cache)==hash_val)
 			{
 				rec.ring=it->second;
 				break;
