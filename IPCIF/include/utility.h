@@ -11,6 +11,8 @@ extern "C" {
 #define IF_USAGE_SIZE  21
 #define MAX_IF_COUNT   4
 #define LOGFILE(level,ftype,format,...) __LOGFILE(level,ftype,__FILE__,__LINE__,format,##__VA_ARGS__)
+#define __instance_id(proc_id) hiword(proc_id)
+#define __process_id(proc_id) loword(proc_id)
 enum log_ftype
 {
 	log_ftype_info=0,

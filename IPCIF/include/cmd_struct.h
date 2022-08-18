@@ -48,6 +48,9 @@ enum if_cmd_code
 	CMD_FSGETATTR,
 	CMD_FSSETATTR,
 	CMD_FSGETDEVINFO,
+
+	//END!!!
+	CMD_COUNT,
 };
 
 #pragma pack(push,1)

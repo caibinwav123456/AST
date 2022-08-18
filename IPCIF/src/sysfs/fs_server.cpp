@@ -67,6 +67,11 @@ void BackupRing::ReleaseAll()
 	}
 	bmap.clear();
 }
+vector<pair<uint,DataBackupRestoreCallback>>* BackupRing::get_config_backup_vec()
+{
+	static vector<pair<uint,DataBackupRestoreCallback>> vec;
+	return &vec;
+}
 BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
 {
 	BiRingNode<BackupData>* node=NULL;
@@ -230,6 +235,19 @@ bool BackupRing::DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backu
 	}
 	return true;
 }
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSOPEN,      DBRCallHandle); //fsopen
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSCLOSE,     DBRCallRet);	//fsclose
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSREAD,      DBRCallRdWr);
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSWRITE,     DBRCallRdWr);
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSGETSIZE,   DBRCallSize);   //fssetsize
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSSETSIZE,   DBRCallRet);    //fsmkdir
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_MAKEDIR,     DBRCallRet);
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_LSFILES,     DBRCallFiles);  //fsfiles
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSMOVE,      DBRCallRet);    //fsmove
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSDELETE,    DBRCallRet);    //fsdel
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSGETATTR,   DBRCallAttr);   //fsattr
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSSETATTR,   DBRCallRet);
+CONFIG_CMD_BACKUP_RESTORE_CALLBACK(CMD_FSGETDEVINFO,DBRCallDevInfo);//fsgetdevinfo
 void* SrvProcRing::get_handle()
 {
 	void* h;
@@ -375,56 +393,19 @@ void FssContainer::Exit()
 			sys_free_library(vfs_mod[i].hMod);
 	}
 	vfs_mod.clear();
-	cmd_data_backup_restore_map.clear();
+	memset(cmd_data_backup_restore_map,0,sizeof(cmd_data_backup_restore_map));
 }
 DataBackupRestoreCallback FssContainer::GetDBRCallback(uint cmd)
 {
-	map<uint, DataBackupRestoreCallback>::iterator it;
-	if((it=cmd_data_backup_restore_map.find(cmd))
-		==cmd_data_backup_restore_map.end())
-	{
-		assert(false);
-		return NULL;
-	}
-	return it->second;
+	assert(cmd_data_backup_restore_map[cmd]!=NULL);
+	return cmd_data_backup_restore_map[cmd];
 }
 void FssContainer::SetupBackupRestoreMap()
 {
-	uint cmd_array[]={
-		CMD_FSOPEN,
-		CMD_FSCLOSE,
-		CMD_FSREAD,
-		CMD_FSWRITE,
-		CMD_FSGETSIZE,
-		CMD_FSSETSIZE,
-		CMD_MAKEDIR,
-		CMD_LSFILES,
-		CMD_FSMOVE,
-		CMD_FSDELETE,
-		CMD_FSGETATTR,
-		CMD_FSSETATTR,
-		CMD_FSGETDEVINFO,
-	};
-	DataBackupRestoreCallback cmd_data_cb_array[]={
-		BackupRing::DBRCallHandle,//fsopen
-		BackupRing::DBRCallRet,//fsclose
-		BackupRing::DBRCallRdWr,
-		BackupRing::DBRCallRdWr,
-		BackupRing::DBRCallSize,
-		BackupRing::DBRCallRet,//fssetsize
-		BackupRing::DBRCallRet,//fsmkdir
-		BackupRing::DBRCallFiles,
-		BackupRing::DBRCallRet,//fsmove
-		BackupRing::DBRCallRet,//fsdel
-		BackupRing::DBRCallAttr,
-		BackupRing::DBRCallRet,//fsattr
-		BackupRing::DBRCallDevInfo,
-	};
-	assert(sizeof(cmd_array)/sizeof(uint)
-		==sizeof(cmd_data_cb_array)/sizeof(DataBackupRestoreCallback));
-	for(int i=0;i<(int)(sizeof(cmd_array)/sizeof(uint));i++)
+	vector<pair<uint,DataBackupRestoreCallback>>& vec=*BackupRing::get_config_backup_vec();
+	for(int i=0;i<(int)vec.size();i++)
 	{
-		cmd_data_backup_restore_map[cmd_array[i]]=cmd_data_cb_array[i];
+		cmd_data_backup_restore_map[vec[i].first]=vec[i].second;
 	}
 }
 int FssContainer::SuspendIO(bool bsusp,uint time)
@@ -486,6 +467,147 @@ bool FssContainer::ReqHandler(uint cmd,void* addr,void* param,int op)
 		SuspendIO(false);
 	}
 	return ret;
+}
+inline uint __proc_id_hash_func__(void* proc_id)
+{
+	assert(VALID(proc_id));
+	uint uid=ptr_to_uint(proc_id);
+	uint hash_val=uid%PROC_ID_TABLE_LEN;
+	uint instance_id=__instance_id(uid);
+	const uint inst_group_shift=4;
+	const uint inst_group_len=1<<inst_group_shift;
+	if(instance_id!=0)
+		hash_val=(hash_val+((__process_id(uid)<<inst_group_shift)%(PROC_ID_TABLE_LEN-inst_group_len)
+			+inst_group_len)+instance_id)%PROC_ID_TABLE_LEN;
+	return hash_val;
+}
+bool proc_id_ring_map::query_proc_ring(void* proc_id,SrvProcRing** ring,proc_id_ring_rec** pprec,map<void*,SrvProcRing*>::iterator* it)
+{
+	if(!VALID(proc_id))
+		return false;
+	uint hash_val=__proc_id_hash_func__(proc_id);
+	proc_id_ring_rec& rec=proc_id_table[hash_val];
+	if(pprec!=NULL)
+		*pprec=&rec;
+	if(rec.cnt==0||(rec.ring!=NULL&&rec.ring->t.key.caller!=proc_id))
+	{
+		if(ring!=NULL)
+			*ring=NULL;
+		if(it!=NULL)
+			*it=proc_id_map.end();
+		return false;
+	}
+	else if(rec.ring!=NULL)
+	{
+		assert(rec.cnt==1);
+		if(ring!=NULL)
+			*ring=rec.ring;
+		if(it==NULL)
+			return true;
+	}
+	map<void*,SrvProcRing*>::iterator iter=proc_id_map.find(proc_id);
+	bool exist=iter!=proc_id_map.end();
+	if(ring!=NULL)
+	{
+		if(exist)
+			*ring=iter->second;
+		else
+			*ring=NULL;
+	}
+	if(it!=NULL)
+		*it=iter;
+	return exist;
+}
+SrvProcRing* proc_id_ring_map::find_proc_from_id(void* proc_id)
+{
+	SrvProcRing* proc_ring;
+	if(query_proc_ring(proc_id,&proc_ring))
+		return proc_ring;
+	else
+		return NULL;
+}
+bool proc_id_ring_map::add_proc(void* proc_id,SrvProcRing* proc_ring)
+{
+	assert(VALID(proc_id));
+	proc_id_ring_rec* prec;
+	if(query_proc_ring(proc_id,NULL,&prec))
+		return false;
+	add_proc_no_check(proc_id,prec,proc_ring);
+	return true;
+}
+void proc_id_ring_map::add_proc_no_check(void* proc_id,proc_id_ring_rec* prec,SrvProcRing* proc_ring)
+{
+	assert(VALID(proc_id));
+	proc_id_ring_rec& rec=*prec;
+	proc_id_map[proc_id]=proc_ring;
+	switch(rec.cnt)
+	{
+	case 0:
+		assert(rec.ring==NULL);
+		rec.ring=proc_ring;
+		break;
+	case 1:
+		assert(rec.ring!=NULL);
+		rec.ring=NULL;
+		break;
+	default:
+		assert(rec.ring==NULL);
+		break;
+	}
+	rec.cnt++;
+}
+SrvProcRing* proc_id_ring_map::remove_proc(void* proc_id)
+{
+	assert(VALID(proc_id));
+	uint hash_val=__proc_id_hash_func__(proc_id);
+	proc_id_ring_rec& rec=proc_id_table[hash_val];
+	switch(rec.cnt)
+	{
+	case 0:
+		assert(rec.ring==NULL);
+		return NULL;
+	case 1:
+		assert(rec.ring!=NULL);
+		if(rec.ring->t.key.caller==proc_id)
+			rec.ring=NULL;
+		break;
+	default:
+		assert(rec.ring==NULL);
+		break;
+	}
+	map<void*,SrvProcRing*>::iterator it=proc_id_map.find(proc_id);
+	bool exist=it==proc_id_map.end();
+	bool restore=false;
+	SrvProcRing* ring=NULL;
+	if(exist)
+	{
+		ring=it->second;
+		proc_id_map.erase(it);
+		rec.cnt--;
+		if(rec.cnt==1)
+			restore=true;
+	}
+	if(restore)
+	{
+		for(it=proc_id_map.begin();it!=proc_id_map.end();++it)
+		{
+			if(__proc_id_hash_func__(it->first)==hash_val)
+			{
+				rec.ring=it->second;
+				break;
+			}
+		}
+	}
+	return ring;
+}
+void proc_id_ring_map::clear()
+{
+	proc_id_map.clear();
+	memset(proc_id_table,0,sizeof(proc_id_table));
+}
+proc_id_ring_map::iterator proc_id_ring_map::begin()
+{
+	return iterator(proc_id_map.begin(),proc_id_map.end());
 }
 int cb_fs_server(void* addr,void* param,int op);
 int fs_server(void* param)
@@ -595,43 +717,39 @@ void FsServer::Clear(void* proc_id,bool cl_root)
 {
 	if(VALID(proc_id))
 	{
-		map<void*,SrvProcRing*>::iterator it=proc_id_map.find(proc_id);
-		if(it==proc_id_map.end())
+		SrvProcRing* ring;
+		if(cl_root)
+			ring=proc_id_map.remove_proc(proc_id);
+		else
+			ring=proc_id_map.find_proc_from_id(proc_id);
+		if(ring==NULL)
 			return;
+		clear_ring(smap,ring,cdrvcall,chdev);
+		if(cl_root)
+			delete ring;
+		return;
+	}
+	for(proc_id_ring_map::iterator it=proc_id_map.begin();it;++it)
+	{
 		SrvProcRing* ring=it->second;
 		clear_ring(smap,ring,cdrvcall,chdev);
 		if(cl_root)
-		{
-			proc_id_map.erase(it);
 			delete ring;
-		}
-		return;
 	}
-	map<void*,SrvProcRing*>::iterator it;
 	if(cl_root)
-	{
-		while((it=proc_id_map.begin())!=proc_id_map.end())
-		{
-			SrvProcRing* ring=it->second;
-			clear_ring(smap,ring,cdrvcall,chdev);
-			proc_id_map.erase(it);
-			delete ring;
-		}
-	}
-	else
-	{
-		for(it=proc_id_map.begin();it!=proc_id_map.end();++it)
-		{
-			SrvProcRing* ring=it->second;
-			clear_ring(smap,ring,cdrvcall,chdev);
-		}
-	}
+		proc_id_map.clear();
 	assert(smap.empty());
 }
 bool FsServer::Reset(void* proc_id)
 {
-	bool exist=(VALID(proc_id)?(proc_id_map.find(proc_id)!=proc_id_map.end()
-		&&!proc_id_map[proc_id]->Empty()):!smap.empty());
+	bool exist;
+	if(VALID(proc_id))
+	{
+		SrvProcRing* proc_ring=proc_id_map.find_proc_from_id(proc_id);
+		exist=(proc_ring!=NULL&&proc_ring->Empty());
+	}
+	else
+		exist=!smap.empty();
 	Clear(proc_id,true);
 	reset_if(cifproc->hif);
 	return exist;
@@ -687,36 +805,33 @@ bool FsServer::RestoreData(datagram_base* data)
 {
 	if(!VALID(data->caller))
 		return false;
-	map<void*,SrvProcRing*>::iterator it;
-	if((it=proc_id_map.find(data->caller))==proc_id_map.end())
+	SrvProcRing* ring;
+	if((ring=proc_id_map.find_proc_from_id(data->caller))==NULL)
 		return false;
-	SrvProcRing* ring=it->second;
-	BackupRing* backring=ring->get_backup_ring();
 	DataBackupRestoreCallback cb=host->GetDBRCallback(data->cmd);
 	if(cb==NULL)
 		return false;
-	return cb(data,backring,false);
+	return cb(data,ring->get_backup_ring(),false);
 }
 void FsServer::BackupData(datagram_base* data)
 {
 	if(data->ret!=0)
 		return;
-	map<void*,SrvProcRing*>::iterator it;
-	if((it=proc_id_map.find(data->caller))==proc_id_map.end())
+	SrvProcRing* ring;
+	if((ring=proc_id_map.find_proc_from_id(data->caller))==NULL)
 		return;
-	SrvProcRing* ring=it->second;
-	BackupRing* backring=ring->get_backup_ring();
 	DataBackupRestoreCallback cb=host->GetDBRCallback(data->cmd);
 	if(cb==NULL)
 		return;
-	cb(data,backring,true);
+	cb(data,ring->get_backup_ring(),true);
 }
 bool FsServer::AddProcRing(void* proc_id)
 {
-	map<void*,SrvProcRing*>::iterator it;
-	if((it=proc_id_map.find(proc_id))!=proc_id_map.end())
+	assert(VALID(proc_id));
+	proc_id_ring_rec* prec;
+	if(proc_id_map.query_proc_ring(proc_id,NULL,&prec))
 		return false;
-	proc_id_map[proc_id]=new SrvProcRing(this,proc_id);
+	proc_id_map.add_proc_no_check(proc_id,prec,new SrvProcRing(this,proc_id));
 	return true;
 }
 int cb_fs_server(void* addr,void* param,int op)
@@ -814,7 +929,8 @@ void* FsServer::AddNode(void* proc_id,FileServerRec* pRec)
 {
 	FileServerKey key;
 	key.caller=proc_id;
-	SrvProcRing* ring=proc_id_map[key.caller];
+	SrvProcRing* ring=proc_id_map.find_proc_from_id(key.caller);
+	assert(ring!=NULL);
 	void* h=ring->get_handle();
 	key.hFile=h;
 	BiRingNode<FileServerRec>* node=new BiRingNode<FileServerRec>;
