@@ -563,8 +563,15 @@ void proc_id_ring_map::add_proc_no_check(void* proc_id,proc_id_ring_rec* prec,Sr
 SrvProcRing* proc_id_ring_map::remove_proc(void* proc_id)
 {
 	assert(VALID(proc_id));
-	uint hash_val=__proc_id_hash_func__(proc_id,cache);
-	proc_id_ring_rec& rec=proc_id_table[hash_val];
+	proc_id_ring_rec* prec;
+	map<void*,SrvProcRing*>::iterator it;
+	if(!query_proc_ring(proc_id,NULL,&prec,&it))
+		return NULL;
+	return remove_proc_no_check(proc_id,prec,it);
+}
+SrvProcRing* proc_id_ring_map::remove_proc_no_check(void* proc_id,proc_id_ring_rec* prec,map<void*,SrvProcRing*>::iterator& it)
+{
+	proc_id_ring_rec& rec=*prec;
 	switch(rec.cnt)
 	{
 	case 0:
@@ -579,27 +586,19 @@ SrvProcRing* proc_id_ring_map::remove_proc(void* proc_id)
 		assert(rec.ring==NULL);
 		break;
 	}
-	map<void*,SrvProcRing*>::iterator it=proc_id_map.find(proc_id);
-	bool exist=it==proc_id_map.end();
-	bool restore=false;
-	SrvProcRing* ring=NULL;
-	if(exist)
+	SrvProcRing* ring=it->second;
+	proc_id_map.erase(it);
+	rec.cnt--;
+	if(rec.cnt!=1)
+		return ring;
+	uint hash_val=prec-proc_id_table;
+	for(map<void*,SrvProcRing*>::iterator traverse_it=proc_id_map.begin();
+		traverse_it!=proc_id_map.end();++traverse_it)
 	{
-		ring=it->second;
-		proc_id_map.erase(it);
-		rec.cnt--;
-		if(rec.cnt==1)
-			restore=true;
-	}
-	if(restore)
-	{
-		for(it=proc_id_map.begin();it!=proc_id_map.end();++it)
+		if(__proc_id_hash_func__(traverse_it->first,cache)==hash_val)
 		{
-			if(__proc_id_hash_func__(it->first,cache)==hash_val)
-			{
-				rec.ring=it->second;
-				break;
-			}
+			rec.ring=traverse_it->second;
+			break;
 		}
 	}
 	return ring;
