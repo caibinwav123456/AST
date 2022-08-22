@@ -442,6 +442,7 @@ public:
 	bool add_proc(void* proc_id,SrvProcRing* proc_ring);
 	void add_proc_no_check(void* proc_id,proc_id_ring_rec* prec,SrvProcRing* proc_ring);
 	SrvProcRing* remove_proc(void* proc_id);
+	SrvProcRing* remove_proc_no_check(void* proc_id,proc_id_ring_rec* prec,map<void*,SrvProcRing*>::iterator& it);
 	void clear();
 	iterator begin();
 private:
