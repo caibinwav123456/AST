@@ -76,9 +76,9 @@ int main(int argc,char** argv)
 	char* dbuf=(char*)malloc(2*ns);
 	char *end=buf+ns,*ptr,*dptr;
 	// "\r\n" "\n" "\r"
+	int detected=0;
 	for(ptr=buf,dptr=dbuf;ptr<end;ptr++)
 	{
-		int detected=0;
 		switch(*ptr)
 		{
 		case '\r':
@@ -109,7 +109,7 @@ int main(int argc,char** argv)
 		}
 	}
 	free(buf);
-	if(verbose)
+	if(verbose||!detected)
 		return 0;
 	int dlen=dptr-dbuf;
 	file=fopen(path,"w");
