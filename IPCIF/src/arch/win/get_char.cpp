@@ -1,4 +1,5 @@
-#include "fs_shell.h"
+#include "common.h"
+#include "key_def.h"
 #include <conio.h>
 static bool quit_get_char=false;
 void quit_sh()
