@@ -110,7 +110,10 @@ int main(int argc,char** argv)
 	}
 	free(buf);
 	if(verbose||!detected)
+	{
+		free(dbuf);
 		return 0;
+	}
 	int dlen=dptr-dbuf;
 	file=fopen(path,"w");
 	if(file==NULL)
