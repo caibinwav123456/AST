@@ -1,6 +1,6 @@
-CPPSRCS:=$(wildcard *.cpp)
-CSRCS:=$(wildcard *.c)
-OBJS:=$(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
+CPPSRCS+=$(wildcard *.cpp)
+CSRCS+=$(wildcard *.c)
+OBJS=$(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
 
 CFLAGS_LOCAL=$(CFLAGS)
 
@@ -21,4 +21,4 @@ depend: $(CPPSRCS) $(CSRCS)
 sinclude depend
 
 clean:
-	@-$(RM) depend ./*.o ./*.a
+	@-$(RM) depend $(OBJS) ./*.a

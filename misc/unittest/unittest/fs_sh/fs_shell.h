@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 using namespace std;
-#define CTRL_KEY (1<<31)
 #define FS_CMD_HANDLE_STATE_EXEC 0
 #define FS_CMD_HANDLE_STATE_INIT 1
 #define FS_CMD_HANDLE_STATE_EXIT 2

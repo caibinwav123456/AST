@@ -3,7 +3,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include "fs_shell.h"
+#include "common.h"
+#include "key_def_linux.h"
 static bool quit_get_char=false;
 void quit_sh()
 {

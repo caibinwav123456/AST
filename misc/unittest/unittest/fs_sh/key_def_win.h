@@ -1,6 +1,8 @@
 #ifndef _KEY_DEF_WIN_H_
 #define _KEY_DEF_WIN_H_
 
+#define CTRL_KEY (1<<31)
+
 #define VK_ESC 27
 #define VK_RETURN ((uint)'\r')
 #define VK_CTRL_Q 17
