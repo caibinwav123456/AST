@@ -1,0 +1,7 @@
+for file in `tree -nif --noreport $1`; do
+ if [ -f $file ]; then
+  if [ "${file##*.}"x = "cpp"x ] || [ "${file##*.}"x = "c"x ] || [ "${file##*.}"x = "h"x ] || [ "${file##*.}"x = "java"x ]; then
+   ./set_line_ending $file $2 $3;
+  fi
+ fi;
+done
