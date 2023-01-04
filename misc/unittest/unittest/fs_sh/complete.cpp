@@ -226,6 +226,7 @@ void display_file_list(vector<string>& files)
 	for(int i=0;i<(int)files.size();i++)
 	{
 		rec.file=&files[i];
+		pseudo.push_back(rec);
 	}
 	display_candt_list(pseudo);
 }
