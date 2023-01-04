@@ -321,11 +321,16 @@ struct BackupData
 			DateTime date[3];
 		};
 	};
+	void clear()
+	{
+		lsfiles.clear();
+		devtype.clear();
+	}
 };
 class BackupRing;
 typedef bool (*DataBackupRestoreCallback)(datagram_base* dbase,BackupRing* ring,bool backup);
 #define CONFIG_CMD_BACKUP_RESTORE_CALLBACK(cmd,callback) \
-	BackupRing :: config_cmd_backup_restore_callback __config_back_restore_cb_ ## cmd (cmd, BackupRing :: callback)
+	BackupRing :: config_cmd_backup_restore_callback __config_back_restore_cb_ ## cmd (cmd, callback)
 class BackupRing
 {
 public:
@@ -352,16 +357,9 @@ public:
 	};
 	void Init();
 	void ReleaseAll();
-	static bool DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup);
-	static bool DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup);
-	static bool DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup);
-	static bool DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup);
-	static bool DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup);
-	static bool DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup);
-	static bool DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backup);
 	static vector<pair<uint, DataBackupRestoreCallback>>* get_config_backup_vec();
-private:
 	BiRingNode<BackupData>* GetNode(datagram_base* data,bool backup);
+private:
 	map<dword,BiRingNode<BackupData>*> bmap;
 	BiRing<BackupData> backup_free;
 	BiRing<BackupData> backup_data;

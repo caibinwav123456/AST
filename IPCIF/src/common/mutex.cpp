@@ -1,4 +1,5 @@
 #include "mutex.h"
+#define GATE_VALVE 1024
 gate::gate()
 {
 	cnt=0;

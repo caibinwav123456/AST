@@ -12,11 +12,10 @@
 //r w+
 int main(int argc,char** argv)
 {
-	
 	if(argc<=1)
 		return 0;
 	int type=LINEEND_LINUX;
-	int verbose=0;
+	int write=0;
 	char* path=NULL;
 	char* ending;
 	int endinglen;
@@ -28,8 +27,8 @@ int main(int argc,char** argv)
 			type=LINEEND_WIN;
 		else if(strcmp(argv[i],"-mac")==0)
 			type=LINEEND_MAC;
-		else if(strcmp(argv[i],"-v")==0)
-			verbose=1;
+		else if(strcmp(argv[i],"-w")==0)
+			write=1;
 		else if(path==NULL&&argv[i][0]!='-')
 			path=argv[i];
 		else
@@ -100,7 +99,7 @@ int main(int argc,char** argv)
 		default:
 			*(dptr++)=*ptr;
 		}
-		if(verbose&&detected)
+		if((!write)&&detected)
 		{
 			free(buf);
 			free(dbuf);
@@ -109,7 +108,7 @@ int main(int argc,char** argv)
 		}
 	}
 	free(buf);
-	if(verbose||!detected)
+	if(!(write&&detected))
 	{
 		free(dbuf);
 		return 0;
@@ -130,6 +129,7 @@ int main(int argc,char** argv)
 		return -1;
 	}
 	free(dbuf);
-	fclose(file);	
+	fclose(file);
+	printf("\'%s\': line endings normalized\n",path);
 	return 0;
 }

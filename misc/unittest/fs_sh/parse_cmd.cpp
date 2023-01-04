@@ -218,7 +218,7 @@ static int __parse_cmd(const byte* buf,int size,
 	tdata.ps=&vs;
 	if(privdata!=NULL)
 	{
-		FSEnvSet& env=privdata->env_cache;
+		FSEnvSet& env=priv2env(privdata).env_cache;
 		safe_return(ret,env.ReplaceEnv(origin_cmd,output,&vs.sd));
 		buf=(const byte*)output.c_str();
 		size=vs.len=output.size();
@@ -289,7 +289,7 @@ static int __parse_cmd(const byte* buf,int size,
 			if(args.back().second.empty())
 			{
 				if(args.size()==1&&privdata!=NULL)
-					privdata->env_flags|=CTXPRIV_ENVF_DEL;
+					priv2env(privdata).env_flags|=CTXPRIV_ENVF_DEL;
 			}
 #endif
 			continue;
@@ -300,7 +300,7 @@ static int __parse_cmd(const byte* buf,int size,
 		{
 #ifdef USE_FS_ENV_VAR
 			if(args.size()==1&&privdata!=NULL)
-				privdata->env_flags|=CTXPRIV_ENVF_DEL;
+				priv2env(privdata).env_flags|=CTXPRIV_ENVF_DEL;
 			else
 #endif
 			return ERR_INVALID_CMD;
@@ -309,9 +309,9 @@ static int __parse_cmd(const byte* buf,int size,
 			make_token(pbuf,buf,token_buf,args.back().second);
 	}
 #ifdef USE_FS_ENV_VAR
-	if(args.size()>1&&privdata!=NULL&&(privdata->env_flags&CTXPRIV_ENVF_DEL))
+	if(args.size()>1&&privdata!=NULL&&(priv2env(privdata).env_flags&CTXPRIV_ENVF_DEL))
 	{
-		privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+		priv2env(privdata).env_flags&=(~CTXPRIV_ENVF_DEL);
 		return ERR_INVALID_CMD;
 	}
 #endif
@@ -325,7 +325,7 @@ int parse_cmd(const byte* buf,int size,
 	{
 		args.clear();
 #ifdef USE_FS_ENV_VAR
-		priv->env_flags&=(~CTXPRIV_ENVF_DEL);
+		priv2env(priv).env_flags&=(~CTXPRIV_ENVF_DEL);
 #endif
 	}
 	return ret;

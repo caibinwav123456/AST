@@ -11,8 +11,8 @@
 #define chdev if_info->hdev
 #define cdrvcall if_info->sto_drv->drvcall
 #define check_root(path) (strcmp((path),"/")==0)
-DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
+DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_UINT_VAL(fsserver_backup_buf_num,8);
 DEFINE_UINT_VAL(fsserver_backup_sid_reserve,8);
 FssContainer g_fssrv;
@@ -23,16 +23,16 @@ bool less_servrec_ptr::operator()(const FileServerKey& a, const FileServerKey& b
 	else
 		return a.hFile<b.hFile;
 }
-bool equal_mod(storage_mod_info& a,storage_mod_info& b)
+bool equal_mod(const storage_mod_info& a,const storage_mod_info& b)
 {
 	return a.mod_name==b.mod_name;
 }
-bool equal_drv(storage_drv_info& a,storage_drv_info& b)
+bool equal_drv(const storage_drv_info& a,const storage_drv_info& b)
 {
 	return a.drv_name==b.drv_name;
 }
 template<class T>
-T* find_in_vector(vector<T>& v,T& element,bool(*equal_func)(T&,T&))
+T* find_in_vector(vector<T>& v,const T& element,bool(*equal_func)(const T&,const T&))
 {
 	for(int i=0;i<(int)v.size();i++)
 	{
@@ -51,17 +51,12 @@ void BackupRing::Init()
 		backup_free.AddNodeToBegin(backup_items+i);
 	}
 }
-inline void clear_backup_ring_node(BiRingNode<BackupData>* node)
-{
-	node->t.lsfiles.clear();
-	node->t.devtype.clear();
-}
 void BackupRing::ReleaseAll()
 {
 	BiRingNode<BackupData>* node=NULL;
 	while((node=backup_data.GetPrev())!=&backup_data)
 	{
-		clear_backup_ring_node(node);
+		node->t.clear();
 		node->Detach();
 		backup_free.AddNodeToBegin(node);
 	}
@@ -85,7 +80,7 @@ BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
 			{
 				if((it=bmap.find(node->t.dbase.sid))!=bmap.end())
 					bmap.erase(it);
-				clear_backup_ring_node(node);
+				node->t.clear();
 				node->Detach();
 				backup_free.AddNodeToBegin(node);
 			}
@@ -102,7 +97,7 @@ BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
 				bmap.erase(it);
 		}
 		memcpy(&node->t.dbase,data,sizeof(datagram_base));
-		clear_backup_ring_node(node);
+		node->t.clear();
 		backup_data.AddNodeToBegin(node);
 		bmap[data->sid]=node;
 	}
@@ -124,12 +119,12 @@ BiRingNode<BackupData>* BackupRing::GetNode(datagram_base* data,bool backup)
 		return false; \
 	if(dbase->ret!=0) \
 		return true
-bool BackupRing::DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallRet(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	return true;
 }
-bool BackupRing::DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	dg_fsopen* dg=(dg_fsopen*)dbase;
@@ -139,7 +134,7 @@ bool BackupRing::DBRCallHandle(datagram_base* dbase,BackupRing* ring,bool backup
 		dg->open.hFile=node->t.handle;
 	return true;
 }
-bool BackupRing::DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	dg_fsrdwr* dg=(dg_fsrdwr*)dbase;
@@ -157,7 +152,7 @@ bool BackupRing::DBRCallRdWr(datagram_base* dbase,BackupRing* ring,bool backup)
 	}
 	return true;
 }
-bool BackupRing::DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	dg_fssize* dg=(dg_fssize*)dbase;
@@ -173,7 +168,7 @@ bool BackupRing::DBRCallSize(datagram_base* dbase,BackupRing* ring,bool backup)
 	}
 	return true;
 }
-bool BackupRing::DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	dg_fslsfiles* dg=(dg_fslsfiles*)dbase;
@@ -201,7 +196,7 @@ bool BackupRing::DBRCallFiles(datagram_base* dbase,BackupRing* ring,bool backup)
 	}
 	return true;
 }
-bool BackupRing::DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	dg_fsattr* dg=(dg_fsattr*)dbase;
@@ -221,7 +216,7 @@ bool BackupRing::DBRCallAttr(datagram_base* dbase,BackupRing* ring,bool backup)
 	}
 	return true;
 }
-bool BackupRing::DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backup)
+static bool DBRCallDevInfo(datagram_base* dbase,BackupRing* ring,bool backup)
 {
 	common_backup_restore_code;
 	dg_fsdevinfo* dg=(dg_fsdevinfo*)dbase;

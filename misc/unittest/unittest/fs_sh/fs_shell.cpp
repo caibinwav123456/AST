@@ -144,9 +144,17 @@ void process_normal_key(sh_context* ctx)
 }
 int run_sh()
 {
+	int ret=0;
 	sh_context ctx;
 	if(cmd_handler!=NULL)
-		cmd_handler(&ctx,FS_CMD_HANDLE_STATE_INIT);
+	{
+		if(0!=(ret=cmd_handler(&ctx,FS_CMD_HANDLE_STATE_INIT)))
+		{
+			printf("command handler initialization failed\n");
+			cmd_handler(&ctx,FS_CMD_HANDLE_STATE_EXIT);
+			return ret;
+		}
+	}
 	print_prompt(&ctx);
 	for(;;)
 	{
@@ -164,6 +172,9 @@ int run_sh()
 		}
 	}
 	if(cmd_handler!=NULL)
-		cmd_handler(&ctx,FS_CMD_HANDLE_STATE_EXIT);
+	{
+		if(0!=(ret=cmd_handler(&ctx,FS_CMD_HANDLE_STATE_EXIT)))
+			return ret;
+	}
 	return 0;
 }
