@@ -18,8 +18,6 @@ using namespace std;
 		close_if(hif); \
 		hif=NULL; \
 	}
-#define MAX_FLIST_CHAR 80
-#define MAX_NUM_FLIST 8
 #define MIN_TPBUF_LEN 1024
 #define CMD_REDIR "\t%redir%\t"
 enum E_FILE_DISP_MODE
@@ -603,15 +601,15 @@ static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<s
 {
 	int ret=0;
 	bset=false;
-	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
-	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+	bool del_flag=!!(priv2env(privdata).env_flags&CTXPRIV_ENVF_DEL);
+	priv2env(privdata).env_flags&=(~CTXPRIV_ENVF_DEL);
 	if(args.size()!=1)
 		return 0;
 	bool empty=args[0].second.empty();
 	assert(!((!empty)&&del_flag));
 	if(empty&&!del_flag)
 		return 0;
-	if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+	if(0!=(ret=priv2env(privdata).env_cache.SetEnv(args[0].first,args[0].second)))
 		return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
 			args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
 	bset=true;
@@ -746,25 +744,7 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 {
 	common_sh_args(param);
 	if(mode==file_disp_simple)
-	{
-		uint nc=0,nf=0;
-		for(int i=0;i<(int)flist.size();i++)
-		{
-			if(nc>=MAX_FLIST_CHAR||nf>=MAX_NUM_FLIST)
-			{
-				t_output("\n");
-				nc=0;
-				nf=0;
-			}
-			else if(i!=0)
-				t_output("\t");
-			nc+=flist[i].size();
-			nf++;
-			t_output("%s",quote_file(flist[i]).c_str());
-		}
-		if(nc>0||nf>0)
-			t_output("\n");
-	}
+		display_file_list(flist);
 	else
 	{
 		st_stat_file_time date;

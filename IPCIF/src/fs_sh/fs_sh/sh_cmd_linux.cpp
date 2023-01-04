@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <signal.h>
 #ifndef USE_LS_AS_LIST_FILES
 #include <sys/types.h>
 #include <dirent.h>
@@ -19,6 +20,45 @@
 #define EXEC_MODE_NORM "normal"
 #define CMD_PRINT_ENV "print"
 
+struct signal_handler_st
+{
+	int sig;
+	sighandler_t handler;
+};
+static void signal_handler(int sig)
+{
+	switch(sig)
+	{
+	case SIGHUP:
+		break;
+	case SIGINT:
+		printf("^C\n");
+		break;
+	default:
+		break;
+	}
+};
+static signal_handler_st signals[]={
+	{SIGHUP,signal_handler},
+	{SIGINT,signal_handler},
+	{SIGTTIN,SIG_IGN},
+	{SIGTTOU,SIG_IGN},
+};
+static int register_signal_handlers(dword state)
+{
+	switch(state)
+	{
+	case FS_CMD_HANDLE_STATE_INIT:
+		for(int i=0;i<sizeof(signals)/sizeof(signal_handler_st);i++)
+			signal(signals[i].sig,signals[i].handler);
+		break;
+	case FS_CMD_HANDLE_STATE_EXIT:
+		for(int i=0;i<sizeof(signals)/sizeof(signal_handler_st);i++)
+			signal(signals[i].sig,SIG_DFL);
+		break;
+	}
+	return 0;
+}
 static const byte ls_suffix[]={'*','@','|','>'};
 struct st_alias
 {
@@ -145,15 +185,15 @@ static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<s
 {
 	int ret=0;
 	bset=false;
-	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
-	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+	bool del_flag=!!(priv2env(privdata).env_flags&CTXPRIV_ENVF_DEL);
+	priv2env(privdata).env_flags&=(~CTXPRIV_ENVF_DEL);
 	if(args.size()!=1)
 		return 0;
 	bool empty=args[0].second.empty();
 	assert(!((!empty)&&del_flag));
 	if(empty&&!del_flag)
 		return 0;
-	if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+	if(0!=(ret=priv2env(privdata).env_cache.SetEnv(args[0].first,args[0].second)))
 	{
 		const char* errmsg=NULL;
 		switch(ret)
@@ -173,6 +213,18 @@ static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<s
 	return 0;
 }
 #endif
+static int exec_cmd(const string& cmd)
+{
+	string final_cmd=quote_file(cmd);
+	final_cmd=string("bash -c -i ")+final_cmd;
+	int ret=system(final_cmd.c_str());
+	if(tcsetpgrp(STDIN_FILENO,getpid())==-1)
+	{
+		printf("setpgrp error\n");
+		return ERR_GENERIC;
+	}
+	return ret;
+}
 static int execute(sh_context* ctx)
 {
 	string cmd=ctx->cmd;
@@ -193,7 +245,7 @@ static int execute(sh_context* ctx)
 		}
 #endif
 		if(ctx->flags&CTX_FLAG_EXEC_ALL)
-			return system(cmd.c_str());
+			return exec_cmd(cmd);
 		switch(ret)
 		{
 		case ERR_INVALID_CMD:
@@ -220,7 +272,7 @@ static int execute(sh_context* ctx)
 	{
 		if(0!=(ret=check_args(args)))
 			return ret;
-		print_env(ctx->priv->env_cache,args);
+		print_env(ctx2env(ctx).env_cache,args);
 	}
 	else
 #endif
@@ -277,8 +329,7 @@ static int execute(sh_context* ctx)
 			break;
 		}
 		generate_cmd(args,cmd);
-		if(0!=(ret=system(cmd.c_str())))
-			return ret;
+		return exec_cmd(cmd);
 	}
 	return 0;
 }
@@ -391,9 +442,11 @@ static int linux_cmd_handler(sh_context* ctx,dword state)
 			ret=execute(ctx);
 		break;
 	case FS_CMD_HANDLE_STATE_INIT:
+		ret=register_signal_handlers(state);
 		init_ctx_priv(ctx);
 		break;
 	case FS_CMD_HANDLE_STATE_EXIT:
+		ret=register_signal_handlers(state);
 		destroy_ctx_priv(ctx);
 		break;
 	}
