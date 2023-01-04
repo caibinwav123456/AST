@@ -10,6 +10,11 @@
 #include <assert.h>
 #define is_quote(c) ((c)=='\"'||(c)=='\'')
 #define MAX_FLIST_CHAR 160
+#if !defined(WIN32)
+#define CmpNoCase strncasecmp
+#else
+#define CmpNoCase strnicmp
+#endif
 
 static const byte spec_file_char[]={' ',';','@','|','<','>','`','^','!','?','\"','\'',
 	'(',')','[',']','$','\\','&'};
@@ -20,8 +25,13 @@ struct sort_rec
 };
 static bool less_rec(const sort_rec& a,const sort_rec& b)
 {
-	int ret=strncasecmp(a.file->c_str(),b.file->c_str(),min(a.file->size(),b.file->size()));
-	return ret==0?(a.file->size()<b.file->size()):(ret<0);
+	int ret=CmpNoCase(a.file->c_str(),b.file->c_str(),min(a.file->size(),b.file->size()));
+	if(ret!=0)
+		return ret<0;
+	ret=(a.file->size()<b.file->size());
+	if(ret!=0)
+		return ret<0;
+	return *a.file<*b.file;
 }
 char need_quote(const string& file)
 {
@@ -207,7 +217,7 @@ static void display_candt_list(vector<sort_rec>& files)
 		rem=height;
 	for(int i=0;i<(int)height;i++)
 	{
-		int pitch=(i<rem?width_arr.size():width_arr.size()-1);
+		int pitch=(i<(int)rem?width_arr.size():width_arr.size()-1);
 		for(int j=0;j<pitch;j++)
 		{
 			uint idx=i+j*height;
