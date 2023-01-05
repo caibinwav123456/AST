@@ -229,13 +229,29 @@ static void display_candt_list(vector<sort_rec>& files)
 		printf("\n");
 	}
 }
-void display_file_list(vector<string>& files)
+void sort_file_list(vector<string*>& sorted,vector<string>& unsorted)
+{
+	vector<sort_rec> pseudo;
+	sort_rec rec;
+	for(int i=0;i<(int)unsorted.size();i++)
+	{
+		rec.file=&unsorted[i];
+		pseudo.push_back(rec);
+	}
+	sort(pseudo.begin(),pseudo.end(),less_rec);
+	sorted.clear();
+	for(int i=0;i<(int)pseudo.size();i++)
+	{
+		sorted.push_back(pseudo[i].file);
+	}
+}
+void display_file_list(vector<string*>& files)
 {
 	vector<sort_rec> pseudo;
 	sort_rec rec;
 	for(int i=0;i<(int)files.size();i++)
 	{
-		rec.file=&files[i];
+		rec.file=files[i];
 		pseudo.push_back(rec);
 	}
 	display_candt_list(pseudo);

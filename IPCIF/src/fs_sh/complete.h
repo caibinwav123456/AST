@@ -4,6 +4,7 @@
 #include "utility.h"
 char need_quote(const string& file);
 string quote_file(const string& file);
-void display_file_list(vector<string>& files);
+void sort_file_list(vector<string*>& sorted,vector<string>& unsorted);
+void display_file_list(vector<string*>& files);
 void complete(sh_context* ctx);
 #endif

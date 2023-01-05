@@ -740,7 +740,7 @@ DEF_SH_CMD(df,df_handler,
 	"The device names are listed as the interface id's of each device."
 	"The device type/file system format is listed along with its device name.\n"
 	"The default device is labeled with (default).\n");
-static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string>& flist,fs_attr_datetime ttype,E_FILE_DISP_MODE mode)
+static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string*>& flist,fs_attr_datetime ttype,E_FILE_DISP_MODE mode)
 {
 	common_sh_args(param);
 	if(mode==file_disp_simple)
@@ -752,7 +752,7 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 		string fullpath;
 		for(int i=0;i<(int)flist.size();i++)
 		{
-			string& file=flist[i];
+			string& file=*flist[i];
 			UInteger64 u64;
 			if(0!=get_full_path(cwd,file,fullpath))
 			{
@@ -794,19 +794,20 @@ static int list_file_path(cmd_param_st* param,const string& path,fs_attr_datetim
 		t_output("%s",strret.c_str());
 		return ret;
 	}
-	vector<string> flist;
+	vector<string> file_list;
+	vector<string*> flist;
 	bool bfile=false;
 	if(!FS_IS_DIR(flags))
 	{
 		bfile=true;
-		flist.push_back(path);
+		file_list.push_back(path);
 	}
 	else
 	{
 		if(dispdir)
 			t_output("%s:\n",path.c_str());
-		list_cur_dir_files(fullpath,flist);
-		sort(flist.begin(),flist.end());
+		list_cur_dir_files(fullpath,file_list);
+		sort_file_list(flist,file_list);
 	}
 	list_one_dir(param,bfile?ctx->pwd:fullpath,flist,ttype,mode);
 	return 0;
