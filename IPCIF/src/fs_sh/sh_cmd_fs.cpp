@@ -18,8 +18,6 @@ using namespace std;
 		close_if(hif); \
 		hif=NULL; \
 	}
-#define MAX_FLIST_CHAR 80
-#define MAX_NUM_FLIST 8
 #define MIN_TPBUF_LEN 1024
 #define CMD_REDIR "\t%redir%\t"
 enum E_FILE_DISP_MODE
@@ -603,15 +601,15 @@ static inline int handle_set_env_var(ctx_priv_data* privdata,const vector<pair<s
 {
 	int ret=0;
 	bset=false;
-	bool del_flag=!!(privdata->env_flags&CTXPRIV_ENVF_DEL);
-	privdata->env_flags&=(~CTXPRIV_ENVF_DEL);
+	bool del_flag=!!(priv2env(privdata).env_flags&CTXPRIV_ENVF_DEL);
+	priv2env(privdata).env_flags&=(~CTXPRIV_ENVF_DEL);
 	if(args.size()!=1)
 		return 0;
 	bool empty=args[0].second.empty();
 	assert(!((!empty)&&del_flag));
 	if(empty&&!del_flag)
 		return 0;
-	if(0!=(ret=privdata->env_cache.SetEnv(args[0].first,args[0].second)))
+	if(0!=(ret=priv2env(privdata).env_cache.SetEnv(args[0].first,args[0].second)))
 		return_msg(ret,"set environment variable \'%s\' to \'%s\' failed: %s\n",
 			args[0].first.c_str(),args[0].second.c_str(),get_error_desc(ret));
 	bset=true;
@@ -742,29 +740,11 @@ DEF_SH_CMD(df,df_handler,
 	"The device names are listed as the interface id's of each device."
 	"The device type/file system format is listed along with its device name.\n"
 	"The default device is labeled with (default).\n");
-static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string>& flist,fs_attr_datetime ttype,E_FILE_DISP_MODE mode)
+static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<string*>& flist,fs_attr_datetime ttype,E_FILE_DISP_MODE mode)
 {
 	common_sh_args(param);
 	if(mode==file_disp_simple)
-	{
-		uint nc=0,nf=0;
-		for(int i=0;i<(int)flist.size();i++)
-		{
-			if(nc>=MAX_FLIST_CHAR||nf>=MAX_NUM_FLIST)
-			{
-				t_output("\n");
-				nc=0;
-				nf=0;
-			}
-			else if(i!=0)
-				t_output("\t");
-			nc+=flist[i].size();
-			nf++;
-			t_output("%s",quote_file(flist[i]).c_str());
-		}
-		if(nc>0||nf>0)
-			t_output("\n");
-	}
+		display_file_list(flist);
 	else
 	{
 		st_stat_file_time date;
@@ -772,7 +752,7 @@ static inline void list_one_dir(cmd_param_st* param,const string& cwd,vector<str
 		string fullpath;
 		for(int i=0;i<(int)flist.size();i++)
 		{
-			string& file=flist[i];
+			string& file=*flist[i];
 			UInteger64 u64;
 			if(0!=get_full_path(cwd,file,fullpath))
 			{
@@ -814,19 +794,20 @@ static int list_file_path(cmd_param_st* param,const string& path,fs_attr_datetim
 		t_output("%s",strret.c_str());
 		return ret;
 	}
-	vector<string> flist;
+	vector<string> file_list;
+	vector<string*> flist;
 	bool bfile=false;
 	if(!FS_IS_DIR(flags))
 	{
 		bfile=true;
-		flist.push_back(path);
+		file_list.push_back(path);
 	}
 	else
 	{
 		if(dispdir)
 			t_output("%s:\n",path.c_str());
-		list_cur_dir_files(fullpath,flist);
-		sort(flist.begin(),flist.end());
+		list_cur_dir_files(fullpath,file_list);
+		sort_file_list(flist,file_list);
 	}
 	list_one_dir(param,bfile?ctx->pwd:fullpath,flist,ttype,mode);
 	return 0;
