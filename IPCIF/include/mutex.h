@@ -3,7 +3,6 @@
 #include "common.h"
 #include "utility.h"
 #include <assert.h>
-#define GATE_VALVE 128
 #define sem_safe_release(sem) \
 	if(VALID(sem)) \
 	{ \

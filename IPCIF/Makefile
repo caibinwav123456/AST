@@ -24,7 +24,12 @@ include $(TopDir)/.config
 ifeq ($(CONFIG_X64), true)
 CFLAGS+=-DCONFIG_X64
 endif
-CFLAGS+=-I$(TopDir)/include -I$(TopDir)/include/arch/linux -Os -Wno-write-strings
+ifeq ($(debug), true)
+CFLAGS+=-g -O0 -DDEBUG -D_DEBUG
+else
+CFLAGS+=-Os -DNDEBUG
+endif
+CFLAGS+=-I$(TopDir)/include -I$(TopDir)/include/arch/linux -Wno-write-strings
 EXE_CFLAGS+=-DDLL_IMPORT
 DLL_CFLAGS+=-fPIC -fvisibility=hidden
 

@@ -173,19 +173,13 @@ int ConfigProfile::LoadConfigFile(const char* filename)
 	if(!VALID(hFile))
 		return ERR_OPEN_FILE_FAILED;
 	if(0!=(ret=sys_get_file_size(hFile,&filesize)))
-	{
 		goto final;
-	}
 	buf=new byte[filesize];
 	if(0!=(ret=sys_fread(hFile,buf,filesize)))
-	{
 		goto final1;
-	}
 	configs.clear();
 	if(0!=(ret=parse_config_text(buf,filesize,configs)))
-	{
 		configs.clear();
-	}
 final1:
 	delete[] buf;
 final:

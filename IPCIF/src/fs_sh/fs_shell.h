@@ -24,15 +24,18 @@ using namespace std;
 struct ctx_priv_data
 {
 #ifdef USE_FS_ENV_VAR
-	FSEnvSet env_cache;
-	dword env_flags;
-#endif
-	ctx_priv_data()
+	struct fsenv_data
 	{
-#ifdef USE_FS_ENV_VAR
-		env_flags=0;
+		FSEnvSet env_cache;
+		dword env_flags;
+		fsenv_data()
+		{
+			env_flags=0;
+		}
+	}env_data;
+#define ctx2env(ctx) ((ctx)->priv->env_data)
+#define priv2env(priv) ((priv)->env_data)
 #endif
-	}
 };
 struct sh_context
 {
