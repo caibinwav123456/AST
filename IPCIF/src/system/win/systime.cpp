@@ -52,7 +52,7 @@ int sys_get_file_time(char* path,DateTime* creation_time,DateTime* modify_time,D
 	}
 	HANDLE hFile=CreateFileA(path,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,0);
 	if(!VALID(hFile))
-		return ERR_FILE_IO;
+		return ERR_OPEN_FILE_FAILED;
 	FILETIME tCreation,tModify,tAccess;
 	if(!GetFileTime(hFile,
 		creation_time!=NULL?&tCreation:NULL,
@@ -86,7 +86,7 @@ int sys_set_file_time(char* path,DateTime* creation_time,DateTime* modify_time,D
 		return 0;
 	HANDLE hFile=CreateFileA(path,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,0);
 	if(!VALID(hFile))
-		return ERR_FILE_IO;
+		return ERR_OPEN_FILE_FAILED;
 	FILETIME tCreation,tModify,tAccess;
 	FILETIME* tf[3]={&tCreation,&tModify,&tAccess};
 	DateTime* dt[3]={creation_time,modify_time,access_time};
