@@ -11,8 +11,8 @@ DEFINE_SIZE_VAL(sysfs_buffer_size,1024);
 IPCIF/src/fs_sh/sh_cmd_fs.cpp:
 DEFINE_SIZE_VAL(fs_tpbuf_len,MIN_TPBUF_LEN);
 IPCIF/src/sysfs/fs_server.cpp:
-DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_BOOL_VAL(fsserver_try_format_on_mount_fail,false);
+DEFINE_UINT_VAL(fsserver_handle_pass,8);
 DEFINE_UINT_VAL(fsserver_backup_buf_num,8);
 DEFINE_UINT_VAL(fsserver_backup_sid_reserve,8);
 IPCIF/src/sysfs/sysfs.cpp:
